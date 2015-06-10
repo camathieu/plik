@@ -43,7 +43,6 @@ type Upload struct {
 	ID          string           `json:"id" bson:"id"`
 	Creation    int64            `json:"uploadDate" bson:"uploadDate"`
 	Comments    string           `json:"comments" bson:"comments"`
-	FileList	[]*File          `json:"fileList",omitempty`
 	Files       map[string]*File `json:"files" bson:"files"`
 	RemoteIP    string           `json:"uploadIp,omitempty" bson:"uploadIp"`
 	ShortURL    string           `json:"shortUrl" bson:"shortUrl"`
@@ -75,7 +74,9 @@ func NewUpload() (upload *Upload) {
 func (upload *Upload) Create() {
 	upload.ID = GenerateRandomID(16)
 	upload.Creation = time.Now().Unix()
-	upload.Files = make(map[string]*File)
+	if upload.Files == nil {
+		upload.Files = make(map[string]*File)
+	}
 	upload.UploadToken = GenerateRandomID(32)
 }
 

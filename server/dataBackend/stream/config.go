@@ -42,7 +42,7 @@ type BackendConfig struct {
 // and override it with configuration passed as argument
 func NewStreamBackendConfig(config map[string]interface{}) (sbc *BackendConfig) {
 	sbc = new(BackendConfig)
-	sbc.Timeout = 600 // Default upload directory is ./files
+	sbc.Timeout = 600
 	utils.Assign(sbc, config)
 	return
 }

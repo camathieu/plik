@@ -73,6 +73,7 @@ func (sb *Backend) AddFile(ctx *common.PlikContext, upload *common.Upload, file 
 	id := upload.ID + "/" + file.ID
 	pipeReader, pipeWriter := io.Pipe()
 	sb.Store[id] = pipeReader
+	ctx.Infof("Store in %s", id)
 	buf := make([]byte,1024)
 	for {
 		done := make(chan struct{})
