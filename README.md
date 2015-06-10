@@ -1,4 +1,6 @@
 [![Build Status](https://travis-ci.org/root-gg/plik.svg?branch=master)](https://travis-ci.org/root-gg/plik)
+[![Go Report](https://img.shields.io/badge/Go_report-A+-brightgreen.svg)](http://goreportcard.com/report/root-gg/plik)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](http://opensource.org/licenses/MIT)
 
 # Plik
 
@@ -42,7 +44,7 @@ $ cd $GOPATH/github.com/root-gg/plik/
 
 As root user you need to install grunt, bower, and setup the golang crosscompilation environnement :
 ```sh
-$ sudo -c "npm install -g bower grunt"
+$ sudo -c "npm install -g bower grunt-cli"
 $ sudo -c "client/build.sh env"
 ```
 
@@ -69,6 +71,10 @@ Creating upload and uploading files :
          Important fields :
            - id (required to upload files)
            - uploadToken (required to upload files)
+
+   - **GET** /upload/:uploadid:
+     - Get upload metadatas (files list, upload date, ttl,...)
+
    - **POST** /upload/:uploadid:/file
      - Body must be a multipart request with a part named "file" containing file data
    Returning a JSON object of newly uploaded file
@@ -122,6 +128,26 @@ Secure upload (OpenSSL with aes-256-cbc by deault)
 $ plik -s file.doc
 
 ```
+
+
+### FAQ
+
+##### I have an error when uploading from client : "invalid character '<' looking for beginning of value"
+
+Under nginx < 1.3.9, you must enable HttpChunkin module to allow transfer-encoding "chunked".
+
+For debian, this module is present in the "nginx-extras" package
+
+And add in your server configuration :
+
+```sh
+        chunkin on;
+        error_page 411 = @my_411_error;
+        location @my_411_error {
+                chunkin_resume;
+        }
+```
+
 
 ### Participate
 
