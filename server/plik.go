@@ -83,6 +83,7 @@ func main() {
 	r.HandleFunc("/upload/{uploadID}", getUploadHandler).Methods("GET")
 	r.HandleFunc("/upload/{uploadID}/file", addFileHandler).Methods("POST")
 	r.HandleFunc("/upload/{uploadID}/file/{fileID}", getFileHandler).Methods("GET")
+	r.HandleFunc("/upload/{uploadID}/file/{fileID}", addFileHandler).Methods("POST")
 	r.HandleFunc("/upload/{uploadID}/file/{fileID}", removeFileHandler).Methods("DELETE")
 	r.HandleFunc("/file/{uploadID}/{fileID}/{filename}", getFileHandler).Methods("GET", "HEAD")
 	r.HandleFunc("/file/{uploadID}/{fileID}/{filename}/yubikey/{yubikey}", getFileHandler).Methods("GET")
@@ -158,6 +159,14 @@ func createUploadHandler(resp http.ResponseWriter, req *http.Request) {
 	ctx.SetUpload(upload.ID)
 	upload.RemoteIP = req.RemoteAddr
 	uploadToken := upload.UploadToken
+
+	if upload.Stream {
+		if !common.Config.StreamMode {
+			ctx.Warning("Stream mode is not enabled")
+			http.Error(resp, common.NewResult("Stream mode is not enabled", nil).ToJSONString(), 400)
+			return
+		}
+	}
 
 	// TTL = Time in second before the upload expiration
 	// 0 	-> No ttl specified : default value from configuration
@@ -437,7 +446,9 @@ func getFileHandler(resp http.ResponseWriter, req *http.Request) {
 
 	// Set content type and print file
 	resp.Header().Set("Content-Type", file.Type)
-	resp.Header().Set("Content-Length", strconv.Itoa(int(file.CurrentSize)))
+	if !upload.Stream {
+		resp.Header().Set("Content-Length", strconv.Itoa(int(file.CurrentSize)))
+	}
 
 	// If "dl" GET params is set
 	// -> Set Content-Disposition header
@@ -455,7 +466,13 @@ func getFileHandler(resp http.ResponseWriter, req *http.Request) {
 
 	if req.Method == "GET" {
 		// Get file in data backend
-		fileReader, err := dataBackend.GetDataBackend().GetFile(ctx.Fork("get file"), upload, file.ID)
+		var backend dataBackend.DataBackend
+		if(upload.Stream){
+			backend = dataBackend.GetStreamBackend()
+		} else {
+			backend = dataBackend.GetDataBackend()
+		}
+		fileReader, err := backend.GetFile(ctx.Fork("get file"), upload, file.ID)
 		if err != nil {
 			ctx.Warningf("Failed to get file %s in upload %s : %s", file.Name, upload.ID, err)
 			redirect(req, resp, fmt.Errorf("Failed to read file %s", file.Name), 404)
@@ -527,6 +544,132 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Create a new file object
+	newFile := common.NewFile()
+	newFile.Status = "to_upload"
+	ctx.SetFile(newFile.ID)
+
+	if req.Header.Get("X-FILE_NAME") != "" {
+		newFile.Name = req.Header.Get("X-FILE_NAME");
+	}
+
+	if req.Header.Get("X-CONTENT_TYPE") != "" {
+		newFile.Type = req.Header.Get("X-CONTENT_TYPE");
+	}
+
+	if req.Header.Get("X-CONTENT_LENGTH") != "" {
+		size, err := strconv.ParseInt(req.Header.Get("X-CONTENT_LENGTH"),10,32);
+		if err != nil {
+			ctx.Warningf("Invalid X-CONTENT_LENGTH : %s", err)
+			http.Error(resp, common.NewResult(fmt.Sprintf("Invalid X-CONTENT_LENGTH : %s", err), nil).ToJSONString(), 400)
+			return
+		}
+		newFile.CurrentSize = int64(size);
+	}
+
+	// Update upload metadata
+	upload.Files[newFile.ID] = newFile
+	err = metadataBackend.GetMetaDataBackend().AddOrUpdateFile(ctx.Fork("update metadata"), upload, newFile)
+	if err != nil {
+		ctx.Warningf("Unable to update metadata : %s", err)
+		http.Error(resp, common.NewResult(fmt.Sprintf("Error adding file %s to upload %s metadata : %s", newFile.Name, upload.ID, err), nil).ToJSONString(), 500)
+		return
+	}
+	// Remove all private informations (ip, data backend details, ...) before
+	// sending metadata back to the client
+	newFile.Sanitize()
+
+	// Print file metadata in the json response.
+	var json []byte
+	if json, err = utils.ToJson(newFile); err == nil {
+		resp.Write(json)
+	} else {
+		http.Error(resp, common.NewResult("Unable to serialize response body", nil).ToJSONString(), 500)
+	}
+}
+
+func uploadFileHandler(resp http.ResponseWriter, req *http.Request) {
+	var err error
+	ctx := common.NewPlikContext("add file handler", req)
+	defer ctx.Finalize(err)
+
+	// Get the upload id from the url params
+	vars := mux.Vars(req)
+	uploadID := vars["uploadID"]
+	ctx.SetUpload(uploadID)
+
+	// Get upload metadata
+	upload, err := metadataBackend.GetMetaDataBackend().Get(ctx.Fork("get metadata"), uploadID)
+	if err != nil {
+		ctx.Warningf("Upload metadata not found")
+		http.Error(resp, common.NewResult(fmt.Sprintf("Upload %s not found", uploadID), nil).ToJSONString(), 404)
+		return
+	}
+
+	// Handle basic auth if upload is password protected
+	err = httpBasicAuth(req, resp, upload)
+	if err != nil {
+		ctx.Warningf("Unauthorized : %s", err)
+		return
+	}
+
+	// Check upload token
+	if req.Header.Get("X-UploadToken") != upload.UploadToken {
+		ctx.Warningf("Invalid upload token %s", req.Header.Get("X-UploadToken"))
+		http.Error(resp, common.NewResult("Invalid upload token in X-UploadToken header", nil).ToJSONString(), 404)
+		return
+	}
+
+	////
+
+	// Create a new file object
+	newFile := common.NewFile()
+	newFile.Type = "application/octet-stream"
+
+	// Create a new file object
+	newFile := common.NewFile()
+	newFile.Status = "to_upload"
+	ctx.SetFile(newFile.ID)
+
+	if req.Header.Get("X-FILE_NAME") != "" {
+		newFile.Name = req.Header.Get("X-FILE_NAME");
+	}
+
+	if req.Header.Get("X-CONTENT_TYPE") != "" {
+		newFile.Type = req.Header.Get("X-CONTENT_TYPE");
+	}
+
+	if req.Header.Get("X-CONTENT_LENGTH") != "" {
+		size, err := strconv.ParseInt(req.Header.Get("X-CONTENT_LENGTH"),10,32);
+		if err != nil {
+			ctx.Warningf("Invalid X-CONTENT_LENGTH : %s", err)
+			http.Error(resp, common.NewResult(fmt.Sprintf("Invalid X-CONTENT_LENGTH : %s", err), nil).ToJSONString(), 400)
+			return
+		}
+		newFile.CurrentSize = int64(size);
+	}
+
+	// Update upload metadata
+	upload.Files[newFile.ID] = newFile
+	err = metadataBackend.GetMetaDataBackend().AddOrUpdateFile(ctx.Fork("update metadata"), upload, newFile)
+	if err != nil {
+		ctx.Warningf("Unable to update metadata : %s", err)
+		http.Error(resp, common.NewResult(fmt.Sprintf("Error adding file %s to upload %s metadata : %s", newFile.Name, upload.ID, err), nil).ToJSONString(), 500)
+		return
+	}
+	// Remove all private informations (ip, data backend details, ...) before
+	// sending metadata back to the client
+	newFile.Sanitize()
+
+	// Print file metadata in the json response.
+	var json []byte
+	if json, err = utils.ToJson(newFile); err == nil {
+		resp.Write(json)
+	} else {
+		http.Error(resp, common.NewResult("Unable to serialize response body", nil).ToJSONString(), 500)
+	}
+	////
+
 	// Get file handle from multipart request
 	var file io.Reader
 	var fileName string
@@ -536,6 +679,10 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 		http.Error(resp, common.NewResult(fmt.Sprintf("Failed to get file from multipart request"), nil).ToJSONString(), 500)
 		return
 	}
+
+	// Create a new file object
+	newFile := common.NewFile()
+	newFile.Type = "application/octet-stream"
 
 	// Read multipart body until the "file" part
 	for {
@@ -553,16 +700,13 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 	if file == nil {
 		ctx.Warning("Missing file from multipart request")
 		http.Error(resp, common.NewResult("Missing file from multipart request", nil).ToJSONString(), 400)
+		return
 	}
 	if fileName == "" {
 		ctx.Warning("Missing file name from multipart request")
 		http.Error(resp, common.NewResult("Missing file name from multipart request", nil).ToJSONString(), 400)
 	}
-
-	// Create a new file object
-	newFile := common.NewFile()
 	newFile.Name = fileName
-	newFile.Type = "application/octet-stream"
 	ctx.SetFile(fileName)
 
 	// Pipe file data from the request body to a preprocessing goroutine
@@ -610,7 +754,13 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 	}()
 
 	// Save file in the data backend
-	backendDetails, err := dataBackend.GetDataBackend().AddFile(ctx.Fork("save file"), upload, newFile, preprocessReader)
+	var backend dataBackend.DataBackend
+	if(upload.Stream){
+		backend = dataBackend.GetStreamBackend()
+	} else {
+		backend = dataBackend.GetDataBackend()
+	}
+	backendDetails, err := backend.AddFile(ctx.Fork("save file"), upload, newFile, preprocessReader)
 	if err != nil {
 		ctx.Warningf("Unable to save file : %s", err)
 		http.Error(resp, common.NewResult(fmt.Sprintf("Error saving file %s in upload %s : %s", newFile.Name, upload.ID, err), nil).ToJSONString(), 500)
@@ -619,7 +769,11 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 
 	// Fill-in file informations
 	newFile.CurrentSize = int64(totalBytes)
-	newFile.Status = "uploaded"
+	if(upload.Stream) {
+		newFile.Status = "downloaded"
+	} else {
+		newFile.Status = "uploaded"
+	}
 	newFile.Md5 = fmt.Sprintf("%x", md5Hash.Sum(nil))
 	newFile.UploadDate = time.Now().Unix()
 	newFile.BackendDetails = backendDetails
