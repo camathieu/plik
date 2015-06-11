@@ -525,16 +525,12 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 	ctx := common.NewPlikContext("add file handler", req)
 	defer ctx.Finalize(err)
 
-	ctx.Info("BEGIN ADD")
-
 	// Get the upload id from the url params
 	vars := mux.Vars(req)
 	uploadID := vars["uploadID"]
 	fileID := vars["fileID"]
 	ctx.SetUpload(uploadID)
 
-
-	ctx.Info("BEFORE GET")
 	// Get upload metadata
 	upload, err := metadataBackend.GetMetaDataBackend().Get(ctx.Fork("get metadata"), uploadID)
 	if err != nil {
@@ -556,8 +552,6 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 		http.Error(resp, common.NewResult("Invalid upload token in X-UploadToken header", nil).ToJSONString(), 404)
 		return
 	}
-	ctx.Info("AFTER CHECK TOKEN")
-	////
 
 	// Create a new file object
 	var newFile *common.File
@@ -586,17 +580,13 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 	}
 
 
-	ctx.Info("BEFORE READING PARTS")
 	// Read multipart body until the "file" part
 	for {
-		ctx.Info("BEFORE GOT A PART\n")
 		part, errPart := multiPartReader.NextPart()
 		if errPart == io.EOF {
 			break
 		}
-		ctx.Info("GOT A PART\n")
 		if part.FormName() == "file" {
-			ctx.Info("GOT PART FILE")
 			file = part
 			fileName = part.FileName()
 			break

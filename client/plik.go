@@ -254,12 +254,8 @@ func upload(uploadInfo *common.Upload, fileToUpload *config.FileToUpload, reader
 	multipartWriter := multipart.NewWriter(pipeWriter)
 
 	if uploadInfo.Stream {
-		printf("BEFORE DO\n")
 		fmt.Printf("%s\n",getFileCommand(uploadInfo,fileToUpload.File))
-		printf("sdgdfgdfg DO\n")
 	}
-
-	printf("bla DO\n")
 
 	// TODO Handler error properly here
 	go func() error {
@@ -281,7 +277,6 @@ func upload(uploadInfo *common.Upload, fileToUpload *config.FileToUpload, reader
 			bar.ShowFinalTime = false
 			bar.SetWidth(100)
 			bar.SetMaxWidth(100)
-			printf("AFTER CREATE BAR\n")
 			multiWriter = io.MultiWriter(part, bar)
 			bar.Start()
 			defer bar.Finish()
@@ -294,9 +289,7 @@ func upload(uploadInfo *common.Upload, fileToUpload *config.FileToUpload, reader
 				return pipeWriter.CloseWithError(err)
 			}
 		} else {
-			printf("BEFORE IO COPY \n")
 			_, err = io.Copy(multiWriter, reader)
-			printf("AFTER IO COPY \n")
 			if err != nil {
 				fmt.Println(err)
 				return pipeWriter.CloseWithError(err)
@@ -307,21 +300,17 @@ func upload(uploadInfo *common.Upload, fileToUpload *config.FileToUpload, reader
 		return pipeWriter.CloseWithError(err)
 	}()
 
-	printf("bla1 DO\n")
 	var URL *url.URL
 	URL, err = url.Parse(config.Config.URL + "/upload/" + uploadInfo.ID + "/file/" + fileToUpload.ID)
 	if err != nil {
 		return
 	}
 
-	printf("bla2 DO\n")
 	var req *http.Request
 	req, err = http.NewRequest("POST", URL.String(), pipeReader)
 	if err != nil {
 		return
 	}
-
-	printf("bla3 DO\n")
 
 	req.Header.Set("Content-Type", multipartWriter.FormDataContentType())
 	req.Header.Set("X-ClientApp", "cli_client")
@@ -331,14 +320,11 @@ func upload(uploadInfo *common.Upload, fileToUpload *config.FileToUpload, reader
 		req.Header.Set("Authorization", basicAuth)
 	}
 
-	printf("bla4 DO\n")
-
 	var resp *http.Response
 	resp, err = client.Do(req)
 	if err != nil {
 		return
 	}
-	printf("AFTER DO")
 
 	defer resp.Body.Close()
 	responseBody, err := ioutil.ReadAll(resp.Body)
