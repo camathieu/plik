@@ -89,8 +89,6 @@ func NewConfiguration() (this *Configuration) {
 	this.SslEnabled = false
 	this.SslCert = ""
 	this.SslKey = ""
-
-	//TODO remove this
 	this.StreamMode = true
 	return
 }
