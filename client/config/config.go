@@ -71,7 +71,7 @@ type UploadConfig struct {
 	URL            string
 	OneShot        bool
 	Removable      bool
-	Stream			bool
+	Stream         bool
 	Secure         bool
 	SecureMethod   string
 	SecureOptions  map[string]interface{}
@@ -122,7 +122,8 @@ type FileToUpload struct {
 	FileHandle io.Reader
 }
 
-func NewFileToUpload() (fileToUpload *FileToUpload){
+// NewFileToUpload return a new FileToUpload object
+func NewFileToUpload() (fileToUpload *FileToUpload) {
 	fileToUpload = new(FileToUpload)
 	fileToUpload.File = common.NewFile()
 	return
@@ -229,14 +230,12 @@ func UnmarshalArgs(arguments map[string]interface{}) (err error) {
 				return fmt.Errorf("File %s not found", filePath)
 			}
 
-
 			fh, err := os.Open(fileToUpload.Path)
 			if err != nil {
 				return fmt.Errorf("Unable to open %s : %s", fileToUpload.Path, err)
 			}
 
 			fileToUpload.FileHandle = fh
-
 
 			// Check file size (for displaying purpose later)
 			if len(fileToUpload.Base) > longestFilenameSize {
@@ -263,7 +262,7 @@ func UnmarshalArgs(arguments map[string]interface{}) (err error) {
 	}
 
 	// Set name if user specified it
-	if arguments["--name"] != nil && arguments["--name"].(string) != "" && len(Files) == 1{
+	if arguments["--name"] != nil && arguments["--name"].(string) != "" && len(Files) == 1 {
 		Files[0].Name = arguments["--name"].(string)
 	}
 

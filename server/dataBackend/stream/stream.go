@@ -32,8 +32,9 @@ package stream
 import (
 	"io"
 
-	"github.com/root-gg/plik/server/common"
 	"time"
+
+	"github.com/root-gg/plik/server/common"
 )
 
 // Backend object
@@ -42,7 +43,7 @@ type Backend struct {
 	Store  map[string]io.ReadCloser
 }
 
-// NewFileBackend instantiate a new Stream Data Backend
+// NewStreamBackend instantiate a new Stream Data Backend
 // from configuration passed as argument
 func NewStreamBackend(config map[string]interface{}) (sb *Backend) {
 	sb = new(Backend)
@@ -55,13 +56,12 @@ func NewStreamBackend(config map[string]interface{}) (sb *Backend) {
 // on filesystem the requested steam and return its reading filehandle
 func (sb *Backend) GetFile(ctx *common.PlikContext, upload *common.Upload, id string) (stream io.ReadCloser, err error) {
 	defer ctx.Finalize(err)
-	storeId := upload.ID + "/" + id
-	// TODO Mutex
-	stream, ok := sb.Store[storeId]
+	storeID := upload.ID + "/" + id
+	stream, ok := sb.Store[storeID]
 	if !ok {
 		err = ctx.EWarningf("Missing reader")
 	}
-	delete(sb.Store,id)
+	delete(sb.Store, id)
 	return
 }
 
@@ -69,12 +69,12 @@ func (sb *Backend) GetFile(ctx *common.PlikContext, upload *common.Upload, id st
 // and save it on filesystem with the given steam reader
 func (sb *Backend) AddFile(ctx *common.PlikContext, upload *common.Upload, file *common.File, stream io.Reader) (backendDetails map[string]interface{}, err error) {
 	defer ctx.Finalize(err)
-	backendDetails = make(map[string]interface {})
+	backendDetails = make(map[string]interface{})
 	id := upload.ID + "/" + file.ID
 	pipeReader, pipeWriter := io.Pipe()
 	sb.Store[id] = pipeReader
 	ctx.Infof("Store in %s", id)
-	buf := make([]byte,1024)
+	buf := make([]byte, 1024)
 	for {
 		done := make(chan struct{})
 		go func() {
@@ -85,9 +85,9 @@ func (sb *Backend) AddFile(ctx *common.PlikContext, upload *common.Upload, file 
 		}()
 		timer := time.NewTimer(time.Duration(sb.Config.Timeout) * time.Second)
 		select {
-		case <- done:
+		case <-done:
 			timer.Stop()
-		case <- timer.C:
+		case <-timer.C:
 			err = ctx.EWarning("timeout")
 		}
 		if err != nil {
@@ -96,7 +96,7 @@ func (sb *Backend) AddFile(ctx *common.PlikContext, upload *common.Upload, file 
 		}
 	}
 	pipeReader.Close()
-	delete(sb.Store,id)
+	delete(sb.Store, id)
 	if err == io.EOF {
 		err = nil
 	}

@@ -110,7 +110,7 @@ func (zb *Backend) Comments() string {
 }
 
 // GetFileName returns the final archive file name
-func (zb *Backend) GetFileName (files []string) (name string) {
+func (zb *Backend) GetFileName(files []string) (name string) {
 	name = "archive"
 	if len(files) == 1 {
 		name = filepath.Base(files[0])

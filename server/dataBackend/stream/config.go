@@ -38,7 +38,7 @@ type BackendConfig struct {
 	Timeout int
 }
 
-// NewFileBackendConfig instantiate a new default configuration
+// NewStreamBackendConfig instantiate a new default configuration
 // and override it with configuration passed as argument
 func NewStreamBackendConfig(config map[string]interface{}) (sbc *BackendConfig) {
 	sbc = new(BackendConfig)

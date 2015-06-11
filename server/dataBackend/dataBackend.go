@@ -34,9 +34,9 @@ import (
 
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/dataBackend/file"
+	"github.com/root-gg/plik/server/dataBackend/stream"
 	"github.com/root-gg/plik/server/dataBackend/swift"
 	"github.com/root-gg/plik/server/dataBackend/weedfs"
-	"github.com/root-gg/plik/server/dataBackend/stream"
 )
 
 var dataBackend DataBackend
@@ -51,12 +51,12 @@ type DataBackend interface {
 	RemoveUpload(ctx *common.PlikContext, u *common.Upload) (err error)
 }
 
-// Return the primary data backend
+// GetDataBackend return the primary data backend
 func GetDataBackend() DataBackend {
 	return dataBackend
 }
 
-// Return the stream data backend
+// GetStreamBackend return the stream data backend
 func GetStreamBackend() DataBackend {
 	return streamBackend
 }

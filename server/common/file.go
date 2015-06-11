@@ -39,7 +39,7 @@ type File struct {
 	UploadDate     int64                  `json:"fileUploadDate" bson:"fileUploadDate"`
 	CurrentSize    int64                  `json:"fileSize" bson:"fileSize"`
 	BackendDetails map[string]interface{} `json:"backendDetails,omitempty" bson:"backendDetails"`
-	Reference	   string                 `json:"reference" bson:"reference"`
+	Reference      string                 `json:"reference" bson:"reference"`
 }
 
 // NewFile instantiate a new object
@@ -50,7 +50,8 @@ func NewFile() (file *File) {
 	return
 }
 
-func (file *File) GenerateId() {
+// GenerateID generate a new File ID
+func (file *File) GenerateID() {
 	file.ID = GenerateRandomID(16)
 }
 

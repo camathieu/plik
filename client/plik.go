@@ -249,12 +249,12 @@ func createUpload(uploadParams *common.Upload) (upload *common.Upload, err error
 	return
 }
 
-func upload(uploadInfo *common.Upload, fileToUpload *config.FileToUpload, reader io.Reader) ( file *common.File, err error) {
+func upload(uploadInfo *common.Upload, fileToUpload *config.FileToUpload, reader io.Reader) (file *common.File, err error) {
 	pipeReader, pipeWriter := io.Pipe()
 	multipartWriter := multipart.NewWriter(pipeWriter)
 
 	if uploadInfo.Stream {
-		fmt.Printf("%s\n",getFileCommand(uploadInfo,fileToUpload.File))
+		fmt.Printf("%s\n", getFileCommand(uploadInfo, fileToUpload.File))
 	}
 
 	// TODO Handler error properly here

@@ -265,8 +265,8 @@ func createUploadHandler(resp http.ResponseWriter, req *http.Request) {
 
 	// Create files
 	for i, file := range upload.Files {
-		file.GenerateId()
-		delete(upload.Files,i)
+		file.GenerateID()
+		delete(upload.Files, i)
 		upload.Files[file.ID] = file
 	}
 
@@ -475,7 +475,7 @@ func getFileHandler(resp http.ResponseWriter, req *http.Request) {
 	if req.Method == "GET" {
 		// Get file in data backend
 		var backend dataBackend.DataBackend
-		if(upload.Stream){
+		if upload.Stream {
 			backend = dataBackend.GetStreamBackend()
 		} else {
 			backend = dataBackend.GetDataBackend()
@@ -556,7 +556,7 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 	// Create a new file object
 	var newFile *common.File
 	if fileID != "" {
-		if _, ok := upload.Files[fileID] ; ok {
+		if _, ok := upload.Files[fileID]; ok {
 			newFile = upload.Files[fileID]
 		} else {
 			ctx.Warningf("Invalid file id %s", fileID)
@@ -578,7 +578,6 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 		http.Error(resp, common.NewResult(fmt.Sprintf("Failed to get file from multipart request"), nil).ToJSONString(), 500)
 		return
 	}
-
 
 	// Read multipart body until the "file" part
 	for {
@@ -649,7 +648,7 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 
 	// Save file in the data backend
 	var backend dataBackend.DataBackend
-	if(upload.Stream){
+	if upload.Stream {
 		backend = dataBackend.GetStreamBackend()
 	} else {
 		backend = dataBackend.GetDataBackend()
@@ -663,7 +662,7 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 
 	// Fill-in file informations
 	newFile.CurrentSize = int64(totalBytes)
-	if(upload.Stream) {
+	if upload.Stream {
 		newFile.Status = "downloaded"
 	} else {
 		newFile.Status = "uploaded"

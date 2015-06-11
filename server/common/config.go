@@ -65,7 +65,7 @@ type Configuration struct {
 	DataBackendConfig map[string]interface{}
 
 	StreamMode          bool
-	StreamBackendConfig map[string]interface {}
+	StreamBackendConfig map[string]interface{}
 
 	ShortenBackend       string
 	ShortenBackendConfig map[string]interface{}

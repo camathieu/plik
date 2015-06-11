@@ -120,7 +120,7 @@ func (tb *Backend) GetConfiguration() interface{} {
 }
 
 // GetFileName returns the final archive file name
-func (tb *Backend) GetFileName (files []string) (name string) {
+func (tb *Backend) GetFileName(files []string) (name string) {
 	name = "archive"
 	if len(files) == 1 {
 		name = filepath.Base(files[0])

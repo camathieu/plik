@@ -43,7 +43,7 @@ type Backend interface {
 	Configure(arguments map[string]interface{}) (err error)
 	Archive(files []string, writer io.WriteCloser) (err error)
 	Comments() (comments string)
-	GetFileName (files []string) (name string)
+	GetFileName(files []string) (name string)
 	GetConfiguration() interface{}
 }
 
