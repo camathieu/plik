@@ -73,33 +73,30 @@ func (sb *Backend) AddFile(ctx *common.PlikContext, upload *common.Upload, file 
 	id := upload.ID + "/" + file.ID
 	pipeReader, pipeWriter := io.Pipe()
 	sb.Store[id] = pipeReader
-	ctx.Infof("Store in %s", id)
-	buf := make([]byte, 1024)
-	for {
-		done := make(chan struct{})
-		go func() {
-			var size int
-			size, err = stream.Read(buf)
-			pipeWriter.Write(buf[:size])
-			done <- struct{}{}
-		}()
-		timer := time.NewTimer(time.Duration(sb.Config.Timeout) * time.Second)
-		select {
-		case <-done:
-			timer.Stop()
-		case <-timer.C:
-			err = ctx.EWarning("timeout")
-		}
+
+	done := make(chan struct{})
+	go func() {
+		_, err := io.Copy(pipeWriter, stream)
 		if err != nil {
-			ctx.Info(err.Error())
-			break
+			ctx.Warning(err.Error())
+			return
 		}
+
+		done <- struct{}{}
+	}()
+	timer := time.NewTimer(10 * time.Second)
+
+	select {
+	case <-done:
+		timer.Stop()
+		pipeWriter.CloseWithError(io.EOF)
+	case <-timer.C:
+		err = ctx.EWarning("timeout")
+		pipeWriter.CloseWithError(err)
 	}
-	pipeReader.Close()
+
 	delete(sb.Store, id)
-	if err == io.EOF {
-		err = nil
-	}
+
 	return
 }
 

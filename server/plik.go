@@ -505,7 +505,7 @@ func getFileHandler(resp http.ResponseWriter, req *http.Request) {
 
 		// Remove file from data backend if oneShot option is set
 		if upload.OneShot {
-			err = dataBackend.GetDataBackend().RemoveFile(ctx.Fork("remove file"), upload, file.ID)
+			err = backend.RemoveFile(ctx.Fork("remove file"), upload, file.ID)
 			if err != nil {
 				ctx.Warningf("Error while deleting file %s from upload %s : %s", file.Name, upload.ID, err)
 				return
@@ -899,7 +899,15 @@ func RemoveUploadIfNoFileAvailable(ctx *common.PlikContext, upload *common.Uploa
 
 		ctx.Debugf("No more files in upload. Removing all informations.")
 
-		err = dataBackend.GetDataBackend().RemoveUpload(ctx, upload)
+		// Get right data backend
+		var backend dataBackend.DataBackend
+		if upload.Stream {
+			backend = dataBackend.GetStreamBackend()
+		} else {
+			backend = dataBackend.GetDataBackend()
+		}
+
+		err = backend.RemoveUpload(ctx, upload)
 		if err != nil {
 			return
 		}
