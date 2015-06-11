@@ -84,7 +84,7 @@ func (sb *Backend) AddFile(ctx *common.PlikContext, upload *common.Upload, file 
 
 		done <- struct{}{}
 	}()
-	timer := time.NewTimer(10 * time.Second)
+	timer := time.NewTimer(time.Duration(sb.Config.Timeout) * time.Second)
 
 	select {
 	case <-done:
