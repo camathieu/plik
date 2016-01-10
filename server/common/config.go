@@ -36,6 +36,7 @@ import (
 	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/BurntSushi/toml"
 	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/GeertJohan/yubigo"
 	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/logger"
+	"github.com/root-gg/plik/server/Godeps/_workspace/src/golang.org/x/oauth2"
 )
 
 // Configuration object
@@ -57,9 +58,13 @@ type Configuration struct {
 	YubikeyAPISecret string           `json:"-"`
 	YubiAuth         *yubigo.YubiAuth `json:"-"`
 
-	SourceIPHeader      string   `json:"-"`
-	UploadWhitelist     []string `json:"-"`
-	TokenAuthentication bool     `json:"tokenAuthentication"`
+	SourceIPHeader  string   `json:"-"`
+	UploadWhitelist []string `json:"-"`
+
+	Authentication  bool     `json:"tokenAuthentication"`
+	GoogleApiSecret   string `json:"-"`
+	GoogleApiClientID string `json:"-"`
+	GoogleApiConfig *oauth2.Config `json:"-"`
 
 	MetadataBackend       string                 `json:"-"`
 	MetadataBackendConfig map[string]interface{} `json:"-"`
@@ -105,22 +110,22 @@ func NewConfiguration() (this *Configuration) {
 func LoadConfiguration(file string) {
 	Config = NewConfiguration()
 	if _, err := toml.DecodeFile(file, Config); err != nil {
-		Log().Fatalf("Unable to load config file %s : %s", file, err)
+		Logger().Fatalf("Unable to load config file %s : %s", file, err)
 	}
-	Log().SetMinLevelFromString(Config.LogLevel)
-	Log().Dump(logger.DEBUG, Config)
+	Logger().SetMinLevelFromString(Config.LogLevel)
+	Logger().Dump(logger.DEBUG, Config)
 
 	if Config.LogLevel == "DEBUG" {
-		Log().SetFlags(logger.Fdate | logger.Flevel | logger.FfixedSizeLevel | logger.FshortFile | logger.FshortFunction)
+		Logger().SetFlags(logger.Fdate | logger.Flevel | logger.FfixedSizeLevel | logger.FshortFile | logger.FshortFunction)
 	} else {
-		Log().SetFlags(logger.Fdate | logger.Flevel | logger.FfixedSizeLevel)
+		Logger().SetFlags(logger.Fdate | logger.Flevel | logger.FfixedSizeLevel)
 	}
 
 	// Do user specified a ApiKey and ApiSecret for Yubikey
 	if Config.YubikeyEnabled {
 		yubiAuth, err := yubigo.NewYubiAuth(Config.YubikeyAPIKey, Config.YubikeyAPISecret)
 		if err != nil {
-			Log().Warningf("Failed to load yubikey backend : %s", err)
+			Logger().Warningf("Failed to load yubikey backend : %s", err)
 			Config.YubikeyEnabled = false
 		} else {
 			Config.YubiAuth = yubiAuth
@@ -137,8 +142,12 @@ func LoadConfiguration(file string) {
 			if _, net, err := net.ParseCIDR(cidr); err == nil {
 				UploadWhitelist = append(UploadWhitelist, net)
 			} else {
-				Log().Fatalf("Failed to parse upload whitelist : %s", cidr)
+				Logger().Fatalf("Failed to parse upload whitelist : %s", cidr)
 			}
 		}
+	}
+
+	if Config.Authentication && !Config.SslEnabled {
+		Logger.Fatal("Trying to enable Authentication over an unsecure HTTP transport")
 	}
 }

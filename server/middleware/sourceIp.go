@@ -59,7 +59,7 @@ func SourceIP(ctx *juliet.Context, next http.Handler) http.Handler {
 		// Parse source IP address
 		sourceIP := net.ParseIP(sourceIPstr)
 		if sourceIP == nil {
-			common.Log().Warningf("Unable to parse source IP address %s", sourceIPstr)
+			common.Logger().Warningf("Unable to parse source IP address %s", sourceIPstr)
 			common.Fail(ctx, req, resp, "Unable to parse source IP address", 500)
 			return
 		}

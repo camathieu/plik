@@ -51,39 +51,35 @@ func Authenticate(ctx *juliet.Context, next http.Handler) http.Handler {
 			common.Fail(ctx, req, resp, "Internal error", 500)
 			return
 		}
+		accessGranted := common.IsWhitelisted(ctx)
 
-		if common.IsWhitelisted(ctx) {
-			// Source IP address is in the whitelist
-			next.ServeHTTP(resp, req)
-			return
-		}
-
-		// Check if a valid token had been provided
-		if common.Config.TokenAuthentication {
+		if common.Config.Authentication {
 			token := req.Header.Get("X-AuthToken")
 			if token != "" {
-				ok, err := metadataBackend.GetMetaDataBackend().ValidateToken(ctx, token)
+				user, err := metadataBackend.GetMetaDataBackend().GetUser(ctx, "", token)
 				if err != nil {
-					log.Warningf("Unable to validate token %s : %s", token, err)
-					common.Fail(ctx, req, resp, "Unable to validate token", 403)
+					log.Warningf("Unable to get user from token %s : %s", token, err)
+					common.Fail(ctx, req, resp, "Unable to verify token", 500)
 					return
 				}
-				if !ok {
+				if user == nil {
 					log.Warningf("Invalid token %s : %s", token, err)
 					common.Fail(ctx, req, resp, "Invalid token", 403)
-
 					return
 				}
-
-				// Valid token
-				next.ServeHTTP(resp, req)
-				return
+				ctx.Set("user", user)
+				ctx.Set("token", token)
+				accessGranted = true
 			}
 		}
 
-		// Invalid source IP address + no token
-		log.Warningf("Unauthorized source IP address")
-		common.Fail(ctx, req, resp, "Unauthorized source IP address", 403)
-		return
+		if !accessGranted {
+			// Invalid source IP address + no token
+			log.Warningf("Unauthorized source IP address")
+			common.Fail(ctx, req, resp, "Unauthorized source IP address", 403)
+			return
+		}
+
+		next.ServeHTTP(resp, req)
 	})
 }

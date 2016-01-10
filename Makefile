@@ -44,7 +44,7 @@ all: clean clean-frontend frontend clients server
 frontend:
 	@if [ ! -d server/public/node_modules ]; then cd server/public && npm install ; fi
 	@if [ ! -d server/public/bower_components ]; then cd server/public && node_modules/bower/bin/bower install --allow-root ; fi
-	@if [ ! -d server/public/public ]; then cd server/public && node_modules/grunt-cli/bin/grunt ; fi ;
+	@if [ ! -d server/public/public ]; then cd server/public && node_modules/grunt-cli/bin/grunt ; fi
 
 
 ###

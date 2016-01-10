@@ -215,6 +215,11 @@ angular.module('api', ['ngFileUpload']).
             return api.call(url, 'DELETE', {}, {}, upload.uploadToken);
         };
 
+        api.login = function(provider) {
+            var url = api.base + '/auth/' + provider + '/login' ;
+            return api.call(url, 'GET', { origin : window.location.origin });
+        };
+
         // Generate a token
         api.generateToken = function() {
             var url = api.base + '/token';
@@ -254,6 +259,7 @@ angular.module('plik', ['ngRoute', 'api', 'dialog', 'contentEditable', 'btford.m
         $routeProvider
             .when('/', {controller: MainCtrl, templateUrl: 'partials/main.html', reloadOnSearch: false})
             .when('/clients', {controller: ClientListCtrl, templateUrl: 'partials/clients.html'})
+            .when('/login', {controller: LoginCtrl, templateUrl: 'partials/login.html'})
             .when('/token', {controller: TokenCtrl, templateUrl: 'partials/token.html'})
             .otherwise({redirectTo: '/'});
     })
@@ -812,6 +818,45 @@ function ClientListCtrl($scope, $api, $dialog) {
         .then(null, function (error) {
             $dialog.alert(error);
         });
+}
+
+// Login controller
+function LoginCtrl($scope, $api, $dialog, $location){
+    $scope.token = $location.search().token;
+    $location.search("token",null);
+
+    // Get server config
+    $api.getConfig()
+        .then(function (config) {
+            // Check if token authentication is enabled server side
+            if ( ! config.tokenAuthentication ) {
+                $location.path('/');
+            }
+        })
+        .then(null, function (error) {
+            $dialog.alert(error);
+        });
+
+    if (!_.isUndefined($scope.token)) {
+        // Save token to the local storage
+        localStorage.setItem("AuthToken",$scope.token);
+    } else {
+        // Load token from the local storage
+        $scope.token = localStorage.getItem("AuthToken");
+    }
+
+    // Google authentication
+    $scope.google = function(){
+        $api.login("google")
+            .then(function (url) {
+                // Redirect to Google user consent dialog
+                window.location.replace(url);
+            })
+            .then(null, function (error) {
+                $dialog.alert(error);
+            });
+    }
+
 }
 
 // Token controller

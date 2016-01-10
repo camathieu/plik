@@ -37,10 +37,12 @@ import (
 
 // Token provide a very basic authentication mechanism
 type Token struct {
+	User         string `json:"user" bson:"user"`
 	Token        string `json:"token" bson:"token"`
 	CreationDate int64  `json:"creationDate" bson:"creationDate"`
 	Comment      string `json:"comment,omitempty" bson:"comment"`
 	SourceIP     string `json:"sourceIp,omitempty" bson:"sourceIp"`
+	UploadOnly   bool   `json:"uploadOnly" bson:"uploadOnly"`
 }
 
 // NewToken create a new Token instance

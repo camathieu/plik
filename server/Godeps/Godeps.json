@@ -65,9 +65,25 @@
 			"Rev": "38f45ede2ce220d9c08734edd8a13107022cc20d"
 		},
 		{
+			"ImportPath": "golang.org/x/net/context",
+			"Rev": "f1d3149ecb40ffadf4a28d39a30f9a125fe57bdf"
+		},
+		{
+			"ImportPath": "golang.org/x/oauth2",
+			"Rev": "2baa8a1b9338cf13d9eeb27696d761155fa480be"
+		},
+		{
+			"ImportPath": "google.golang.org/cloud/compute/metadata",
+			"Rev": "1bff51b8fae8d33cb3dab8f7858c266ce001ee3e"
+		},
+		{
+			"ImportPath": "google.golang.org/cloud/internal",
+			"Rev": "1bff51b8fae8d33cb3dab8f7858c266ce001ee3e"
+		},
+		{
 			"ImportPath": "gopkg.in/mgo.v2",
-			"Comment": "r2015.01.24",
-			"Rev": "c6a7dce14133ccac2dcac3793f1d6e2ef048503a"
+			"Comment": "r2015.12.06",
+			"Rev": "e30de8ac9ae3b30df7065f766c71f88bba7d4e49"
 		}
 	]
 }
