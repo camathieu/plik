@@ -23,12 +23,14 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 -->
-<div class="row">
+
+<!-- LOGIN -->
+<div class="row" ng-if="!user">
     <div class="col-xs-12 col-sm-8 col-md-8 col-lg-8 col-centered">
         <div class="tile panel panel-body main">
             <div class="row">
-                <!-- GENERATE BUTTON -->
-                <div class="col-xs-4 text-center">
+                <!-- GOOGLE BUTTON -->
+                <div class="col-xs-12 text-center">
                     <button title="Download" type="button" class="btn btn-primary" ng-click="google()">
                         <span class="fa fa-google"></span>
                         <span class="hidden-xs hidden-sm hidden-md"> Login with Google</span>

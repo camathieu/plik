@@ -124,7 +124,7 @@ func (bmb *MetadataBackend) Create(ctx *juliet.Context, upload *common.Upload) (
 			key = append(key, timestamp...)
 			key = append(key, []byte(upload.ID)...)
 
-			err := bucket.Put(key, []byte(upload.AuthToken))
+			err := bucket.Put(key, []byte(upload.Token))
 			if err != nil {
 				return fmt.Errorf("Unable to save user index : %s", err)
 			}
@@ -431,20 +431,21 @@ func (bmb *MetadataBackend) GetUser(ctx *juliet.Context, id string, token string
 			// token index lookup
 			idBytes := bucket.Get([]byte(token))
 			if idBytes == nil || len(idBytes) == 0 {
-				return fmt.Errorf("Unable to get user by token from Bolt bucket")
+				return nil
 			}
 			id = string(idBytes)
 		}
 
 		b = bucket.Get([]byte(id))
-		if b == nil || len(b) == 0 {
-			return fmt.Errorf("Unable to get user from Bolt bucket")
-		}
-
 		return nil
 	})
 	if err != nil {
-		err = log.EWarningf("Unable to save user : %s", err)
+		err = log.EWarningf("Unable to get user : %s", err)
+		return
+	}
+
+	// User not found but no error
+	if b == nil || len(b) == 0 {
 		return
 	}
 

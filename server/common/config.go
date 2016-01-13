@@ -147,7 +147,7 @@ func LoadConfiguration(file string) {
 		}
 	}
 
-	if Config.Authentication && !Config.SslEnabled {
-		Logger.Fatal("Trying to enable Authentication over an unsecure HTTP transport")
-	}
+//	if Config.Authentication && !Config.SslEnabled {
+//		Logger().Fatal("Trying to enable Authentication over an unsecure HTTP transport")
+//	}
 }

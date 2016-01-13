@@ -33,7 +33,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"strings"
 
 	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
@@ -50,9 +49,12 @@ func SourceIP(ctx *juliet.Context, next http.Handler) http.Handler {
 			// Get source ip from header if behind reverse proxy.
 			sourceIPstr = req.Header.Get(common.Config.SourceIPHeader)
 		} else {
-			remoteAddr := strings.Split(req.RemoteAddr, ":")
-			if len(remoteAddr) > 0 {
-				sourceIPstr = remoteAddr[0]
+			var err error
+			sourceIPstr, _, err = net.SplitHostPort(req.RemoteAddr)
+			if err != nil {
+				common.Logger().Warningf("Unable to parse source IP address %s", req.RemoteAddr)
+				common.Fail(ctx, req, resp, "Unable to parse source IP address", 500)
+				return
 			}
 		}
 

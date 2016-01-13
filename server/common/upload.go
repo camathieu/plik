@@ -52,7 +52,7 @@ type Upload struct {
 
 	UploadToken string `json:"uploadToken,omitempty" bson:"uploadToken"`
 	User        string `json:"user,omitempty" bson:"uploadToken"`
-	AuthToken   string `json:"authToken,omitempty" bson:"authToken"`
+	Token 		string `json:"token,omitempty" bson:"token"`
 	IsAdmin     bool   `json:"admin"`
 
 	Stream    bool `json:"stream" bson:"stream"`
@@ -94,7 +94,7 @@ func (upload *Upload) Sanitize() {
 	upload.Yubikey = ""
 	upload.UploadToken = ""
 	upload.User = ""
-	upload.AuthToken = ""
+	upload.Token = ""
 	for _, file := range upload.Files {
 		file.Sanitize()
 	}
