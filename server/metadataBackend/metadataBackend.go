@@ -30,11 +30,9 @@ THE SOFTWARE.
 package metadataBackend
 
 import (
-	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/metadataBackend/bolt"
-	"github.com/root-gg/plik/server/metadataBackend/file"
-	"github.com/root-gg/plik/server/metadataBackend/mongo"
+//	"github.com/root-gg/plik/server/metadataBackend/mongo"
 )
 
 var metadataBackend MetadataBackend
@@ -42,18 +40,16 @@ var metadataBackend MetadataBackend
 // MetadataBackend interface describes methods that metadata backends
 // must implements to be compatible with plik.
 type MetadataBackend interface {
-	Create(ctx *juliet.Context, upload *common.Upload) (err error)
-	Get(ctx *juliet.Context, id string) (upload *common.Upload, err error)
-	AddOrUpdateFile(ctx *juliet.Context, upload *common.Upload, file *common.File) (err error)
-	RemoveFile(ctx *juliet.Context, upload *common.Upload, file *common.File) (err error)
-	Remove(ctx *juliet.Context, upload *common.Upload) (err error)
+	SaveUpload(upload *common.Upload) (err error)
+	GetUpload(id string) (upload *common.Upload, err error)
+	RemoveUpload(upload *common.Upload) (err error)
 
-	SaveUser(ctx *juliet.Context, user *common.User) (err error)
-	GetUser(ctx *juliet.Context, id string, token string) (user *common.User, err error)
-	RemoveUser(ctx *juliet.Context, user *common.User) (err error)
+	SaveUser(user *common.User) (err error)
+	GetUser(id string, token string) (user *common.User, err error)
+	RemoveUser(user *common.User) (err error)
 
-	GetUserUploads(ctx *juliet.Context, user *common.User, token *common.Token) (ids []string, err error)
-	GetUploadsToRemove(ctx *juliet.Context) (ids []string, err error)
+	GetUserUploads(user *common.User, token *common.Token) (ids []string, err error)
+	GetUploadsToRemove() (ids []string, err error)
 }
 
 // GetMetaDataBackend is a singleton pattern.
@@ -69,10 +65,8 @@ func GetMetaDataBackend() MetadataBackend {
 func Initialize() {
 	if metadataBackend == nil {
 		switch common.Config.MetadataBackend {
-		case "file":
-			metadataBackend = file.NewFileMetadataBackend(common.Config.MetadataBackendConfig)
-		case "mongo":
-			metadataBackend = mongo.NewMongoMetadataBackend(common.Config.MetadataBackendConfig)
+//		case "mongo":
+//			metadataBackend = mongo.NewMongoMetadataBackend(common.Config.MetadataBackendConfig)
 		case "bolt":
 			metadataBackend = bolt.NewBoltMetadataBackend(common.Config.MetadataBackendConfig)
 		default:

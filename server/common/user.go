@@ -33,11 +33,11 @@ import "net/http"
 
 // User is a plik user
 type User struct {
-	ID     string   `json:"id,omitempty" bson:"id"`
-	Login  string   `json:"login,omitempty" bson:"login"`
+	ID     string   `json:"id,omitempty" bson:"id" storm:"id"`
+	Login  string   `json:"login,omitempty" bson:"login" storm:"unique"`
 	Name   string   `json:"name,omitempty" bson:"name"`
 	Email  string   `json:"email,omitempty" bson:"email"`
-	Tokens []*Token `json:"tokens,omitempty" bson:"tokens"`
+	Tokens []*Token `json:"tokens,omitempty" bson:"tokens" storm:"index"`
 }
 
 // NewUser create a new user object

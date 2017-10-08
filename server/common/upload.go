@@ -41,19 +41,20 @@ var (
 
 // Upload object
 type Upload struct {
-	ID       string `json:"id" bson:"id"`
+	ID       string `json:"id" bson:"id" storm:"id"`
 	Creation int64  `json:"uploadDate" bson:"uploadDate"`
 	TTL      int    `json:"ttl" bson:"ttl"`
+	Deadline int64  `json:"-" bson:"deadline" storm:"index"`
 
 	DownloadDomain string `json:"downloadDomain" bson:"-"`
 	RemoteIP       string `json:"uploadIp,omitempty" bson:"uploadIp"`
 	Comments       string `json:"comments" bson:"comments"`
 
-	Files map[string]*File `json:"files" bson:"files"`
+	Files map[string]*File `json:"files" bson:"files" storm:"index"`
 
 	UploadToken string `json:"uploadToken,omitempty" bson:"uploadToken"`
-	User        string `json:"user,omitempty" bson:"user"`
-	Token       string `json:"token,omitempty" bson:"token"`
+	User        string `json:"user,omitempty" bson:"user" storm:"index"`
+	Token       string `json:"token,omitempty" bson:"token" storm:"index"`
 	IsAdmin     bool   `json:"admin"`
 
 	Stream    bool `json:"stream" bson:"stream"`
@@ -83,6 +84,7 @@ func NewUpload() (upload *Upload) {
 func (upload *Upload) Create() {
 	upload.ID = GenerateRandomID(16)
 	upload.Creation = time.Now().Unix()
+	upload.Deadline = upload.Creation + int64(upload.TTL)
 	if upload.Files == nil {
 		upload.Files = make(map[string]*File)
 	}

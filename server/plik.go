@@ -187,7 +187,7 @@ func UploadsCleaningRoutine() {
 		log.Infof("Cleaning expired uploads...")
 
 		// Get uploads that needs to be removed
-		uploadIds, err := metadataBackend.GetMetaDataBackend().GetUploadsToRemove(ctx)
+		uploadIds, err := metadataBackend.GetMetaDataBackend().GetUploadsToRemove()
 		if err != nil {
 			log.Warningf("Failed to get expired uploads : %s", err)
 		} else {
@@ -195,7 +195,7 @@ func UploadsCleaningRoutine() {
 			for _, uploadID := range uploadIds {
 				log.Infof("Removing expired upload %s", uploadID)
 				// Get upload metadata
-				upload, err := metadataBackend.GetMetaDataBackend().Get(ctx, uploadID)
+				upload, err := metadataBackend.GetMetaDataBackend().GetUpload(uploadID)
 				if err != nil {
 					log.Warningf("Unable to get infos for upload: %s", err)
 					continue
@@ -209,7 +209,7 @@ func UploadsCleaningRoutine() {
 				}
 
 				// Remove from metadata backend
-				err = metadataBackend.GetMetaDataBackend().Remove(ctx, upload)
+				err = metadataBackend.GetMetaDataBackend().RemoveUpload(upload)
 				if err != nil {
 					log.Warningf("Unable to remove upload metadata : %s", err)
 				}

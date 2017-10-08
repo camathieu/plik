@@ -298,7 +298,7 @@ func OvhCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 	userID := "ovh:" + userInfo.Nichandle
 
 	// Get user from metadata backend
-	user, err := metadataBackend.GetMetaDataBackend().GetUser(ctx, userID, "")
+	user, err := metadataBackend.GetMetaDataBackend().GetUser(userID, "")
 	if err != nil {
 		log.Warningf("Unable to get user from metadata backend : %s", err)
 		cleanOvhAuthSessionCookie(resp)
@@ -316,7 +316,7 @@ func OvhCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 			user.Email = userInfo.Email
 
 			// Save user to metadata backend
-			err = metadataBackend.GetMetaDataBackend().SaveUser(ctx, user)
+			err = metadataBackend.GetMetaDataBackend().SaveUser(user)
 			if err != nil {
 				log.Warningf("Unable to save user to metadata backend : %s", err)
 				cleanOvhAuthSessionCookie(resp)

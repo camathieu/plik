@@ -142,7 +142,7 @@ func RemoveUploadIfNoFileAvailable(ctx *juliet.Context, upload *common.Upload) {
 				return
 			}
 		}
-		err := metadataBackend.GetMetaDataBackend().Remove(ctx, upload)
+		err := metadataBackend.GetMetaDataBackend().RemoveUpload(upload)
 		if err != nil {
 			log.Warningf("Unable to remove upload : %s", err)
 			return

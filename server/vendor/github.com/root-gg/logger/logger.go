@@ -15,14 +15,15 @@ import (
 type Level int
 
 const (
-	DEBUG Level = iota
+	TRACE Level = iota
+	DEBUG
 	INFO
 	WARNING
 	CRITICAL
 	FATAL
 )
 
-var levels = []string{"DEBUG", "INFO", "WARNING", "CRITICAL", "FATAL"}
+var levels = []string{"TRACE", "DEBUG", "INFO", "WARNING", "CRITICAL", "FATAL"}
 
 const (
 	Fdate = 1 << iota
@@ -105,6 +106,15 @@ func (logger *Logger) Copy() (copy *Logger) {
 func (logger *Logger) LogIf(level Level) bool {
 	return level >= logger.MinLevel
 }
+
+func (logger *Logger) Trace(message string) {
+	logger.Log(TRACE, message)
+}
+
+func (logger *Logger) Tracef(format string, values ...interface{}) {
+	logger.Log(TRACE, fmt.Sprintf(format, values...))
+}
+
 
 func (logger *Logger) Debug(message string) {
 	logger.Log(DEBUG, message)

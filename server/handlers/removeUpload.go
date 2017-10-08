@@ -67,7 +67,7 @@ func RemoveUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reque
 	}
 
 	// Remove from metadata backend
-	err = metadataBackend.GetMetaDataBackend().Remove(ctx, upload)
+	err = metadataBackend.GetMetaDataBackend().RemoveUpload(upload)
 	if err != nil {
 		log.Warningf("Unable to remove upload metadata : %s", err)
 		common.Fail(ctx, req, resp, "Unable to remove upload metadata", 500)

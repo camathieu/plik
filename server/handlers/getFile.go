@@ -155,7 +155,7 @@ func GetFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 		// and ensure proper locking ( which is the case of bolt and looks doable with mongodb but would break the interface ).
 		if upload.OneShot {
 			file.Status = "downloaded"
-			err = metadataBackend.GetMetaDataBackend().AddOrUpdateFile(ctx, upload, file)
+			err = metadataBackend.GetMetaDataBackend().SaveUpload(upload)
 			if err != nil {
 				log.Warningf("Error while deleting file %s from upload %s metadata : %s", file.Name, upload.ID, err)
 			}

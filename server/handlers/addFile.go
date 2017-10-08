@@ -222,7 +222,7 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 
 	// Update upload metadata
 	upload.Files[newFile.ID] = newFile
-	err = metadataBackend.GetMetaDataBackend().AddOrUpdateFile(ctx, upload, newFile)
+	err = metadataBackend.GetMetaDataBackend().SaveUpload(upload)
 	if err != nil {
 		log.Warningf("Unable to update metadata : %s", err)
 		common.Fail(ctx, req, resp, "Unable to update upload metadata", 500)

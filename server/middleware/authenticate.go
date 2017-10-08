@@ -50,7 +50,7 @@ func Authenticate(allowToken bool) juliet.ContextMiddleware {
 					// Get user from token header
 					tokenHeader := req.Header.Get("X-PlikToken")
 					if tokenHeader != "" {
-						user, err := metadataBackend.GetMetaDataBackend().GetUser(ctx, "", tokenHeader)
+						user, err := metadataBackend.GetMetaDataBackend().GetUser("", tokenHeader)
 						if err != nil {
 							log.Warningf("Unable to get user from token %s : %s", tokenHeader, err)
 							common.Fail(ctx, req, resp, "Unable to get user", 500)
@@ -65,7 +65,7 @@ func Authenticate(allowToken bool) juliet.ContextMiddleware {
 						// Get token from user
 						var token *common.Token
 						for _, t := range user.Tokens {
-							if t.Token == tokenHeader {
+							if t.ID == tokenHeader {
 								token = t
 								break
 							}
@@ -147,7 +147,7 @@ func Authenticate(allowToken bool) juliet.ContextMiddleware {
 
 					// Get user from session
 					if userID, ok := session.Claims["uid"]; ok {
-						user, err := metadataBackend.GetMetaDataBackend().GetUser(ctx, userID.(string), "")
+						user, err := metadataBackend.GetMetaDataBackend().GetUser(userID.(string), "")
 						if err != nil {
 							log.Warningf("Unable to get user from session : %s", err)
 							common.Logout(resp)

@@ -78,7 +78,7 @@ func RemoveFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request
 
 	// Set status to removed, and save metadatas
 	file.Status = "removed"
-	if err := metadataBackend.GetMetaDataBackend().AddOrUpdateFile(ctx, upload, file); err != nil {
+	if err := metadataBackend.GetMetaDataBackend().SaveUpload(upload); err != nil {
 		log.Warningf("Unable to update metadata : %s", err)
 		common.Fail(ctx, req, resp, "Unable to update upload metadata", 500)
 		return

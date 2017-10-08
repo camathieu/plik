@@ -106,7 +106,7 @@ func CreateUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reque
 		upload.User = user.ID
 		token := common.GetToken(ctx)
 		if token != nil {
-			upload.Token = token.Token
+			upload.Token = token.ID
 		}
 	}
 
@@ -211,7 +211,7 @@ func CreateUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reque
 	}
 
 	// Save the metadata
-	err = metadataBackend.GetMetaDataBackend().Create(ctx, upload)
+	err = metadataBackend.GetMetaDataBackend().SaveUpload(upload)
 	if err != nil {
 		log.Warningf("Create new upload error : %s", err)
 		common.Fail(ctx, req, resp, "Unable to create new upload", 500)

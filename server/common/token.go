@@ -37,7 +37,7 @@ import (
 
 // Token provide a very basic authentication mechanism
 type Token struct {
-	Token        string `json:"token" bson:"token"`
+	ID           string `json:"token" bson:"token" storm:"id"`
 	CreationDate int64  `json:"creationDate" bson:"creationDate"`
 	Comment      string `json:"comment,omitempty" bson:"comment"`
 }
@@ -55,6 +55,6 @@ func (t *Token) Create() (err error) {
 	if err != nil {
 		return
 	}
-	t.Token = uuid.String()
+	t.ID = uuid.String()
 	return
 }
