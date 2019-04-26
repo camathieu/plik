@@ -154,7 +154,19 @@ func GoogleCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 		return []byte(config.GoogleAPISecret), nil
 	})
 	if err != nil {
-		log.Warning("Invalid oauth2 state : %s")
+		log.Warningf("Invalid oauth2 state : %s", err)
+		context.Fail(ctx, req, resp, "Invalid oauth2 state", 400)
+		return
+	}
+
+	if _, ok := state.Claims.(jwt.MapClaims)["origin"]; !ok {
+		log.Warning("Invalid oauth2 state : missing origin")
+		context.Fail(ctx, req, resp, "Invalid oauth2 state", 400)
+		return
+	}
+
+	if _, ok := state.Claims.(jwt.MapClaims)["origin"].(string); !ok {
+		log.Warning("Invalid oauth2 state : invalid origin")
 		context.Fail(ctx, req, resp, "Invalid oauth2 state", 400)
 		return
 	}
@@ -172,6 +184,10 @@ func GoogleCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 		Endpoint: google.Endpoint,
 	}
 
+	if customEndpoint, ok := ctx.Get("google_endpoint"); ok {
+		conf.Endpoint = customEndpoint.(oauth2.Endpoint)
+	}
+
 	token, err := conf.Exchange(oauth2.NoContext, code)
 	if err != nil {
 		log.Warningf("Unable to create google API token : %s", err)
@@ -184,6 +200,10 @@ func GoogleCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 		log.Warningf("Unable to create google API client : %s", err)
 		context.Fail(ctx, req, resp, "Unable to get user info from google API", 500)
 		return
+	}
+
+	if customEndpoint, ok := ctx.Get("google_endpoint"); ok {
+		client.BasePath = customEndpoint.(oauth2.Endpoint).AuthURL
 	}
 
 	userInfo, err := client.Userinfo.Get().Do()

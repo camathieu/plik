@@ -31,13 +31,13 @@ package middleware
 
 import (
 	"fmt"
-	"github.com/root-gg/plik/server/context"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/root-gg/juliet"
+	"github.com/root-gg/plik/server/context"
 	"github.com/root-gg/utils"
 )
 
@@ -90,19 +90,21 @@ func Upload(ctx *juliet.Context, next http.Handler) http.Handler {
 		// Check upload token
 		uploadToken := req.Header.Get("X-UploadToken")
 		if uploadToken != "" && uploadToken == upload.UploadToken {
-			upload.IsAdmin = true
+			ctx.Set("is_upload_admin", true)
 		} else {
 			// Check if upload belongs to user or if user is admin
-			if config.Authentication && upload.User != "" {
+			if config.Authentication {
 				user := context.GetUser(ctx)
-				if user != nil && (user.ID == upload.User || config.IsAdmin(user)) {
-					upload.IsAdmin = true
+				if user != nil && config.IsAdmin(user) {
+					ctx.Set("is_upload_admin", true)
+				} else if user != nil && upload.User == user.ID {
+					ctx.Set("is_upload_admin", true)
 				}
 			}
 		}
 
 		// Handle basic auth if upload is password protected
-		if upload.ProtectedByPassword && !upload.IsAdmin {
+		if upload.ProtectedByPassword && !context.IsUploadAdmin(ctx) {
 			if req.Header.Get("Authorization") == "" {
 				log.Warning("Missing Authorization header")
 				forbidden()

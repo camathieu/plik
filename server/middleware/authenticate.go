@@ -31,12 +31,12 @@ package middleware
 
 import (
 	"fmt"
-	"github.com/root-gg/plik/server/context"
 	"net/http"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/plik/server/context"
 )
 
 // Authenticate verify that a request has either a whitelisted url or a valid auth token
@@ -72,21 +72,24 @@ func Authenticate(allowToken bool) juliet.ContextMiddleware {
 							}
 						}
 						if token == nil {
+							// THIS SHOULD NEVER HAPPEN
 							log.Warningf("Unable to get token %s from user %s", tokenHeader, user.ID)
-							context.Fail(ctx, req, resp, "Invalid token", 403)
+							context.Fail(ctx, req, resp, "Invalid token", 500)
 							return
 						}
 
 						// Save user and token in the request context
 						ctx.Set("user", user)
 						ctx.Set("token", token)
+
+						next.ServeHTTP(resp, req)
+						return
 					}
 				}
 
 				// Get user from session cookie
 				sessionCookie, err := req.Cookie("plik-session")
 				if err == nil && sessionCookie != nil {
-
 					// Parse session cookie
 					session, err := jwt.Parse(sessionCookie.Value, func(t *jwt.Token) (interface{}, error) {
 						// Verify signing algorithm
@@ -125,7 +128,7 @@ func Authenticate(allowToken bool) juliet.ContextMiddleware {
 					// Verify xsrf token
 					if req.Method != "GET" && req.Method != "HEAD" {
 						if xsrfCookie, ok := session.Claims.(jwt.MapClaims)["xsrf"]; ok {
-							xsrfHeader := req.Header.Get("X-XRSFToken")
+							xsrfHeader := req.Header.Get("X-XSRFToken")
 							if xsrfHeader == "" {
 								log.Warning("Missing xsrf header")
 								common.Logout(resp)

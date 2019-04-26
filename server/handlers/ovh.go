@@ -33,7 +33,6 @@ import (
 	"crypto/sha1"
 	"encoding/json"
 	"fmt"
-	"github.com/root-gg/plik/server/context"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -43,6 +42,7 @@ import (
 	"github.com/nu7hatch/gouuid"
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/plik/server/context"
 )
 
 type ovhError struct {
@@ -191,9 +191,9 @@ func OvhCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 		return
 	}
 
-	if config.OvhAPIKey == "" || config.OvhAPISecret == "" {
+	if config.OvhAPIKey == "" || config.OvhAPISecret == "" || config.OvhAPIEndpoint == "" {
 		log.Warning("Missing ovh api credentials")
-		context.Fail(ctx, req, resp, "Missing ovh api credentials", 500)
+		context.Fail(ctx, req, resp, "Missing OVH API credentials", 500)
 		return
 	}
 
@@ -226,7 +226,7 @@ func OvhCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 	if !ok {
 		log.Warning("Invalid OVH session cookie : missing ovh-consumer-key")
 		cleanOvhAuthSessionCookie(resp)
-		context.Fail(ctx, req, resp, "Invalid OVH session cookie : missing ovh-consumer-key", 500)
+		context.Fail(ctx, req, resp, "Invalid OVH session cookie : missing ovh-consumer-key", 400)
 		return
 	}
 
@@ -280,7 +280,7 @@ func OvhCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 	if err != nil {
 		log.Warningf("Error with ovh API %s : %s", url, err)
 		cleanOvhAuthSessionCookie(resp)
-		context.Fail(ctx, req, resp, fmt.Sprintf("Error with ovh API : %s", err), 500)
+		context.Fail(ctx, req, resp, fmt.Sprintf("Error with OVH API : %s", err), 500)
 		return
 	}
 

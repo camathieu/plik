@@ -230,7 +230,7 @@ build-info:
 test:
 	@if curl -s 127.0.0.1:8080 > /dev/null ; then echo "Plik server probably already running" && exit 1 ; fi
 	@server/gen_build_info.sh $(RELEASE_VERSION)
-	@ERR="" ; for directory in server client ; do \
+	@ERR="" ; for directory in server client plik ; do \
 		cd $$directory; \
 		echo -n "go test $$directory : "; \
 		TEST=`go test -race ./... 2>&1`; \
@@ -258,6 +258,12 @@ test:
 		cd - 2>&1 > /dev/null; \
 	done ; if [ "$$ERR" = "1" ] ; then exit 1 ; fi
 	@echo "cli client integration tests :" && cd client && ./test.sh
+
+###
+# Run integration tests for all available backends
+###
+test-backends:
+	@testing/test_backends.sh
 
 ###
 # Remove server build files

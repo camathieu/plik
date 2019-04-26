@@ -43,28 +43,47 @@ upload := client.NewUpload()
 upload.OneShot = false
 
 // Create file from path
-file1, err = plik.NewFileFromPath(path)
+file1, err = upload.AddFileFromPath(path)
 
 // Create file from reader
-file2, err = plik.NewFileFromReader("filename", ioReader)
+file2, err = upload.AddFileFromReader("filename", ioReader)
 
-// Add files to the upload
-upload.AddFiles(file1, file2)
-
-// Create upload server side ( optional step that is called by upload.Upload() if omitted )
+// Create upload server side ( optional step that is called by upload.Upload() / file.Upload() if omitted )
 err = upload.Create()
 
 // Upload all added files in parallel
 err = upload.Upload()
 
 // Upload a single file
-err = upload.UploadFile(file1)
+err = file.Upload()
 
 // Get upload URL
-uploadURL := upload.GetUploadUrl()
+uploadURL, err := upload.GetURL()
 
 // Get file URL
 for _, file := range upload.Files() {
-    fileURL := upload.GetFileUrl(file)
+    fileURL, err := file.GetURL()
 }
+```
+
+#### 3 Bonus
+
+```go
+// Get Upload
+upload = client.GetUpload(id)
+
+// Download file
+reader, err = client.Download(upload.Info(), file.Info())
+
+// Download archive
+reader, err = client.DownloadArchive(upload.Info())
+
+// Remove File ( might need to be authenticated )
+err = client.RemoveFile(upload.Info(), file.Info())
+
+// Remove Upload ( might need to be authenticated )
+err = client.RemoveUpload(upload.Info())
+
+// Get remote server build info
+buildInfo, err = client.GetServerVersion()
 ```
