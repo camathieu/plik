@@ -42,6 +42,55 @@ import (
 	"github.com/root-gg/utils"
 )
 
+// CreateUpload create a new upload on the fly to be used in the next handler
+func CreateUpload(ctx *juliet.Context, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
+		log := common.GetLogger(ctx)
+
+		upload := common.NewUpload()
+		upload.Create()
+		upload.IsAdmin = true
+
+		// Set upload remote IP
+		upload.RemoteIP = common.GetSourceIP(ctx).String()
+
+		// Set upload user and token
+		user := common.GetUser(ctx)
+		if user != nil {
+			upload.User = user.ID
+			token := common.GetToken(ctx)
+			if token != nil {
+				upload.Token = token.Token
+			}
+		}
+
+		// Set upload one shot mode
+		if common.Config.OneShot {
+			upload.OneShot = true
+		}
+
+		// Set upload TTL
+		upload.TTL = common.Config.DefaultTTL
+
+		// Save the upload metadata
+		err := metadata.GetMetaDataBackend().Create(ctx, upload)
+		if err != nil {
+			log.Warningf("Create new upload error : %s", err)
+			common.Fail(ctx, req, resp, "Unable to create new upload", 500)
+			return
+		}
+
+		// Save upload in the request context
+		ctx.Set("upload", upload)
+
+		// Specify that the upload has been created on the fly
+		// to modify the output of the next handler
+		ctx.Set("quick", true)
+
+		next.ServeHTTP(resp, req)
+	})
+}
+
 // Upload retrieve the requested upload metadata from the metadataBackend and save it to the request context.
 func Upload(ctx *juliet.Context, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {

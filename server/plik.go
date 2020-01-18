@@ -58,12 +58,14 @@ func main() {
 	var version = flag.Bool("version", false, "Show version of plikd")
 	var port = flag.Int("port", 0, "Overrides plik listen port")
 	flag.Parse()
+
 	if *version {
 		fmt.Printf("Plik server %s\n", common.GetBuildInfo())
 		os.Exit(0)
 	}
 
 	common.LoadConfiguration(*configFile)
+
 	log.Infof("Starting plikd server v" + common.GetBuildInfo().Version)
 
 	// Overrides port if provided in command line
@@ -100,6 +102,7 @@ func main() {
 	router := mux.NewRouter()
 	router.Handle("/config", stdChain.Then(handlers.GetConfiguration)).Methods("GET")
 	router.Handle("/version", stdChain.Then(handlers.GetVersion)).Methods("GET")
+	router.Handle("/", tokenChain.Append(middleware.CreateUpload).Then(handlers.AddFile)).Methods("POST")
 	router.Handle("/upload", tokenChain.Then(handlers.CreateUpload)).Methods("POST")
 	router.Handle("/upload/{uploadID}", authChain.Append(middleware.Upload).Then(handlers.GetUpload)).Methods("GET")
 	router.Handle("/upload/{uploadID}", authChain.Append(middleware.Upload).Then(handlers.RemoveUpload)).Methods("DELETE")
@@ -128,7 +131,7 @@ func main() {
 	router.Handle("/qrcode", stdChain.Then(handlers.GetQrCode)).Methods("GET")
 	router.PathPrefix("/clients/").Handler(http.StripPrefix("/clients/", http.FileServer(http.Dir("../clients"))))
 	router.PathPrefix("/changelog/").Handler(http.StripPrefix("/changelog/", http.FileServer(http.Dir("../changelog"))))
-	router.PathPrefix("/").Handler(http.FileServer(http.Dir("./public/")))
+	router.PathPrefix("/").Handler(http.FileServer(http.Dir("./public/"))).Methods("HEAD", "GET")
 
 	handler := common.StripPrefix(common.Config.Path, router)
 

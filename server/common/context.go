@@ -128,6 +128,14 @@ func IsRedirectOnFailure(ctx *juliet.Context) bool {
 	return false
 }
 
+// IsQuick return true if the CreateUpload middleware has created a new upload on the fly
+func IsQuick(ctx *juliet.Context) bool {
+	if quick, ok := ctx.Get("quick"); ok {
+		return quick.(bool)
+	}
+	return false
+}
+
 var userAgents = []string{"wget", "curl", "python-urllib", "libwwww-perl", "php", "pycurl"}
 
 // Fail return write an error to the http response body.

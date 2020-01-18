@@ -215,14 +215,32 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	// sending metadata back to the client
 	newFile.Sanitize()
 
-	// Print file metadata in the json response.
-	var json []byte
-	if json, err = utils.ToJson(newFile); err == nil {
-		resp.Write(json)
+	if common.IsQuick(ctx) {
+		// Print the file url in the response.
+		var url string
+		if common.Config.DownloadDomainURL != nil {
+			url = fmt.Sprintf("%s://%s", common.Config.DownloadDomainURL.Scheme, common.Config.DownloadDomainURL.Host)
+		} else {
+			// This will most likely break behind a reverse proxy
+			proto := "http"
+			if req.TLS != nil {
+				proto = "https"
+			}
+			url = fmt.Sprintf("%s://%s", proto, req.Host)
+		}
+
+		url += fmt.Sprintf("/file/%s/%s/%s", upload.ID, newFile.ID, newFile.Name)
+
+		resp.Write([]byte(url + "\n"))
 	} else {
-		log.Warningf("Unable to serialize json response : %s", err)
-		common.Fail(ctx, req, resp, "Unable to serialize json response", 500)
-		return
+		// Print file metadata in json in the response.
+		var json []byte
+		if json, err = utils.ToJson(newFile); err == nil {
+			resp.Write(json)
+		} else {
+			log.Warningf("Unable to serialize json response : %s", err)
+			common.Fail(ctx, req, resp, "Unable to serialize json response", 500)
+		}
 	}
 }
 
