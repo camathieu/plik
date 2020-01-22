@@ -32,17 +32,19 @@ package testing
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"sync"
+
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/metadata"
-	"sync"
 )
 
 // Ensure Testing Metadata Backend implements metadata.Backend interface
-var _ metadata.Backend = (*MetadataBackend)(nil)
+var _ metadata.Backend = (*Backend)(nil)
 
-// MetadataBackend backed in-memory for testing purpose
-type MetadataBackend struct {
+// Backend backed in-memory for testing purpose
+type Backend struct {
 	uploads map[string]*common.Upload
 	users   map[string]*common.User
 
@@ -50,16 +52,16 @@ type MetadataBackend struct {
 	mu  sync.Mutex
 }
 
-// NewBackend create a new Testing MetadataBackend
-func NewBackend() (b *MetadataBackend) {
-	b = new(MetadataBackend)
+// NewBackend create a new Testing Backend
+func NewBackend() (b *Backend) {
+	b = new(Backend)
 	b.uploads = make(map[string]*common.Upload)
 	b.users = make(map[string]*common.User)
 	return b
 }
 
 // Upsert create or update upload metadata
-func (b *MetadataBackend) Upsert(ctx *juliet.Context, upload *common.Upload) (err error) {
+func (b *Backend) CreateUpload(ctx *juliet.Context, upload *common.Upload) (err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -67,9 +69,13 @@ func (b *MetadataBackend) Upsert(ctx *juliet.Context, upload *common.Upload) (er
 		return b.err
 	}
 
-	u, err := defCopy(upload)
+	u, err := defCopyUpload(upload)
 	if err != nil {
 		return err
+	}
+
+	if _, ok := b.uploads[upload.ID] ; ok {
+		return errors.New("Upload already exists")
 	}
 
 	b.uploads[upload.ID] = u
@@ -77,8 +83,16 @@ func (b *MetadataBackend) Upsert(ctx *juliet.Context, upload *common.Upload) (er
 	return nil
 }
 
+func (b *Backend) get(ctx *juliet.Context, id string) (upload *common.Upload, err error) {
+	if upload, ok := b.uploads[id]; ok {
+		return upload, nil
+	}
+
+	return nil, errors.New("upload does not exists")
+}
+
 // Get upload metadata
-func (b *MetadataBackend) Get(ctx *juliet.Context, id string) (upload *common.Upload, err error) {
+func (b *Backend) GetUpload(ctx *juliet.Context, id string) (upload *common.Upload, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -86,30 +100,30 @@ func (b *MetadataBackend) Get(ctx *juliet.Context, id string) (upload *common.Up
 		return nil, b.err
 	}
 
-	return b.get(ctx, id)
-}
+	upload, err = b.get(ctx, id)
 
-func (b *MetadataBackend) get(ctx *juliet.Context, id string) (upload *common.Upload, err error) {
-	if upload, ok := b.uploads[id]; ok {
-
-		u, err := defCopy(upload)
+	if err == nil {
+		upload, err = defCopyUpload(upload)
 		if err != nil {
 			return nil, err
 		}
-
-		return u, nil
 	}
 
-	return nil, errors.New("Upload does not exists")
+	return upload, err
 }
 
 // Remove upload metadata
-func (b *MetadataBackend) Remove(ctx *juliet.Context, upload *common.Upload) (err error) {
+func (b *Backend) RemoveUpload(ctx *juliet.Context, upload *common.Upload) (err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
 	if b.err != nil {
 		return b.err
+	}
+
+	upload, err = b.get(ctx, upload.ID)
+	if err != nil {
+		return err
 	}
 
 	delete(b.uploads, upload.ID)
@@ -117,8 +131,59 @@ func (b *MetadataBackend) Remove(ctx *juliet.Context, upload *common.Upload) (er
 	return nil
 }
 
-// SaveUser create or update user
-func (b *MetadataBackend) SaveUser(ctx *juliet.Context, user *common.User) (err error) {
+func (b *Backend) AddFile(ctx *juliet.Context, upload *common.Upload, newFile *common.File) (err error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	upload, err = b.get(ctx, upload.ID)
+	if err != nil {
+		return err
+	}
+
+	if _, ok := upload.Files[newFile.ID]; ok {
+		return errors.New("File exists")
+	}
+
+	newFile, err = defCopyFile(newFile)
+	if err != nil {
+		return err
+	}
+
+	upload.Files[newFile.ID] = newFile
+
+	return nil
+}
+
+func (b *Backend) UpdateFile(ctx *juliet.Context, upload *common.Upload, newFile *common.File) (err error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	upload, err = b.get(ctx, upload.ID)
+	if err != nil {
+		return err
+	}
+
+	if oldFile, ok := upload.Files[newFile.ID]; ok {
+		if oldFile.Status != common.FILE_UPLOADING {
+			return errors.New("Cannot update file whose status is not uploading")
+		}
+
+		newFile, err = defCopyFile(newFile)
+		if err != nil {
+			return err
+		}
+
+		upload.Files[newFile.ID] = newFile
+	} else {
+		return errors.New("File does not exists")
+	}
+
+	upload.Files[newFile.ID] = newFile
+
+	return nil
+}
+
+func (b *Backend) SetFileStatus(ctx *juliet.Context, upload *common.Upload, file *common.File, oldStatus string, newStatus string) (err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -126,24 +191,44 @@ func (b *MetadataBackend) SaveUser(ctx *juliet.Context, user *common.User) (err 
 		return b.err
 	}
 
+	upload, err = b.get(ctx, upload.ID)
+	if err != nil {
+		return err
+	}
+
+	if f, ok := upload.Files[file.ID]; ok {
+		if file.Status == oldStatus {
+			f.Status = newStatus
+		} else {
+			return fmt.Errorf("invalid file status %s, expecting %s", f.Status, oldStatus)
+		}
+	} else {
+		return errors.New("file not found")
+	}
+
+	return nil
+}
+
+// SaveUser create or update user
+func (b *Backend) CreateUser(ctx *juliet.Context, user *common.User) (err error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	if b.err != nil {
+		return b.err
+	}
+
+	user, err = defCopyUser(user)
+	if err != nil {
+		return err
+	}
+
 	b.users[user.ID] = user
 
 	return nil
 }
 
-// GetUser get a user
-func (b *MetadataBackend) GetUser(ctx *juliet.Context, id string, token string) (user *common.User, err error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	if b.err != nil {
-		return nil, b.err
-	}
-
-	return b.getUser(ctx, id, token)
-}
-
-func (b *MetadataBackend) getUser(ctx *juliet.Context, id string, token string) (user *common.User, err error) {
+func (b *Backend) getUser(ctx *juliet.Context, id string, token string) (user *common.User, err error) {
 	if id != "" {
 		if user, ok := b.users[id]; ok {
 			return user, nil
@@ -162,8 +247,26 @@ func (b *MetadataBackend) getUser(ctx *juliet.Context, id string, token string) 
 	return nil, nil
 }
 
+// GetUser get a user
+func (b *Backend) GetUser(ctx *juliet.Context, id string, token string) (user *common.User, err error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	if b.err != nil {
+		return nil, b.err
+	}
+
+	user, err = b.getUser(ctx, id, token)
+
+	if err == nil {
+		user, err = defCopyUser(user)
+	}
+
+	return user, err
+}
+
 // RemoveUser remove a user
-func (b *MetadataBackend) RemoveUser(ctx *juliet.Context, user *common.User) (err error) {
+func (b *Backend) RemoveUser(ctx *juliet.Context, user *common.User) (err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -181,8 +284,57 @@ func (b *MetadataBackend) RemoveUser(ctx *juliet.Context, user *common.User) (er
 	return nil
 }
 
+func (b *Backend) CreateUserToken(ctx *juliet.Context, user *common.User, token *common.Token) (err error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	if b.err != nil {
+		return b.err
+	}
+
+	user, err = b.getUser(ctx, user.ID, "")
+	if err != nil {
+		return err
+	}
+
+	for _, t := range user.Tokens {
+		if t.Token == token.Token {
+			return errors.New("token already exists")
+		}
+	}
+
+	user.Tokens = append(user.Tokens, token)
+
+	return nil
+}
+
+func (b *Backend) RevokeUserToken(ctx *juliet.Context, user *common.User, token *common.Token) (err error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	if b.err != nil {
+		return b.err
+	}
+
+	user, err = b.getUser(ctx, user.ID, "")
+	if err != nil {
+		return err
+	}
+
+	validTokens := user.Tokens[:0]
+	for _, t := range user.Tokens {
+		if t.Token != token.Token {
+			validTokens = append(validTokens, t)
+		}
+	}
+
+	user.Tokens = validTokens
+
+	return nil
+}
+
 // GetUserUploads return a user uploads
-func (b *MetadataBackend) GetUserUploads(ctx *juliet.Context, user *common.User, token *common.Token) (ids []string, err error) {
+func (b *Backend) GetUserUploads(ctx *juliet.Context, user *common.User, token *common.Token) (ids []string, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -193,7 +345,7 @@ func (b *MetadataBackend) GetUserUploads(ctx *juliet.Context, user *common.User,
 	return b.getUserUploads(ctx, user, token)
 }
 
-func (b *MetadataBackend) getUserUploads(ctx *juliet.Context, user *common.User, token *common.Token) (ids []string, err error) {
+func (b *Backend) getUserUploads(ctx *juliet.Context, user *common.User, token *common.Token) (ids []string, err error) {
 	if user == nil {
 		return nil, errors.New("Missing user")
 	}
@@ -212,7 +364,7 @@ func (b *MetadataBackend) getUserUploads(ctx *juliet.Context, user *common.User,
 }
 
 // GetUserStatistics return a user statistics
-func (b *MetadataBackend) GetUserStatistics(ctx *juliet.Context, user *common.User, token *common.Token) (stats *common.UserStats, err error) {
+func (b *Backend) GetUserStatistics(ctx *juliet.Context, user *common.User, token *common.Token) (stats *common.UserStats, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -245,7 +397,7 @@ func (b *MetadataBackend) GetUserStatistics(ctx *juliet.Context, user *common.Us
 }
 
 // GetUsers return all user ids
-func (b *MetadataBackend) GetUsers(ctx *juliet.Context) (ids []string, err error) {
+func (b *Backend) GetUsers(ctx *juliet.Context) (ids []string, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -261,7 +413,7 @@ func (b *MetadataBackend) GetUsers(ctx *juliet.Context) (ids []string, err error
 }
 
 // GetServerStatistics return server statistics
-func (b *MetadataBackend) GetServerStatistics(ctx *juliet.Context) (stats *common.ServerStats, err error) {
+func (b *Backend) GetServerStatistics(ctx *juliet.Context) (stats *common.ServerStats, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -290,7 +442,7 @@ func (b *MetadataBackend) GetServerStatistics(ctx *juliet.Context) (stats *commo
 }
 
 // GetUploadsToRemove return expired upload ids
-func (b *MetadataBackend) GetUploadsToRemove(ctx *juliet.Context) (ids []string, err error) {
+func (b *Backend) GetUploadsToRemove(ctx *juliet.Context) (ids []string, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -308,11 +460,11 @@ func (b *MetadataBackend) GetUploadsToRemove(ctx *juliet.Context) (ids []string,
 }
 
 // SetError sets the error any subsequent method other call will return
-func (b *MetadataBackend) SetError(err error) {
+func (b *Backend) SetError(err error) {
 	b.err = err
 }
 
-func defCopy(upload *common.Upload) (u *common.Upload, err error) {
+func defCopyUpload(upload *common.Upload) (u *common.Upload, err error) {
 	u = &common.Upload{}
 	j, err := json.Marshal(upload)
 	if err != nil {
@@ -323,4 +475,44 @@ func defCopy(upload *common.Upload) (u *common.Upload, err error) {
 		return nil, err
 	}
 	return u, err
+}
+
+func defCopyFile(file *common.File) (f *common.File, err error) {
+	f = &common.File{}
+	j, err := json.Marshal(file)
+	if err != nil {
+		return nil, err
+	}
+	err = json.Unmarshal(j, f)
+	if err != nil {
+		return nil, err
+	}
+	return f, err
+}
+
+
+func defCopyUser(user *common.User) (u *common.User, err error) {
+	u = &common.User{}
+	j, err := json.Marshal(user)
+	if err != nil {
+		return nil, err
+	}
+	err = json.Unmarshal(j, u)
+	if err != nil {
+		return nil, err
+	}
+	return u, err
+}
+
+func defCopyToken(token *common.Token) (t *common.Token, err error) {
+	t = &common.Token{}
+	j, err := json.Marshal(token)
+	if err != nil {
+		return nil, err
+	}
+	err = json.Unmarshal(j, t)
+	if err != nil {
+		return nil, err
+	}
+	return t, err
 }

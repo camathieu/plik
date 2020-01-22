@@ -51,18 +51,18 @@ func TestNewBoltMetadataBackendInvalidPath(t *testing.T) {
 	NewBackend()
 }
 
-func TestUpsert(t *testing.T) {
+func TestCreateUpload(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 	backend := NewBackend()
 
 	upload := common.NewUpload()
 	upload.Create()
 
-	err := backend.Upsert(ctx, upload)
+	err := backend.CreateUpload(ctx, upload)
 	require.NoError(t, err, "upsert error")
 }
 
-func TestUpsertError(t *testing.T) {
+func TestCreateUploadError(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 	backend := NewBackend()
 	backend.SetError(errors.New("error"))
@@ -70,22 +70,22 @@ func TestUpsertError(t *testing.T) {
 	upload := common.NewUpload()
 	upload.Create()
 
-	err := backend.Upsert(ctx, upload)
+	err := backend.CreateUpload(ctx, upload)
 	require.Error(t, err, "missing error")
 	require.Equal(t, "error", err.Error(), "invalid error")
 }
 
-func TestGet(t *testing.T) {
+func TestGetUpload(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 	backend := NewBackend()
 
 	upload := common.NewUpload()
 	upload.Create()
 
-	err := backend.Upsert(ctx, upload)
+	err := backend.CreateUpload(ctx, upload)
 	require.NoError(t, err, "upsert error")
 
-	u, err := backend.Get(ctx, upload.ID)
+	u, err := backend.GetUpload(ctx, upload.ID)
 	require.NoError(t, err, "get error")
 	require.NotNil(t, u, "invalid upload")
 }
@@ -97,7 +97,7 @@ func TestGetNotFound(t *testing.T) {
 	upload := common.NewUpload()
 	upload.Create()
 
-	_, err := backend.Get(ctx, upload.ID)
+	_, err := backend.GetUpload(ctx, upload.ID)
 	require.Error(t, err, "get error")
 	require.Contains(t, err.Error(), "Upload does not exists", "invalid not nil upload")
 }
@@ -110,7 +110,7 @@ func TestGetError(t *testing.T) {
 	upload := common.NewUpload()
 	upload.Create()
 
-	_, err := backend.Get(ctx, upload.ID)
+	_, err := backend.GetUpload(ctx, upload.ID)
 	require.Error(t, err, "missing error")
 	require.Equal(t, "error", err.Error(), "invalid error")
 }
@@ -122,13 +122,13 @@ func TestRemove(t *testing.T) {
 	upload := common.NewUpload()
 	upload.Create()
 
-	err := backend.Upsert(ctx, upload)
+	err := backend.CreateUpload(ctx, upload)
 	require.NoError(t, err, "upsert error")
 
-	err = backend.Remove(ctx, upload)
+	err = backend.RemoveUpload(ctx, upload)
 	require.NoError(t, err, "remove error")
 
-	_, err = backend.Get(ctx, upload.ID)
+	_, err = backend.GetUpload(ctx, upload.ID)
 	require.Error(t, err, "get error")
 	require.Contains(t, err.Error(), "Upload does not exists", "invalid not nil upload")
 }
@@ -141,7 +141,7 @@ func TestRemoveError(t *testing.T) {
 	upload := common.NewUpload()
 	upload.Create()
 
-	err := backend.Remove(ctx, upload)
+	err := backend.RemoveUpload(ctx, upload)
 	require.Error(t, err, "missing error")
 	require.Equal(t, "error", err.Error(), "invalid error")
 }
@@ -153,7 +153,7 @@ func TestSaveUser(t *testing.T) {
 	user := common.NewUser()
 	user.ID = "user"
 
-	err := backend.SaveUser(ctx, user)
+	err := backend.CreateUser(ctx, user)
 	require.NoError(t, err, "save user error")
 }
 
@@ -165,7 +165,7 @@ func TestSaveUserError(t *testing.T) {
 	user := common.NewUser()
 	user.ID = "user"
 
-	err := backend.SaveUser(ctx, user)
+	err := backend.CreateUser(ctx, user)
 	require.Error(t, err, "missing error")
 	require.Equal(t, "error", err.Error(), "invalid error")
 }
@@ -177,7 +177,7 @@ func TestGetUser(t *testing.T) {
 	user := common.NewUser()
 	user.ID = "user"
 
-	err := backend.SaveUser(ctx, user)
+	err := backend.CreateUser(ctx, user)
 	require.NoError(t, err, "save user error")
 
 	u, err := backend.GetUser(ctx, user.ID, "")
@@ -195,13 +195,13 @@ func TestGetUserToken(t *testing.T) {
 	user.ID = "user"
 	token := user.NewToken()
 
-	err := backend.SaveUser(ctx, user)
+	err := backend.CreateUser(ctx, user)
 	require.NoError(t, err, "save user error")
 
 	user2 := common.NewUser()
 	user.ID = "user2"
 
-	err = backend.SaveUser(ctx, user2)
+	err = backend.CreateUser(ctx, user2)
 	require.NoError(t, err, "save user error")
 
 	u, err := backend.GetUser(ctx, "", token.Token)
@@ -234,13 +234,13 @@ func TestGetUserUploads(t *testing.T) {
 	upload.Create()
 	upload.User = user.ID
 
-	err := backend.Upsert(ctx, upload)
+	err := backend.CreateUpload(ctx, upload)
 	require.NoError(t, err, "upsert error")
 
 	upload2 := common.NewUpload()
 	upload2.Create()
 
-	err = backend.Upsert(ctx, upload2)
+	err = backend.CreateUpload(ctx, upload2)
 	require.NoError(t, err, "upsert error")
 
 	uploads, err := backend.GetUserUploads(ctx, user, nil)
@@ -262,14 +262,14 @@ func TestGetUserUploadsToken(t *testing.T) {
 	upload.User = user.ID
 	upload.Token = token.Token
 
-	err := backend.Upsert(ctx, upload)
+	err := backend.CreateUpload(ctx, upload)
 	require.NoError(t, err, "upsert error")
 
 	upload2 := common.NewUpload()
 	upload2.Create()
 	upload2.User = user.ID
 
-	err = backend.Upsert(ctx, upload2)
+	err = backend.CreateUpload(ctx, upload2)
 	require.NoError(t, err, "upsert error")
 
 	uploads, err := backend.GetUserUploads(ctx, user, token)
@@ -285,7 +285,7 @@ func TestGetUserUploadsNoUser(t *testing.T) {
 	user := common.NewUser()
 	user.ID = "user"
 
-	err := backend.SaveUser(ctx, user)
+	err := backend.CreateUser(ctx, user)
 	require.NoError(t, err, "save user error")
 
 	_, err = backend.GetUserUploads(ctx, nil, nil)
@@ -320,7 +320,7 @@ func TestGetUserStatistics(t *testing.T) {
 	file2 := upload.NewFile()
 	file2.CurrentSize = 2
 
-	err := backend.Upsert(ctx, upload)
+	err := backend.CreateUpload(ctx, upload)
 	require.NoError(t, err, "create error")
 
 	upload2 := common.NewUpload()
@@ -329,7 +329,7 @@ func TestGetUserStatistics(t *testing.T) {
 	file3 := upload2.NewFile()
 	file3.CurrentSize = 3
 
-	err = backend.Upsert(ctx, upload2)
+	err = backend.CreateUpload(ctx, upload2)
 	require.NoError(t, err, "create error")
 
 	upload3 := common.NewUpload()
@@ -337,7 +337,7 @@ func TestGetUserStatistics(t *testing.T) {
 	file4 := upload3.NewFile()
 	file4.CurrentSize = 3000
 
-	err = backend.Upsert(ctx, upload3)
+	err = backend.CreateUpload(ctx, upload3)
 	require.NoError(t, err, "create error")
 
 	stats, err := backend.GetUserStatistics(ctx, user, nil)
@@ -363,7 +363,7 @@ func TestGetUserStatisticsToken(t *testing.T) {
 	file2 := upload.NewFile()
 	file2.CurrentSize = 2
 
-	err := backend.Upsert(ctx, upload)
+	err := backend.CreateUpload(ctx, upload)
 	require.NoError(t, err, "create error")
 
 	upload2 := common.NewUpload()
@@ -373,7 +373,7 @@ func TestGetUserStatisticsToken(t *testing.T) {
 	file3 := upload2.NewFile()
 	file3.CurrentSize = 3
 
-	err = backend.Upsert(ctx, upload2)
+	err = backend.CreateUpload(ctx, upload2)
 	require.NoError(t, err, "create error")
 
 	upload3 := common.NewUpload()
@@ -381,7 +381,7 @@ func TestGetUserStatisticsToken(t *testing.T) {
 	file4 := upload3.NewFile()
 	file4.CurrentSize = 3000
 
-	err = backend.Upsert(ctx, upload3)
+	err = backend.CreateUpload(ctx, upload3)
 	require.NoError(t, err, "create error")
 
 	stats, err := backend.GetUserStatistics(ctx, user, token)
@@ -398,7 +398,7 @@ func TestGetUserStatisticsNoUser(t *testing.T) {
 	user := common.NewUser()
 	user.ID = "user"
 
-	err := backend.SaveUser(ctx, user)
+	err := backend.CreateUser(ctx, user)
 	require.NoError(t, err, "save user error")
 
 	_, err = backend.GetUserStatistics(ctx, nil, nil)
@@ -428,7 +428,7 @@ func TestGetUploadsToRemove(t *testing.T) {
 	upload.Creation = time.Now().Add(-10 * time.Minute).Unix()
 	require.True(t, upload.IsExpired(), "upload should have expired")
 
-	err := backend.Upsert(ctx, upload)
+	err := backend.CreateUpload(ctx, upload)
 	require.NoError(t, err, "create error")
 
 	upload2 := common.NewUpload()
@@ -437,7 +437,7 @@ func TestGetUploadsToRemove(t *testing.T) {
 	upload2.Creation = time.Now().Add(-10 * time.Minute).Unix()
 	require.False(t, upload2.IsExpired(), "upload should not have expired")
 
-	err = backend.Upsert(ctx, upload2)
+	err = backend.CreateUpload(ctx, upload2)
 	require.NoError(t, err, "create error")
 
 	upload3 := common.NewUpload()
@@ -446,7 +446,7 @@ func TestGetUploadsToRemove(t *testing.T) {
 	upload3.Creation = time.Now().Add(-10 * time.Minute).Unix()
 	require.False(t, upload3.IsExpired(), "upload should not have expired")
 
-	err = backend.Upsert(ctx, upload3)
+	err = backend.CreateUpload(ctx, upload3)
 	require.NoError(t, err, "create error")
 
 	ids, err := backend.GetUploadsToRemove(ctx)
@@ -490,7 +490,7 @@ func TestGetServerStatistics(t *testing.T) {
 			file.Type = item.typ
 			file.CurrentSize = item.size
 
-			err := backend.Upsert(ctx, upload)
+			err := backend.CreateUpload(ctx, upload)
 			require.NoError(t, err, "create error")
 		}
 	}
@@ -526,13 +526,13 @@ func TestGetUsers(t *testing.T) {
 	user := common.NewUser()
 	user.ID = "user"
 
-	err := backend.SaveUser(ctx, user)
+	err := backend.CreateUser(ctx, user)
 	require.NoError(t, err, "save user error")
 
 	user2 := common.NewUser()
 	user2.ID = "user2"
 
-	err = backend.SaveUser(ctx, user2)
+	err = backend.CreateUser(ctx, user2)
 	require.NoError(t, err, "save user error")
 
 	ids, err := backend.GetUsers(ctx)
