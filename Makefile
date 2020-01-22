@@ -24,6 +24,8 @@
 # THE SOFTWARE.
 ###
 
+SHELL:=/bin/bash
+
 RELEASE_VERSION="1.2.4"
 RELEASE_DIR="release/plik-$(RELEASE_VERSION)"
 RELEASE_TARGETS=darwin-386 darwin-amd64 freebsd-386 \
@@ -240,10 +242,10 @@ lint:
 # Run tests
 ###
 test:
-	@if curl -s 127.0.0.1:8080 > /dev/null ; then echo "Plik server probably already running" && exit 1 ; fi
-	@server/gen_build_info.sh $(RELEASE_VERSION)
-	@GORACE="halt_on_error=1" go test -race -cover -p 1 -count=1 ./... 2>&1 | grep -v "no test files"; test $${PIPESTATUS[0]} -eq 0
-	@echo "cli client integration tests :" && cd client && ./test.sh
+	if curl -s 127.0.0.1:8080 > /dev/null ; then echo "Plik server probably already running" && exit 1 ; fi
+	server/gen_build_info.sh $(RELEASE_VERSION)
+	GORACE="halt_on_error=1" go test -race -cover -p 1 -count=1 ./... 2>&1 | grep -v "no test files"; test $${PIPESTATUS[0]} -eq 0
+	echo "cli client integration tests :" && cd client && ./test.sh
 
 ###
 # Run integration tests for all available backends
