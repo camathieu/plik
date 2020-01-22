@@ -82,9 +82,9 @@ echo "PLIKD_CONFIG = $PLIKD_CONFIG"
 # Verify that server is running
 sleep 1
 if curl $URL 2>/dev/null | grep plik >/dev/null 2>&1 ; then
-    echo "OK"
+    echo "Plik server is running"
 else
-    echo "UNABLE TO START PLIK SERVER"
+    echo "Plik server is not running"
     cat $SERVER_LOG
     exit 1
 fi
@@ -171,7 +171,8 @@ function uploadOpts {
 # Download files by running the output cmds
 function download {
     cd $TMPDIR/download
-    local COMMANDS=$(cat $CLIENT_LOG | grep curl)
+
+    local COMMANDS=$(cat $CLIENT_LOG | grep -a curl)
     local IFS='\n'
     for COMMAND in "$COMMANDS"
     do
@@ -219,12 +220,12 @@ echo "OK"
 echo -n " - debug : "
 
 before
-$CLIENT -d >$CLIENT_LOG 2>&1
+$CLIENT -d $SPECIMEN >$CLIENT_LOG 2>&1
 grep "Arguments" $CLIENT_LOG >/dev/null 2>/dev/null
 grep "Configuration" $CLIENT_LOG >/dev/null 2>/dev/null
 
 before
-$CLIENT --debug >$CLIENT_LOG 2>&1
+$CLIENT --debug $SPECIMEN >$CLIENT_LOG 2>&1
 grep "Arguments" $CLIENT_LOG >/dev/null 2>/dev/null
 grep "Configuration" $CLIENT_LOG >/dev/null 2>/dev/null
 
@@ -303,12 +304,13 @@ echo "OK"
 echo -n " - streaming : "
 
 before
-cp $SPECIMEN $TMPDIR/upload/FILE1
+FILE="FILE_$RANDOM"
+cp $SPECIMEN $TMPDIR/upload/$FILE
 # Start upload cmd in background to create upload then kill it
 (
     set -e
     upload -S &
-    child=$!
+    child=$(ps x | grep "plik \-S $FILE" | awk '{print $1}')
     sleep 1
     (
         kill -0 $child && kill $child
@@ -316,16 +318,18 @@ cp $SPECIMEN $TMPDIR/upload/FILE1
         kill -0 $child && kill -9 $child
     ) >/dev/null 2>&1 &
 )
+sleep 3
 uploadOpts
 echo "$UPLOAD_OPTS" | grep '"stream": true' >/dev/null 2>/dev/null
 
 before
-cp $SPECIMEN $TMPDIR/upload/FILE1
+FILE="FILE_$RANDOM"
+cp $SPECIMEN $TMPDIR/upload/$FILE
 # Start upload cmd in background to create upload then kill it
 (
     set -e
     upload --stream &
-    child=$!
+    child=$(ps x | grep "plik \-S $FILE" | awk '{print $1}')
     sleep 1
     (
         kill -0 $child && kill $child
@@ -333,6 +337,7 @@ cp $SPECIMEN $TMPDIR/upload/FILE1
         kill -0 $child && kill -9 $child
     ) >/dev/null 2>&1 &
 )
+sleep 3
 uploadOpts
 echo "$UPLOAD_OPTS" | grep '"stream": true' >/dev/null 2>/dev/null
 
@@ -494,7 +499,7 @@ cp $SPECIMEN $TMPDIR/upload/FILE1
 upload --archive zip && download
 # Unzip manually
 cd $TMPDIR/download
-test -f FILE1.zip || exit 1
+test -f FILE1.zip
 unzip FILE1.zip >/dev/null 2>/dev/null
 rm FILE1.zip
 check
@@ -510,7 +515,7 @@ cp $SPECIMEN $TMPDIR/upload/DIR/FILE2
 upload --archive zip && download
 # Unzip manually
 cd $TMPDIR/download
-test -f DIR.zip || exit 1
+test -f DIR.zip
 unzip DIR.zip >/dev/null 2>/dev/null
 rm DIR.zip
 check
@@ -527,7 +532,7 @@ rm $TMPDIR/upload/EXCLUDE
 download
 # Unzip manually
 cd $TMPDIR/download
-test -f archive.zip || exit 1
+test -f archive.zip
 unzip archive.zip >/dev/null 2>/dev/null
 rm archive.zip
 check
@@ -541,7 +546,7 @@ cp $SPECIMEN $TMPDIR/upload/FILE1
 upload --archive zip --name foobar.zip && download
 # Unzip manually
 cd $TMPDIR/download
-test -f foobar.zip || exit 1
+test -f foobar.zip
 unzip foobar.zip >/dev/null 2>/dev/null
 rm foobar.zip
 check
@@ -557,7 +562,7 @@ cp $SPECIMEN $TMPDIR/upload/DIR/FILE2
 upload --archive zip --name foobar.zip && download
 # Unzip manually
 cd $TMPDIR/download
-test -f foobar.zip || exit 1
+test -f foobar.zip
 unzip foobar.zip >/dev/null 2>/dev/null
 rm foobar.zip
 check
@@ -608,8 +613,8 @@ echo -n " - openssl custom options : "
 before
 cp $SPECIMEN $TMPDIR/upload/FILE1
 upload -s --secure-options '-a' && download && check
-curl $(cat $CLIENT_LOG | grep "curl" | sed -n 's/^.*"\(.*\)".*$/\1/p') >$TMPDIR/download/ARMORED 2>/dev/null
-file $TMPDIR/download/ARMORED | grep "ASCII text" >/dev/null 2>/dev/null
+curl $(cat $CLIENT_LOG | grep -a "curl" | sed -n 's/^.*"\(.*\)".*$/\1/p') >$TMPDIR/download/ARMORED 2>/dev/null
+file $TMPDIR/download/ARMORED | grep "ASCII text\|base64" >/dev/null 2>/dev/null
 echo "OK"
 
 ###
