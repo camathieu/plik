@@ -59,7 +59,7 @@ func TestAuthenticateTokenNoUser(t *testing.T) {
 func TestAuthenticateTokenMetadataBackendError(t *testing.T) {
 	ctx := context.NewTestingContext(common.NewConfiguration())
 	context.GetConfig(ctx).Authentication = true
-	context.GetMetadataBackend(ctx).(*metadata_test.MetadataBackend).SetError(errors.New("metadata backend error"))
+	context.GetMetadataBackend(ctx).(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
 	require.NoError(t, err, "unable to create new request")
@@ -189,7 +189,7 @@ func TestAuthenticateMetadataBackendError(t *testing.T) {
 	require.NoError(t, err, "unable to create new request")
 	req.AddCookie(sessionCookie)
 
-	context.GetMetadataBackend(ctx).(*metadata_test.MetadataBackend).SetError(errors.New("metadata backend error"))
+	context.GetMetadataBackend(ctx).(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
 
 	rr := httptest.NewRecorder()
 	Authenticate(false)(ctx, common.DummyHandler).ServeHTTP(rr, req)

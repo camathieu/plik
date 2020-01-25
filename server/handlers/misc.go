@@ -30,6 +30,7 @@ THE SOFTWARE.
 package handlers
 
 import (
+	"fmt"
 	"image/png"
 	"net/http"
 	"strconv"
@@ -124,18 +125,24 @@ func GetQrCode(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request)
 	}
 }
 
+func DeleteFile(ctx *juliet.Context, upload *common.Upload, file *common.File) (err error){
+	err = context.GetDataBackend(ctx).RemoveFile(ctx, upload, file.ID)
+	if err != nil {
+		return fmt.Errorf("Error while deleting file %s : %s", file.Name, err)
+	}
+
+	return nil
+}
+
 // RemoveUploadIfNoFileAvailable iterates on upload files and remove upload files
 // and metadata if all the files have been downloaded (useful for OneShot uploads)
-func RemoveUploadIfNoFileAvailable(ctx *juliet.Context, upload *common.Upload) {
+func RemoveEmptyUpload(ctx *juliet.Context, upload *common.Upload) {
 	log := context.GetLogger(ctx)
 
 	// Test if there are remaining files
 	filesInUpload := len(upload.Files)
 	for _, f := range upload.Files {
-		if upload.Stream && f.Status != "missing" {
-			filesInUpload--
-		}
-		if !upload.Stream && f.Status != "uploaded" {
+		if upload.Stream && f.Status != common.FILE_DELETED {
 			filesInUpload--
 		}
 	}
@@ -143,15 +150,9 @@ func RemoveUploadIfNoFileAvailable(ctx *juliet.Context, upload *common.Upload) {
 	if filesInUpload == 0 {
 		log.Debugf("No more files in upload. Removing.")
 
-		if !upload.Stream {
-			err := context.GetDataBackend(ctx).RemoveUpload(ctx, upload)
-			if err != nil {
-				log.Warningf("Unable to remove upload : %s", err)
-				return
-			}
-		}
-		err := context.GetMetadataBackend(ctx).Remove(ctx, upload)
+		err := context.GetMetadataBackend(ctx).RemoveUpload(upload)
 		if err != nil {
+
 			log.Warningf("Unable to remove upload : %s", err)
 			return
 		}

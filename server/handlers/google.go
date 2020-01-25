@@ -214,7 +214,7 @@ func GoogleCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 	userID := "google:" + userInfo.Id
 
 	// Get user from metadata backend
-	user, err := context.GetMetadataBackend(ctx).GetUser(ctx, userID, "")
+	user, err := context.GetMetadataBackend(ctx).GetUser(userID, "")
 	if err != nil {
 		log.Warningf("Unable to get user : %s", err)
 		context.Fail(ctx, req, resp, "Unable to get user", 500)
@@ -251,7 +251,7 @@ func GoogleCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 			}
 
 			// Save user to metadata backend
-			err = context.GetMetadataBackend(ctx).SaveUser(ctx, user)
+			err = context.GetMetadataBackend(ctx).CreateUser(user)
 			if err != nil {
 				log.Warningf("Unable to save user to metadata backend : %s", err)
 				context.Fail(ctx, req, resp, "Authentication error", 403)

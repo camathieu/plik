@@ -230,7 +230,7 @@ func CreateUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reque
 	}
 
 	// Save the metadata
-	err = context.GetMetadataBackend(ctx).Upsert(ctx, upload)
+	err = context.GetMetadataBackend(ctx).CreateUpload(upload)
 	if err != nil {
 		log.Warningf("Create new upload error : %s", err)
 		context.Fail(ctx, req, resp, "Unable to create new upload", 500)

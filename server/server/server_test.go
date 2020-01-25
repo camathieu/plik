@@ -141,7 +141,7 @@ func TestClean(t *testing.T) {
 	_, err = ps.metadataBackend.Get(ps.NewContext(), upload.ID)
 	require.Error(t, err, "should be unable to get expired upload after clean")
 
-	ps.metadataBackend.(*metadata_test.MetadataBackend).SetError(errors.New("error"))
+	ps.metadataBackend.(*metadata_test.Backend).SetError(errors.New("error"))
 	ps.Clean()
 }
 

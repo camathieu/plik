@@ -39,6 +39,9 @@ var (
 	randRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
 )
 
+// UploadTx is used to mutate user metadata
+type UploadTx func(*Upload) error
+
 // Upload object
 type Upload struct {
 	ID       string `json:"id" bson:"id"`

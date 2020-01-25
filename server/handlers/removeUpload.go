@@ -30,6 +30,7 @@ THE SOFTWARE.
 package handlers
 
 import (
+	"github.com/root-gg/plik/server/common"
 	"net/http"
 
 	"github.com/root-gg/juliet"
@@ -56,18 +57,33 @@ func RemoveUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reque
 		return
 	}
 
-	// Remove from data backend
-	err := context.GetDataBackend(ctx).RemoveUpload(ctx, upload)
+	var files []*common.File
+	tx := func(u *common.Upload) error {
+		files = []*common.File{}
+		for _, f := range u.Files {
+			if f.Status == common.FILE_UPLOADED {
+				f.Status = common.FILE_REMOVED
+				files = append(files, f)
+			}
+		}
+		return nil
+	}
+
+	err := context.GetMetadataBackend(ctx).UpdateUpload(upload, tx)
 	if err != nil {
-		log.Warningf("Unable to remove upload data : %s", err)
-		context.Fail(ctx, req, resp, "Unable to remove upload", 500)
+		log.Warningf("Unable to update upload %s", upload.ID)
+		context.Fail(ctx, req, resp, "Unable to add file", http.StatusInternalServerError)
 		return
 	}
 
-	// Remove from metadata backend
-	err = context.GetMetadataBackend(ctx).Remove(ctx, upload)
-	if err != nil {
-		log.Warningf("Unable to remove upload metadata : %s", err)
-		context.Fail(ctx, req, resp, "Unable to remove upload metadata", 500)
+	// Remove files
+	for _, file := range upload.Files {
+		err = DeleteFile(ctx, upload, file)
+		if err != nil {
+			// Don't block here
+			log.Warningf("Unable to delete file : %s")
+		}
 	}
+
+	RemoveEmptyUpload(ctx, upload)
 }

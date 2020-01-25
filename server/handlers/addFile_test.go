@@ -403,7 +403,7 @@ func TestAddFileWithDataBackendError(t *testing.T) {
 
 func TestAddFileWithMetadataBackendError(t *testing.T) {
 	ctx := context.NewTestingContext(common.NewConfiguration())
-	context.GetMetadataBackend(ctx).(*metadata_test.MetadataBackend).SetError(errors.New("metadata backend error"))
+	context.GetMetadataBackend(ctx).(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
 	ctx.Set("is_upload_admin", true)
 
 	upload := common.NewUpload()

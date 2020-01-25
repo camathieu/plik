@@ -32,6 +32,7 @@ package handlers
 import (
 	"fmt"
 	"github.com/root-gg/juliet"
+	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
 	"github.com/root-gg/plik/server/data"
 	"io"
@@ -76,18 +77,25 @@ func GetFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// If upload has OneShot option, test if file has not been already downloaded once
-	if upload.OneShot && file.Status == "downloaded" {
-		log.Warningf("File %s has already been downloaded", file.Name)
-		context.Fail(ctx, req, resp, fmt.Sprintf("File %s has already been downloaded", file.Name), 404)
-		return
-	}
+	if upload.OneShot {
+		tx := func(u *common.Upload) error {
+			f, ok := u.Files[file.ID]
+			if !ok {
+				return fmt.Errorf("Unable to find file %s", file.ID)
+			}
+			if f.Status != common.FILE_UPLOADED {
+				return fmt.Errorf("Unable to remove file %s", file.ID)
+			}
+			f.Status = common.FILE_REMOVED
+			return nil
+		}
 
-	// If the file is marked as deleted by a previous call, we abort request
-	if file.Status == "removed" {
-		log.Warningf("File %s has been removed", file.Name)
-		context.Fail(ctx, req, resp, fmt.Sprintf("File %s has been removed", file.Name), 404)
-		return
+		err := context.GetMetadataBackend(ctx).UpdateUpload(upload, tx)
+		if err != nil {
+			log.Warningf("Unable to update upload %s : %s", upload.ID, err)
+			context.Fail(ctx, req, resp, "Unable to get file", http.StatusInternalServerError)
+			return
+		}
 	}
 
 	// Avoid rendering HTML in browser
@@ -149,18 +157,6 @@ func GetFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 		}
 		defer fileReader.Close()
 
-		// Update metadata if oneShot option is set
-		// There is a small possible race from upload.OneShot && file.Status == "downloaded" to here.
-		// To avoid the race completely AddOrUpdateFile should return the previous version of the metadata
-		// and ensure proper locking ( which is the case of bolt and looks doable with mongodb but would break the interface ).
-		if upload.OneShot {
-			file.Status = "downloaded"
-			err = context.GetMetadataBackend(ctx).Upsert(ctx, upload)
-			if err != nil {
-				log.Warningf("Error while deleting file %s from upload %s metadata : %s", file.Name, upload.ID, err)
-			}
-		}
-
 		// File is piped directly to http response body without buffering
 		_, err = io.Copy(resp, fileReader)
 		if err != nil {
@@ -177,6 +173,6 @@ func GetFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 		}
 
 		// Remove upload if no files anymore
-		RemoveUploadIfNoFileAvailable(ctx, upload)
+		RemoveEmptyUpload(ctx, upload)
 	}
 }

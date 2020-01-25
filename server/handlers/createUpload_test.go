@@ -48,7 +48,7 @@ import (
 
 func createTestUpload(ctx *juliet.Context, uploadToCreate *common.Upload) {
 	metadataBackend := context.GetMetadataBackend(ctx)
-	_ = metadataBackend.Upsert(ctx, uploadToCreate)
+	_ = metadataBackend.CreateUpload(ctx, uploadToCreate)
 }
 
 func TestCreateUploadWithoutOptions(t *testing.T) {
@@ -411,7 +411,7 @@ func TestCreateWithFilenameTooLong(t *testing.T) {
 
 func TestCreateWithMetadataBackendError(t *testing.T) {
 	ctx := context.NewTestingContext(common.NewConfiguration())
-	context.GetMetadataBackend(ctx).(*metadatadata_test.MetadataBackend).SetError(errors.New("metadata backend error"))
+	context.GetMetadataBackend(ctx).(*metadatadata_test.Backend).SetError(errors.New("metadata backend error"))
 
 	uploadToCreate := common.NewUpload()
 	file := common.NewFile()

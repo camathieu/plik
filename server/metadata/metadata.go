@@ -30,27 +30,52 @@ THE SOFTWARE.
 package metadata
 
 import (
-	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
 )
 
 // Backend interface describes methods that metadata backends
 // must implements to be compatible with plik.
 type Backend interface {
-	// Upload
-	Upsert(ctx *juliet.Context, upload *common.Upload) (err error)
-	Get(ctx *juliet.Context, id string) (upload *common.Upload, err error)
-	Remove(ctx *juliet.Context, upload *common.Upload) (err error)
+	// Create upload metadata
+	CreateUpload(upload *common.Upload) (err error)
 
-	// User
-	SaveUser(ctx *juliet.Context, user *common.User) (err error)
-	GetUser(ctx *juliet.Context, id string, token string) (user *common.User, err error)
-	RemoveUser(ctx *juliet.Context, user *common.User) (err error)
-	GetUserUploads(ctx *juliet.Context, user *common.User, token *common.Token) (ids []string, err error)
-	GetUserStatistics(ctx *juliet.Context, user *common.User, token *common.Token) (stats *common.UserStats, err error)
+	// Get upload metadata
+	GetUpload(id string) (upload *common.Upload, err error)
 
-	// Server
-	GetUsers(ctx *juliet.Context) (ids []string, err error)
-	GetServerStatistics(ctx *juliet.Context) (stats *common.ServerStats, err error)
-	GetUploadsToRemove(ctx *juliet.Context) (ids []string, err error)
+	// Update upload metadata
+	UpdateUpload(upload *common.Upload, tx common.UploadTx) (err error)
+
+	// Remove upload metadata
+	RemoveUpload(upload *common.Upload) (err error)
+
+
+
+	// Create user metadata
+	CreateUser(user *common.User) (err error)
+
+	// Get user metadata
+	GetUser(id string, token string) (user *common.User, err error)
+
+	// Remove user metadata
+	UpdateUser(user *common.User, tx common.UserTx) (err error)
+
+	// Remove user metadata
+	RemoveUser(user *common.User) (err error)
+
+
+
+	// Get all upload for a given user
+	GetUserUploads(user *common.User, token *common.Token) (ids []string, err error)
+
+	// Get statistics for a given user
+	GetUserStatistics(user *common.User, token *common.Token) (stats *common.UserStats, err error)
+
+	// Get all users
+	GetUsers() (ids []string, err error)
+
+	// Get server statistics
+	GetServerStatistics() (stats *common.ServerStats, err error)
+
+	// Return uploads that needs to be removed from the server
+	GetUploadsToRemove() (ids []string, err error)
 }

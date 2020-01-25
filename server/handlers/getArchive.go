@@ -69,35 +69,6 @@ func GetArchive(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request
 		return
 	}
 
-	// Get files to archive
-	var files []*common.File
-	for _, file := range upload.Files {
-		// Ignore uploading, missing, removed, one shot already downloaded,...
-		if file.Status != "uploaded" {
-			continue
-		}
-
-		// Update metadata if oneShot option is set.
-		// Doing this later would increase the window to race the condition.
-		// To avoid the race completely AddOrUpdateFile should return the previous version of the metadata
-		// and ensure proper locking ( which is the case of bolt and looks doable with mongodb but would break the interface ).
-		if upload.OneShot {
-			file.Status = "downloaded"
-			err := context.GetMetadataBackend(ctx).Upsert(ctx, upload)
-			if err != nil {
-				log.Warningf("Error while deleting file %s from upload %s metadata : %s", file.Name, upload.ID, err)
-				continue
-			}
-		}
-
-		files = append(files, file)
-	}
-
-	if len(files) == 0 {
-		context.Fail(ctx, req, resp, "Nothing to archive", 404)
-		return
-	}
-
 	// Set content type
 	resp.Header().Set("Content-Type", "application/zip")
 
@@ -149,6 +120,35 @@ func GetArchive(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request
 			return
 		}
 
+		// Get files to archive
+		var files []*common.File
+
+		tx := func(u *common.Upload) error {
+			files = []*common.File{}
+			for _, f := range u.Files {
+				// Ignore uploading, missing, removed, one shot already downloaded,...
+				if f.Status != common.FILE_UPLOADED {
+					continue
+				}
+
+				f.Status = common.FILE_REMOVED
+				files = append(files, f)
+			}
+			return nil
+		}
+
+		err := context.GetMetadataBackend(ctx).UpdateUpload(upload, tx)
+		if err != nil {
+			log.Warningf("Unable to update upload %s : %s", upload.ID, err)
+			context.Fail(ctx, req, resp, "Unable to get archive files", http.StatusInternalServerError)
+			return
+		}
+
+		if len(files) == 0 {
+			context.Fail(ctx, req, resp, "Nothing to archive", 404)
+			return
+		}
+
 		backend := context.GetDataBackend(ctx)
 
 		// The zip archive is piped directly to http response body without buffering
@@ -179,24 +179,15 @@ func GetArchive(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request
 			if err != nil {
 				log.Warningf("Error while closing file reader : %s", err)
 			}
-
-			// Remove file from data backend if oneShot option is set
-			if upload.OneShot {
-				err = backend.RemoveFile(ctx, upload, file.ID)
-				if err != nil {
-					log.Warningf("Error while deleting file %s from upload %s : %s", file.Name, upload.ID, err)
-					return
-				}
-			}
 		}
 
-		err := archive.Close()
+		err = archive.Close()
 		if err != nil {
 			log.Warningf("Failed to close zip archive : %s", err)
 			return
 		}
 
 		// Remove upload if no files anymore
-		RemoveUploadIfNoFileAvailable(ctx, upload)
+		RemoveEmptyUpload(ctx, upload)
 	}
 }

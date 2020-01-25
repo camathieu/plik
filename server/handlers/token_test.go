@@ -153,7 +153,7 @@ func TestCreateTokenMetadataBackendError(t *testing.T) {
 	req, err := http.NewRequest("POST", "/me/token", bytes.NewBuffer(reqBody))
 	require.NoError(t, err, "unable to create new request")
 
-	context.GetMetadataBackend(ctx).(*metadata_test.MetadataBackend).SetError(errors.New("metadata backend error"))
+	context.GetMetadataBackend(ctx).(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
 
 	rr := httptest.NewRecorder()
 	CreateToken(ctx, rr, req)
@@ -267,7 +267,7 @@ func TestRevokeTokenMetadataBackendError(t *testing.T) {
 	}
 	req = mux.SetURLVars(req, vars)
 
-	context.GetMetadataBackend(ctx).(*metadata_test.MetadataBackend).SetError(errors.New("metadata backend error"))
+	context.GetMetadataBackend(ctx).(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
 
 	rr := httptest.NewRecorder()
 	RevokeToken(ctx, rr, req)

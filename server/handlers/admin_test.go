@@ -45,7 +45,7 @@ import (
 
 func addTestUser(ctx *juliet.Context, user *common.User) (err error) {
 	metadataBackend := context.GetMetadataBackend(ctx)
-	return metadataBackend.SaveUser(ctx, user)
+	return metadataBackend.CreateUser(ctx, user)
 }
 
 func addTestUserAdmin(ctx *juliet.Context) (user *common.User, err error) {
@@ -153,7 +153,7 @@ func TestGetServerStatistics(t *testing.T) {
 			file.Type = item.typ
 			file.CurrentSize = item.size
 
-			err := context.GetMetadataBackend(ctx).Upsert(ctx, upload)
+			err := context.GetMetadataBackend(ctx).CreateUpload(ctx, upload)
 			require.NoError(t, err, "create error")
 		}
 	}

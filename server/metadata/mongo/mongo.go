@@ -51,7 +51,7 @@ import (
  */
 
 // Ensure Mongo Metadata Backend implements metadata.Backend interface
-var _ metadata.Backend = (*MetadataBackend)(nil)
+var _ metadata.Backend = (*Backend)(nil)
 
 // Config object
 type Config struct {
@@ -76,16 +76,16 @@ func NewConfig(params map[string]interface{}) (c *Config) {
 	return
 }
 
-// MetadataBackend object
-type MetadataBackend struct {
+// Backend object
+type Backend struct {
 	config  *Config
 	session *mgo.Session
 }
 
 // NewBackend instantiate a new MongoDB Metadata Backend
 // from configuration passed as argument
-func NewBackend(config *Config) (b *MetadataBackend, err error) {
-	b = new(MetadataBackend)
+func NewBackend(config *Config) (b *Backend, err error) {
+	b = new(Backend)
 	b.config = config
 
 	// Open connection
@@ -121,143 +121,10 @@ func NewBackend(config *Config) (b *MetadataBackend, err error) {
 	return b, nil
 }
 
-// Upsert implementation from MongoDB Metadata Backend
-func (mmb *MetadataBackend) Upsert(ctx *juliet.Context, upload *common.Upload) (err error) {
-	log := context.GetLogger(ctx)
 
-	if upload == nil {
-		err = log.EWarning("Unable to save upload : Missing upload")
-		return
-	}
-
-	session := mmb.session.Copy()
-	defer session.Close()
-	collection := session.DB(mmb.config.Database).C(mmb.config.Collection)
-	_, err = collection.Upsert(bson.M{"id": upload.ID}, &upload)
-	if err != nil {
-		err = log.EWarningf("Unable to append metadata to mongodb : %s", err)
-	}
-	return
-}
-
-// Get implementation from MongoDB Metadata Backend
-func (mmb *MetadataBackend) Get(ctx *juliet.Context, id string) (u *common.Upload, err error) {
-	log := context.GetLogger(ctx)
-
-	if id == "" {
-		err = log.EWarning("Unable to get upload : Missing upload id")
-		return
-	}
-
-	session := mmb.session.Copy()
-	defer session.Close()
-	collection := session.DB(mmb.config.Database).C(mmb.config.Collection)
-	u = &common.Upload{}
-	err = collection.Find(bson.M{"id": id}).One(u)
-	if err != nil {
-		err = log.EWarningf("Unable to get metadata from mongodb : %s", err)
-	}
-	return
-}
-
-// Remove implementation from MongoDB Metadata Backend
-func (mmb *MetadataBackend) Remove(ctx *juliet.Context, upload *common.Upload) (err error) {
-	log := context.GetLogger(ctx)
-
-	if upload == nil {
-		err = log.EWarning("Unable to remove upload : Missing upload")
-		return
-	}
-
-	session := mmb.session.Copy()
-	defer session.Close()
-	collection := session.DB(mmb.config.Database).C(mmb.config.Collection)
-	err = collection.Remove(bson.M{"id": upload.ID})
-	if err != nil {
-		err = log.EWarningf("Unable to remove upload from mongodb : %s", err)
-	}
-	return
-}
-
-// SaveUser implementation from MongoDB Metadata Backend
-func (mmb *MetadataBackend) SaveUser(ctx *juliet.Context, user *common.User) (err error) {
-	log := context.GetLogger(ctx)
-
-	if user == nil {
-		err = log.EWarning("Unable to save user : Missing user")
-		return
-	}
-
-	session := mmb.session.Copy()
-	defer session.Close()
-	collection := session.DB(mmb.config.Database).C(mmb.config.UserCollection)
-
-	_, err = collection.Upsert(bson.M{"id": user.ID}, &user)
-	if err != nil {
-		err = log.EWarningf("Unable to save user to mongodb : %s", err)
-	}
-	return
-}
-
-// GetUser implementation from MongoDB Metadata Backend
-func (mmb *MetadataBackend) GetUser(ctx *juliet.Context, id string, token string) (user *common.User, err error) {
-	log := context.GetLogger(ctx)
-
-	if id == "" && token == "" {
-		err = log.EWarning("Unable to get user : Missing user id or token")
-		return
-	}
-
-	session := mmb.session.Copy()
-	defer session.Close()
-	collection := session.DB(mmb.config.Database).C(mmb.config.UserCollection)
-
-	user = &common.User{}
-	if id != "" {
-		err = collection.Find(bson.M{"id": id}).One(user)
-		if err == mgo.ErrNotFound {
-			return nil, nil
-		} else if err != nil {
-			err = log.EWarningf("Unable to get user from mongodb : %s", err)
-		}
-	} else if token != "" {
-		err = collection.Find(bson.M{"tokens.token": token}).One(user)
-		if err == mgo.ErrNotFound {
-			return nil, nil
-		} else if err != nil {
-			err = log.EWarningf("Unable to get user from mongodb : %s", err)
-		}
-	} else {
-		err = log.EWarning("Unable to get user from mongodb : Missing user id or token")
-	}
-
-	return
-}
-
-// RemoveUser implementation from MongoDB Metadata Backend
-func (mmb *MetadataBackend) RemoveUser(ctx *juliet.Context, user *common.User) (err error) {
-	log := context.GetLogger(ctx)
-
-	if user == nil {
-		err = log.EWarning("Unable to remove user : Missing user")
-		return
-	}
-
-	session := mmb.session.Copy()
-	defer session.Close()
-
-	collection := session.DB(mmb.config.Database).C(mmb.config.UserCollection)
-
-	err = collection.Remove(bson.M{"id": user.ID})
-	if err != nil {
-		err = log.EWarningf("Unable to remove user from mongodb : %s", err)
-	}
-
-	return
-}
 
 // GetUserUploads implementation from MongoDB Metadata Backend
-func (mmb *MetadataBackend) GetUserUploads(ctx *juliet.Context, user *common.User, token *common.Token) (ids []string, err error) {
+func (b *Backend) GetUserUploads(ctx *juliet.Context, user *common.User, token *common.Token) (ids []string, err error) {
 	log := context.GetLogger(ctx)
 
 	if user == nil {
@@ -265,9 +132,9 @@ func (mmb *MetadataBackend) GetUserUploads(ctx *juliet.Context, user *common.Use
 		return
 	}
 
-	session := mmb.session.Copy()
+	session := b.session.Copy()
 	defer session.Close()
-	collection := session.DB(mmb.config.Database).C(mmb.config.Collection)
+	collection := session.DB(b.config.Database).C(b.config.Collection)
 
 	b := bson.M{"user": user.ID}
 	if token != nil {
@@ -290,12 +157,12 @@ func (mmb *MetadataBackend) GetUserUploads(ctx *juliet.Context, user *common.Use
 }
 
 // GetUploadsToRemove implementation from MongoDB Metadata Backend
-func (mmb *MetadataBackend) GetUploadsToRemove(ctx *juliet.Context) (ids []string, err error) {
+func (b *Backend) GetUploadsToRemove(ctx *juliet.Context) (ids []string, err error) {
 	log := context.GetLogger(ctx)
 
-	session := mmb.session.Copy()
+	session := b.session.Copy()
 	defer session.Close()
-	collection := session.DB(mmb.config.Database).C(mmb.config.Collection)
+	collection := session.DB(b.config.Database).C(b.config.Collection)
 
 	// Look for expired uploads
 	var uploads []*common.Upload
@@ -316,7 +183,7 @@ func (mmb *MetadataBackend) GetUploadsToRemove(ctx *juliet.Context) (ids []strin
 }
 
 // GetUserStatistics implementation for MongoDB Metadata Backend
-func (mmb *MetadataBackend) GetUserStatistics(ctx *juliet.Context, user *common.User, token *common.Token) (stats *common.UserStats, err error) {
+func (b *Backend) GetUserStatistics(ctx *juliet.Context, user *common.User, token *common.Token) (stats *common.UserStats, err error) {
 	log := context.GetLogger(ctx)
 
 	if user == nil {
@@ -324,9 +191,9 @@ func (mmb *MetadataBackend) GetUserStatistics(ctx *juliet.Context, user *common.
 		return
 	}
 
-	session := mmb.session.Copy()
+	session := b.session.Copy()
 	defer session.Close()
-	collection := session.DB(mmb.config.Database).C(mmb.config.Collection)
+	collection := session.DB(b.config.Database).C(b.config.Collection)
 
 	match := bson.M{"user": user.ID}
 	if token != nil {
@@ -352,12 +219,12 @@ func (mmb *MetadataBackend) GetUserStatistics(ctx *juliet.Context, user *common.
 }
 
 // GetUsers implementation for MongoDB Metadata Backend
-func (mmb *MetadataBackend) GetUsers(ctx *juliet.Context) (ids []string, err error) {
+func (b *Backend) GetUsers(ctx *juliet.Context) (ids []string, err error) {
 	log := context.GetLogger(ctx)
 
-	session := mmb.session.Copy()
+	session := b.session.Copy()
 	defer session.Close()
-	collection := session.DB(mmb.config.Database).C(mmb.config.UserCollection)
+	collection := session.DB(b.config.Database).C(b.config.UserCollection)
 
 	var results []struct {
 		ID string `bson:"id"`
@@ -375,15 +242,15 @@ func (mmb *MetadataBackend) GetUsers(ctx *juliet.Context) (ids []string, err err
 }
 
 // GetServerStatistics implementation for MongoDB Metadata Backend
-func (mmb *MetadataBackend) GetServerStatistics(ctx *juliet.Context) (stats *common.ServerStats, err error) {
+func (b *Backend) GetServerStatistics(ctx *juliet.Context) (stats *common.ServerStats, err error) {
 	log := context.GetLogger(ctx)
 	config := context.GetConfig(ctx)
 
 	stats = new(common.ServerStats)
-	session := mmb.session.Copy()
+	session := b.session.Copy()
 	defer session.Close()
 
-	uploadCollection := session.DB(mmb.config.Database).C(mmb.config.Collection)
+	uploadCollection := session.DB(b.config.Database).C(b.config.Collection)
 
 	// NUMBER OF UPLOADS
 	uploadCount, err := uploadCollection.Find(nil).Count()
@@ -502,7 +369,7 @@ func (mmb *MetadataBackend) GetServerStatistics(ctx *juliet.Context) (stats *com
 
 	stats.FileTypeBySize = result5
 
-	userCollection := session.DB(mmb.config.Database).C(mmb.config.UserCollection)
+	userCollection := session.DB(b.config.Database).C(b.config.UserCollection)
 
 	// NUMBER OF USERS
 	userCount, err := userCollection.Find(nil).Count()

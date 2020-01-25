@@ -357,7 +357,7 @@ func TestGetUserStatisticsMetadataBackendError(t *testing.T) {
 	req, err := http.NewRequest("GET", "/me/uploads", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	context.GetMetadataBackend(ctx).(*metadata_test.MetadataBackend).SetError(errors.New("metadata backend error"))
+	context.GetMetadataBackend(ctx).(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
 
 	rr := httptest.NewRecorder()
 	GetUserStatistics(ctx, rr, req)
@@ -502,7 +502,7 @@ func TestRemoveUserUploadsMetadataBackendError(t *testing.T) {
 	req, err := http.NewRequest("DELETE", "/me/uploads", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	context.GetMetadataBackend(ctx).(*metadata_test.MetadataBackend).SetError(errors.New("metadata backend error"))
+	context.GetMetadataBackend(ctx).(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
 
 	rr := httptest.NewRecorder()
 	RemoveUserUploads(ctx, rr, req)
@@ -670,7 +670,7 @@ func TestRemoveUserStatisticsMetadataBackendError(t *testing.T) {
 	req, err := http.NewRequest("GET", "/me/stats", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	context.GetMetadataBackend(ctx).(*metadata_test.MetadataBackend).SetError(errors.New("metadata backend error"))
+	context.GetMetadataBackend(ctx).(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
 
 	rr := httptest.NewRecorder()
 	GetUserStatistics(ctx, rr, req)

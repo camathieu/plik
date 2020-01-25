@@ -32,51 +32,31 @@ package bolt
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"github.com/root-gg/plik/server/context"
 	"strings"
 
 	"github.com/boltdb/bolt"
-	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
 )
 
 // SaveUser implementation for Bolt Metadata Backend
-func (b *Backend) SaveUser(ctx *juliet.Context, user *common.User) (err error) {
-	log := context.GetLogger(ctx)
-
+func (b *Backend) CreateUser(user *common.User) (err error) {
 	if user == nil {
-		err = log.EWarning("Unable to save user : Missing user")
-		return
+		return errors.New("Unable to save user : Missing user")
 	}
 
 	// Serialize user to json
 	j, err := json.Marshal(user)
 	if err != nil {
-		err = log.EWarningf("Unable to serialize user to json : %s", err)
-		return
+		return fmt.Errorf("Unable to serialize user to json : %s", err)
 	}
 
 	// Save json user to Bolt database
-	err = b.db.Update(func(tx *bolt.Tx) error {
+	return b.db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte("users"))
 		if bucket == nil {
 			return fmt.Errorf("Unable to get users Bolt bucket")
-		}
-
-		// Get current tokens
-		tokens := make(map[string]*common.Token)
-		b := bucket.Get([]byte(user.ID))
-		if b != nil && len(b) != 0 {
-			// Unserialize user from json
-			u := common.NewUser()
-			if err = json.Unmarshal(b, u); err != nil {
-				return fmt.Errorf("Unable unserialize json user : %s", err)
-			}
-
-			for _, token := range u.Tokens {
-				tokens[token.Token] = token
-			}
 		}
 
 		// Save user
@@ -87,42 +67,20 @@ func (b *Backend) SaveUser(ctx *juliet.Context, user *common.User) (err error) {
 
 		// Update token index
 		for _, token := range user.Tokens {
-			if _, ok := tokens[token.Token]; !ok {
-				// New token
-				err := bucket.Put([]byte(token.Token), []byte(user.ID))
-				if err != nil {
-					return fmt.Errorf("Unable save new token index : %s", err)
-				}
-			}
-			delete(tokens, token.Token)
-		}
-
-		for _, token := range tokens {
-			// Deleted token
-			err := bucket.Delete([]byte(token.Token))
+			err = bucket.Put([]byte(token.Token), []byte(user.ID))
 			if err != nil {
-				return fmt.Errorf("Unable delete token index : %s", err)
+				return fmt.Errorf("Unable save new token index : %s", err)
 			}
 		}
 
 		return nil
 	})
-	if err != nil {
-		return
-	}
-
-	log.Infof("User successfully saved")
-
-	return
 }
 
 // GetUser implementation for Bolt Metadata Backend
-func (b *Backend) GetUser(ctx *juliet.Context, id string, token string) (user *common.User, err error) {
-	log := context.GetLogger(ctx)
-
+func (b *Backend) GetUser(id string, token string) (user *common.User, err error) {
 	if id == "" && token == "" {
-		err = log.EWarning("Unable to get user : Missing user id or token")
-		return
+		return nil, errors.New("Unable to get user : Missing user id or token")
 	}
 
 	// Get json user from Bolt database
@@ -152,43 +110,88 @@ func (b *Backend) GetUser(ctx *juliet.Context, id string, token string) (user *c
 		user = common.NewUser()
 		err = json.Unmarshal(b, user)
 		if err != nil {
-			return log.EWarningf("Unable to unserialize user from json \"%s\" : %s", string(b), err)
+			return fmt.Errorf("Unable to unserialize user from json \"%s\" : %s", string(b), err)
 		}
 
 		return nil
 	})
 	if err != nil {
-		err = log.EWarningf("Unable to get user : %s", err)
-		return
+		return nil, fmt.Errorf("Unable to get user : %s", err)
 	}
 
-	return
+	return user, nil
 }
 
 // RemoveUser implementation for Bolt Metadata Backend
-func (b *Backend) RemoveUser(ctx *juliet.Context, user *common.User) (err error) {
-	log := context.GetLogger(ctx)
-
+func (b *Backend) UpdateUser(user *common.User, userTx common.UserTx) (err error) {
 	if user == nil {
-		err = log.EWarning("Unable to remove user : Missing user")
-		return
+		return errors.New("Unable to remove user : Missing user")
 	}
 
-	// Remove user from bolt database
-	err = b.db.Update(func(tx *bolt.Tx) error {
+
+	// Get json user from Bolt database
+	return b.db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte("users"))
 		if bucket == nil {
 			return fmt.Errorf("Unable to get users Bolt bucket")
 		}
 
-		err := bucket.Delete([]byte(user.ID))
+		b := bucket.Get([]byte(user.ID))
+
+		// User not found but no error
+		if b == nil || len(b) == 0 {
+			return nil
+		}
+
+		// Deserialize user from json
+		user = common.NewUser()
+		err = json.Unmarshal(b, user)
+		if err != nil {
+			return fmt.Errorf("Unable to unserialize user from json \"%s\" : %s", string(b), err)
+		}
+
+		// Apply UserTx
+		err = userTx(user)
+		if err != nil {
+			return err
+		}
+
+		// Serialize user to json
+		j, err := json.Marshal(user)
+		if err != nil {
+			return fmt.Errorf("Unable to serialize user to json : %s", err)
+		}
+
+		// Save user
+		err = bucket.Put([]byte(user.ID), j)
+		if err != nil {
+			return fmt.Errorf("Unable save user : %s", err)
+		}
+
+		return nil
+	})
+}
+
+// RemoveUser implementation for Bolt Metadata Backend
+func (b *Backend) RemoveUser(user *common.User) (err error) {
+	if user == nil {
+		return errors.New("Unable to remove user : Missing user")
+	}
+
+	return b.db.Update(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket([]byte("users"))
+		if bucket == nil {
+			return fmt.Errorf("Unable to get users Bolt bucket")
+		}
+
+		err = bucket.Delete([]byte(user.ID))
 		if err != nil {
 			return err
 		}
 
 		// Update token index
 		for _, token := range user.Tokens {
-			err := bucket.Delete([]byte(token.Token))
+			err = bucket.Delete([]byte(token.Token))
 			if err != nil {
 				return fmt.Errorf("Unable delete token index : %s", err)
 			}
@@ -196,22 +199,14 @@ func (b *Backend) RemoveUser(ctx *juliet.Context, user *common.User) (err error)
 
 		return nil
 	})
-	if err != nil {
-		return
-	}
-
-	log.Infof("User successfully removed")
-
-	return
 }
 
-// GetUserUploads implementation for Bolt Metadata Backend
-func (b *Backend) GetUserUploads(ctx *juliet.Context, user *common.User, token *common.Token) (ids []string, err error) {
-	log := context.GetLogger(ctx)
 
+// GetUserUploads implementation for Bolt Metadata Backend
+func (b *Backend) GetUserUploads(user *common.User, token *common.Token) (ids []string, err error) {
 	if user == nil {
-		err = log.EWarning("Unable to get user uploads : Missing user")
-		return
+		return nil, errors.New("Unable to get user uploads : Missing user")
+
 	}
 
 	err = b.db.View(func(tx *bolt.Tx) error {
@@ -245,17 +240,12 @@ func (b *Backend) GetUserUploads(ctx *juliet.Context, user *common.User, token *
 
 		return nil
 	})
-	if err != nil {
-		return
-	}
 
-	return
+	return ids, err
 }
 
 // GetUsers implementation for Bolt Metadata Backend
-func (b *Backend) GetUsers(ctx *juliet.Context) (ids []string, err error) {
-	log := context.GetLogger(ctx)
-
+func (b *Backend) GetUsers() (ids []string, err error) {
 	// Get users from Bolt database
 	err = b.db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte("users"))
@@ -279,27 +269,25 @@ func (b *Backend) GetUsers(ctx *juliet.Context) (ids []string, err error) {
 
 		return nil
 	})
+
 	if err != nil {
-		err = log.EWarningf("Unable to get users : %s", err)
-		return
+		return nil, fmt.Errorf("Unable to get users : %s", err)
 	}
 
-	return
+	return ids, nil
 }
 
 // GetUserStatistics implementation for Bolt Metadata Backend
-func (b *Backend) GetUserStatistics(ctx *juliet.Context, user *common.User, token *common.Token) (stats *common.UserStats, err error) {
-	//log := context.GetLogger(ctx)
-
+func (b *Backend) GetUserStatistics(user *common.User, token *common.Token) (stats *common.UserStats, err error) {
 	stats = new(common.UserStats)
 
-	ids, err := b.GetUserUploads(ctx, user, token)
+	ids, err := b.GetUserUploads(user, token)
 	if err != nil {
 		return nil, err
 	}
 
 	for _, id := range ids {
-		upload, err := b.Get(ctx, id)
+		upload, err := b.GetUpload(id)
 		if err != nil {
 			continue
 		}
@@ -312,5 +300,5 @@ func (b *Backend) GetUserStatistics(ctx *juliet.Context, user *common.User, toke
 		}
 	}
 
-	return
+	return stats, nil
 }

@@ -34,9 +34,8 @@ import (
 	"net/http"
 
 	"github.com/root-gg/juliet"
+	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
-	"github.com/root-gg/plik/server/data"
-	"github.com/root-gg/utils"
 )
 
 // RemoveFile remove a file from an existing upload
@@ -75,39 +74,38 @@ func RemoveFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request
 		return
 	}
 
-	// Set status to removed, and save metadatas
-	file.Status = "removed"
-	if err := context.GetMetadataBackend(ctx).Upsert(ctx, upload); err != nil {
-		log.Warningf("Unable to update metadata : %s", err)
-		context.Fail(ctx, req, resp, "Unable to update upload metadata", 500)
-		return
+	remove := true
+	tx := func(u *common.Upload) error {
+		f, ok := u.Files[file.ID]
+		if !ok {
+			return fmt.Errorf("Unable to find file %s", file.ID)
+		}
+		if f.Status != common.FILE_UPLOADED {
+			// Nothing to do
+			remove = false
+			return nil
+		}
+		f.Status = common.FILE_REMOVED
+		return nil
 	}
 
-	// Remove file from data backend
-	// Get file in data backend
-	var backend data.Backend
-	if upload.Stream {
-		backend = context.GetStreamBackend(ctx)
-	} else {
-		backend = context.GetDataBackend(ctx)
-	}
-
-	if err := backend.RemoveFile(ctx, upload, file.ID); err != nil {
-		log.Warningf("Unable to delete file : %s", err)
-		context.Fail(ctx, req, resp, "Unable to delete file", 500)
-		return
-	}
-
-	// Remove upload if no files anymore
-	RemoveUploadIfNoFileAvailable(ctx, upload)
-
-	// Print upload metadata in the json response.
-	json, err := utils.ToJson(upload)
+	err := context.GetMetadataBackend(ctx).UpdateUpload(upload, tx)
 	if err != nil {
-		log.Warningf("Unable to serialize json response : %s", err)
-		context.Fail(ctx, req, resp, "Unable to serialize json response", 500)
+		log.Warningf("Unable to update upload %s", upload.ID)
+		context.Fail(ctx, req, resp, "Unable to add file", http.StatusInternalServerError)
 		return
 	}
 
-	resp.Write(json)
+	if remove {
+		err := DeleteFile(ctx, upload, file)
+		if err != nil {
+			log.Warningf("Unable to delete file : %s")
+			// Do not block here
+		}
+
+		// Remove upload if no files anymore
+		RemoveEmptyUpload(ctx, upload)
+	}
+
+	resp.Write([]byte("ok"))
 }

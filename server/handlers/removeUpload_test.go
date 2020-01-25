@@ -75,7 +75,7 @@ func TestRemoveUpload(t *testing.T) {
 	require.NoError(t, err, "unable to read response body")
 	require.Equal(t, 0, len(respBody), "invalid response body")
 
-	_, err = context.GetMetadataBackend(ctx).Get(ctx, upload.ID)
+	_, err = context.GetMetadataBackend(ctx).GetUpload(ctx, upload.ID)
 	require.Error(t, err, "removed upload still exists")
 
 	_, err = context.GetDataBackend(ctx).GetFile(ctx, upload, file1.ID)
@@ -135,7 +135,7 @@ func TestRemoveUploadMetadataBackendError(t *testing.T) {
 	req, err := http.NewRequest("DELETE", "/file/uploadID/fileID/fileName", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	context.GetMetadataBackend(ctx).(*metadata_test.MetadataBackend).SetError(errors.New("metadata backend error"))
+	context.GetMetadataBackend(ctx).(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
 
 	rr := httptest.NewRecorder()
 	RemoveUpload(ctx, rr, req)

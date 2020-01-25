@@ -201,7 +201,7 @@ func TestGetArchiveOneShot(t *testing.T) {
 	_, err = context.GetDataBackend(ctx).GetFile(ctx, upload, file.ID)
 	require.Error(t, err, "downloaded file still exists")
 
-	_, err = context.GetMetadataBackend(ctx).Get(ctx, upload.ID)
+	_, err = context.GetMetadataBackend(ctx).GetUpload(ctx, upload.ID)
 	require.Error(t, err, "downloaded upload still exists")
 }
 
@@ -316,7 +316,7 @@ func TestGetArchiveMetadataBackendError(t *testing.T) {
 	}
 	req = mux.SetURLVars(req, vars)
 
-	context.GetMetadataBackend(ctx).(*metadata_test.MetadataBackend).SetError(errors.New("metadata backend error"))
+	context.GetMetadataBackend(ctx).(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
 
 	rr := httptest.NewRecorder()
 	GetArchive(ctx, rr, req)

@@ -190,7 +190,7 @@ func TestRemoveLastFile(t *testing.T) {
 	require.Equal(t, 1, len(uploadResult.Files), "invalid upload files count")
 	require.Equal(t, "removed", uploadResult.Files[file1.ID].Status, "invalid removed file status")
 
-	_, err = context.GetMetadataBackend(ctx).Get(ctx, upload.ID)
+	_, err = context.GetMetadataBackend(ctx).GetUpload(ctx, upload.ID)
 	require.Error(t, err, "removed upload still exists")
 
 	_, err = context.GetDataBackend(ctx).GetFile(ctx, upload, file1.ID)
@@ -247,7 +247,7 @@ func TestRemoveFileMetadataBackendError(t *testing.T) {
 	req, err := http.NewRequest("DELETE", "/file/uploadID/fileID/fileName", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	context.GetMetadataBackend(ctx).(*metadata_test.MetadataBackend).SetError(errors.New("metadata backend error"))
+	context.GetMetadataBackend(ctx).(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
 
 	rr := httptest.NewRecorder()
 	RemoveFile(ctx, rr, req)

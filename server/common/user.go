@@ -39,6 +39,9 @@ import (
 	uuid "github.com/nu7hatch/gouuid"
 )
 
+// UserTx is used to mutate user metadata
+type UserTx func(*User) error
+
 // User is a plik user
 type User struct {
 	ID      string   `json:"id,omitempty" bson:"id"`

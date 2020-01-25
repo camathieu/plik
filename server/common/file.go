@@ -29,6 +29,12 @@ THE SOFTWARE.
 
 package common
 
+const FILE_MISSING = "missing"
+const FILE_UPLOADING = "uploading"
+const FILE_UPLOADED = "uploaded"
+const FILE_REMOVED  = "removed"
+const FILE_DELETED = "deleted"
+
 // File object
 type File struct {
 	ID             string                 `json:"id" bson:"fileId"`

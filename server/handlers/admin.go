@@ -30,7 +30,7 @@ func GetUsers(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) 
 		return
 	}
 
-	ids, err := context.GetMetadataBackend(ctx).GetUsers(ctx)
+	ids, err := context.GetMetadataBackend(ctx).GetUsers()
 	if err != nil {
 		log.Warningf("Unable to get users : %s", err)
 		context.Fail(ctx, req, resp, "Unable to get users", 500)
@@ -73,7 +73,7 @@ func GetUsers(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) 
 
 	var users []*common.User
 	for _, id := range ids[offset : offset+size] {
-		user, err := context.GetMetadataBackend(ctx).GetUser(ctx, id, "")
+		user, err := context.GetMetadataBackend(ctx).GetUser(id, "")
 		if err != nil {
 			log.Warningf("Unable to get user %s : %s", id, err)
 			continue
@@ -113,7 +113,7 @@ func GetServerStatistics(ctx *juliet.Context, resp http.ResponseWriter, req *htt
 	}
 
 	// Get server statistics
-	stats, err := context.GetMetadataBackend(ctx).GetServerStatistics(ctx)
+	stats, err := context.GetMetadataBackend(ctx).GetServerStatistics()
 	if err != nil {
 		log.Warningf("Unable to get server statistics : %s", err)
 		context.Fail(ctx, req, resp, "Unable to get server statistics", 500)

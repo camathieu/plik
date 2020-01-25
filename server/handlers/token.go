@@ -31,6 +31,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 
@@ -79,13 +80,16 @@ func CreateToken(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 	token.Create()
 
 	// Add token to user
-	user.Tokens = append(user.Tokens, token)
+	tx := func(u *common.User) error {
+		u.Tokens = append(u.Tokens, token)
+		return nil
+	}
 
-	// Save token
-	err = context.GetMetadataBackend(ctx).SaveUser(ctx, user)
+	// Save user
+	err = context.GetMetadataBackend(ctx).UpdateUser(user, tx)
 	if err != nil {
 		log.Warningf("Unable to save user to metadata backend : %s", err)
-		context.Fail(ctx, req, resp, "Unable to create token", 500)
+		context.Fail(ctx, req, resp, "Unable to update user", 500)
 		return
 	}
 
@@ -117,30 +121,32 @@ func RevokeToken(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 		context.Fail(ctx, req, resp, "Missing token", 400)
 	}
 
-	// Get token from user
-	index := -1
-	for i, t := range user.Tokens {
-		if t.Token == tokenStr {
-			index = i
-			break
+
+	// Remove token from user
+	tx := func(u *common.User) error {
+		// Get token index
+		index := -1
+		for i, t := range u.Tokens {
+			if t.Token == tokenStr {
+				index = i
+				break
+			}
 		}
+		if index < 0 {
+			return fmt.Errorf("Unable to get token %s from user %s", tokenStr, user.ID)
+		}
+
+		// Delete token
+		user.Tokens = append(user.Tokens[:index], user.Tokens[index+1:]...)
+
+		return nil
 	}
-	if index < 0 {
-		log.Warningf("Unable to get token %s from user %s", tokenStr, user.ID)
-		context.Fail(ctx, req, resp, "Invalid token", 404)
-		return
-	}
 
-	// TODO RACE CONDITION if simultaneous delete occur
-
-	// Delete token
-	user.Tokens = append(user.Tokens[:index], user.Tokens[index+1:]...)
-
-	// Save user to metadata backend
-	err := context.GetMetadataBackend(ctx).SaveUser(ctx, user)
+	// Save user
+	err := context.GetMetadataBackend(ctx).UpdateUser(user, tx)
 	if err != nil {
 		log.Warningf("Unable to save user to metadata backend : %s", err)
-		context.Fail(ctx, req, resp, "Unable to revoke token", 500)
+		context.Fail(ctx, req, resp, "Unable to update user", 500)
 		return
 	}
 }

@@ -36,12 +36,11 @@ import (
 	"time"
 
 	"github.com/boltdb/bolt"
-	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
 )
 
 // GetUploadsToRemove implementation for Bolt Metadata Backend
-func (b *Backend) GetUploadsToRemove(ctx *juliet.Context) (ids []string, err error) {
+func (b *Backend) GetUploadsToRemove() (ids []string, err error) {
 	err = b.db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte("uploads"))
 		if bucket == nil {
@@ -77,16 +76,14 @@ func (b *Backend) GetUploadsToRemove(ctx *juliet.Context) (ids []string, err err
 		return nil
 	})
 	if err != nil {
-		return
+		return nil, err
 	}
 
-	return
+	return ids, nil
 }
 
 // GetServerStatistics implementation for Bolt Metadata Backend
-func (b *Backend) GetServerStatistics(ctx *juliet.Context) (stats *common.ServerStats, err error) {
-	//log := context.GetLogger(ctx)
-
+func (b *Backend) GetServerStatistics() (stats *common.ServerStats, err error) {
 	stats = new(common.ServerStats)
 
 	// Get ALL upload ids
@@ -110,7 +107,7 @@ func (b *Backend) GetServerStatistics(ctx *juliet.Context) (stats *common.Server
 		return nil
 	})
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	// Compute upload statistics
@@ -118,7 +115,7 @@ func (b *Backend) GetServerStatistics(ctx *juliet.Context) (stats *common.Server
 	byTypeAggregator := common.NewByTypeAggregator()
 
 	for _, id := range ids {
-		upload, err := b.Get(ctx, id)
+		upload, err := b.GetUpload(id)
 		if upload == nil || err != nil {
 			continue
 		}
@@ -148,8 +145,8 @@ func (b *Backend) GetServerStatistics(ctx *juliet.Context) (stats *common.Server
 		return nil
 	})
 	if err != nil {
-		return
+		return nil, err
 	}
 
-	return
+	return stats, nil
 }

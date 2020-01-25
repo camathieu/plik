@@ -307,7 +307,7 @@ func TestGetFileMetadataBackendError(t *testing.T) {
 	ctx.Set("upload", upload)
 	ctx.Set("file", file)
 
-	context.GetMetadataBackend(ctx).(*metadata_test.MetadataBackend).SetError(errors.New("metadata backend error"))
+	context.GetMetadataBackend(ctx).(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
 	req, err := http.NewRequest("GET", "/file/", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 

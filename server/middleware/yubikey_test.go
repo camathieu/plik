@@ -56,7 +56,7 @@ func TestYubikeyNoUpload(t *testing.T) {
 
 func TestYubikeyNotEnabled(t *testing.T) {
 	ctx := context.NewTestingContext(common.NewConfiguration())
-	context.GetMetadataBackend(ctx).(*metadata_test.MetadataBackend).SetError(errors.New("metadata backend error"))
+	context.GetMetadataBackend(ctx).(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
 
 	upload := common.NewUpload()
 	upload.Yubikey = "token"
