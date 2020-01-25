@@ -33,16 +33,3 @@ import (
 	"github.com/root-gg/utils"
 )
 
-// MetadataBackendConfig object
-type MetadataBackendConfig struct {
-	Path string
-}
-
-// NewBoltMetadataBackendConfig configures the backend
-// from config passed as argument
-func NewBoltMetadataBackendConfig(config map[string]interface{}) (mbc *MetadataBackendConfig) {
-	mbc = new(MetadataBackendConfig)
-	mbc.Path = "plik.db"
-	utils.Assign(mbc, config)
-	return
-}

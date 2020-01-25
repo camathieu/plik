@@ -33,6 +33,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"github.com/root-gg/utils"
 	"log"
 	"time"
 
@@ -42,28 +43,42 @@ import (
 	"github.com/root-gg/plik/server/common"
 )
 
-// MetadataBackend object
-type MetadataBackend struct {
-	Config *MetadataBackendConfig
+// Config object
+type Config struct {
+	Path string
+}
+
+// NewConfig configures the backend
+// from config passed as argument
+func NewConfig(params map[string]interface{}) (config *Config) {
+	config = new(Config)
+	config.Path = "plik.db"
+	utils.Assign(config, params)
+	return
+}
+
+// Backend object
+type Backend struct {
+	Config *Config
 
 	db *bolt.DB
 }
 
-// NewBoltMetadataBackend instantiate a new Bolt Metadata Backend
+// NewBackend instantiate a new Bolt Metadata Backend
 // from configuration passed as argument
-func NewBoltMetadataBackend(config map[string]interface{}) (bmb *MetadataBackend) {
-	bmb = new(MetadataBackend)
-	bmb.Config = NewBoltMetadataBackendConfig(config)
+func NewBackend(config map[string]interface{}) (b *Backend) {
+	b = new(Backend)
+	b.Config = NewConfig(config)
 
 	// Open the Bolt database
 	var err error
-	bmb.db, err = bolt.Open(bmb.Config.Path, 0600, &bolt.Options{Timeout: 10 * time.Second})
+	b.db, err = bolt.Open(b.Config.Path, 0600, &bolt.Options{Timeout: 10 * time.Second})
 	if err != nil {
-		log.Fatalf("Unable to open Bolt database %s : %s", bmb.Config.Path, err)
+		log.Fatalf("Unable to open Bolt database %s : %s", b.Config.Path, err)
 	}
 
 	// Create Bolt buckets if needed
-	err = bmb.db.Update(func(tx *bolt.Tx) error {
+	err = b.db.Update(func(tx *bolt.Tx) error {
 		_, err := tx.CreateBucketIfNotExists([]byte("uploads"))
 		if err != nil {
 			return fmt.Errorf("Unable to create metadata bucket : %s", err)
@@ -84,23 +99,19 @@ func NewBoltMetadataBackend(config map[string]interface{}) (bmb *MetadataBackend
 }
 
 // Create implementation for Bolt Metadata Backend
-func (bmb *MetadataBackend) Create(ctx *juliet.Context, upload *common.Upload) (err error) {
-	log := common.GetLogger(ctx)
-
+func (b *Backend) Create(ctx *juliet.Context, upload *common.Upload) error {
 	if upload == nil {
-		err = log.EWarning("Unable to save upload : Missing upload")
-		return
+		return fmt.Errorf("Unable to save upload : Missing upload")
 	}
 
 	// Serialize metadata to json
 	j, err := json.Marshal(upload)
 	if err != nil {
-		err = log.EWarningf("Unable to serialize metadata to json : %s", err)
-		return
+		return fmt.Errorf("Unable to serialize metadata to json : %s", err)
 	}
 
 	// Save json metadata to Bolt database
-	err = bmb.db.Update(func(tx *bolt.Tx) error {
+	err = b.db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte("uploads"))
 		if bucket == nil {
 			return fmt.Errorf("Unable to get metadata Bolt bucket")
@@ -155,54 +166,47 @@ func (bmb *MetadataBackend) Create(ctx *juliet.Context, upload *common.Upload) (
 
 		return nil
 	})
-	if err != nil {
-		return
-	}
 
-	log.Infof("Upload metadata successfully saved")
-	return
+	return err
 }
 
 // Get implementation for Bolt Metadata Backend
-func (bmb *MetadataBackend) Get(ctx *juliet.Context, id string) (upload *common.Upload, err error) {
-	log := common.GetLogger(ctx)
-	var b []byte
+func (b *Backend) Get(ctx *juliet.Context, id string) (*common.Upload, error) {
+	var bytes []byte
 
 	if id == "" {
-		err = log.EWarning("Unable to get upload : Missing upload id")
-		return
+		return nil, fmt.Errorf("Unable to get upload : Missing upload id")
 	}
 
 	// Get json metadata from Bolt database
-	err = bmb.db.View(func(tx *bolt.Tx) error {
+	err := b.db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte("uploads"))
 		if bucket == nil {
 			return fmt.Errorf("Unable to get metadata Bolt bucket")
 		}
 
-		b = bucket.Get([]byte(id))
-		if b == nil || len(b) == 0 {
+		bytes = bucket.Get([]byte(id))
+		if bytes == nil || len(bytes) == 0 {
 			return fmt.Errorf("Unable to get upload metadata from Bolt bucket")
 		}
 
 		return nil
 	})
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	// Unserialize metadata from json
-	upload = new(common.Upload)
-	if err = json.Unmarshal(b, upload); err != nil {
-		err = log.EWarningf("Unable to unserialize metadata from json \"%s\" : %s", string(b), err)
-		return
+	upload := new(common.Upload)
+	if err = json.Unmarshal(bytes, upload); err != nil {
+		return nil, fmt.Errorf("Unable to unserialize metadata from json \"%s\" : %s", string(bytes), err)
 	}
 
-	return
+	return upload, nil
 }
 
 // AddOrUpdateFile implementation for Bolt Metadata Backend
-func (bmb *MetadataBackend) AddOrUpdateFile(ctx *juliet.Context, upload *common.Upload, file *common.File) (err error) {
+func (b *Backend) AddOrUpdateFile(ctx *juliet.Context, upload *common.Upload, file *common.File) (err error) {
 	log := common.GetLogger(ctx)
 
 	if upload == nil {
@@ -216,7 +220,7 @@ func (bmb *MetadataBackend) AddOrUpdateFile(ctx *juliet.Context, upload *common.
 	}
 
 	// Update json metadata to Bolt database
-	err = bmb.db.Update(func(tx *bolt.Tx) error {
+	err = b.db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte("uploads"))
 		if bucket == nil {
 			return fmt.Errorf("Unable to get metadata Bolt bucket")
@@ -255,7 +259,7 @@ func (bmb *MetadataBackend) AddOrUpdateFile(ctx *juliet.Context, upload *common.
 }
 
 // RemoveFile implementation for Bolt Metadata Backend
-func (bmb *MetadataBackend) RemoveFile(ctx *juliet.Context, upload *common.Upload, file *common.File) (err error) {
+func (b *Backend) RemoveFile(ctx *juliet.Context, upload *common.Upload, file *common.File) (err error) {
 	log := common.GetLogger(ctx)
 
 	if upload == nil {
@@ -269,7 +273,7 @@ func (bmb *MetadataBackend) RemoveFile(ctx *juliet.Context, upload *common.Uploa
 	}
 
 	// Update json metadata to Bolt database
-	err = bmb.db.Update(func(tx *bolt.Tx) error {
+	err = b.db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte("uploads"))
 		if bucket == nil {
 			return fmt.Errorf("Unable to get metadata Bolt bucket")
@@ -314,7 +318,7 @@ func (bmb *MetadataBackend) RemoveFile(ctx *juliet.Context, upload *common.Uploa
 }
 
 // Remove implementation for Bolt Metadata Backend
-func (bmb *MetadataBackend) Remove(ctx *juliet.Context, upload *common.Upload) (err error) {
+func (b *Backend) Remove(ctx *juliet.Context, upload *common.Upload) (err error) {
 	log := common.GetLogger(ctx)
 
 	if upload == nil {
@@ -323,7 +327,7 @@ func (bmb *MetadataBackend) Remove(ctx *juliet.Context, upload *common.Upload) (
 	}
 
 	// Remove upload from bolt database
-	err = bmb.db.Update(func(tx *bolt.Tx) error {
+	err = b.db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte("uploads"))
 		err := bucket.Delete([]byte(upload.ID))
 		if err != nil {
@@ -382,7 +386,7 @@ func (bmb *MetadataBackend) Remove(ctx *juliet.Context, upload *common.Upload) (
 }
 
 // SaveUser implementation for Bolt Metadata Backend
-func (bmb *MetadataBackend) SaveUser(ctx *juliet.Context, user *common.User) (err error) {
+func (b *Backend) SaveUser(ctx *juliet.Context, user *common.User) (err error) {
 	log := common.GetLogger(ctx)
 
 	if user == nil {
@@ -398,7 +402,7 @@ func (bmb *MetadataBackend) SaveUser(ctx *juliet.Context, user *common.User) (er
 	}
 
 	// Save json user to Bolt database
-	err = bmb.db.Update(func(tx *bolt.Tx) error {
+	err = b.db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte("users"))
 		if bucket == nil {
 			return fmt.Errorf("Unable to get users Bolt bucket")
@@ -457,7 +461,7 @@ func (bmb *MetadataBackend) SaveUser(ctx *juliet.Context, user *common.User) (er
 }
 
 // GetUser implementation for Bolt Metadata Backend
-func (bmb *MetadataBackend) GetUser(ctx *juliet.Context, id string, token string) (u *common.User, err error) {
+func (b *Backend) GetUser(ctx *juliet.Context, id string, token string) (u *common.User, err error) {
 	log := common.GetLogger(ctx)
 	var b []byte
 
@@ -467,7 +471,7 @@ func (bmb *MetadataBackend) GetUser(ctx *juliet.Context, id string, token string
 	}
 
 	// Get json user from Bolt database
-	err = bmb.db.View(func(tx *bolt.Tx) error {
+	err = b.db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte("users"))
 		if bucket == nil {
 			return fmt.Errorf("Unable to get users Bolt bucket")
@@ -505,7 +509,7 @@ func (bmb *MetadataBackend) GetUser(ctx *juliet.Context, id string, token string
 }
 
 // RemoveUser implementation for Bolt Metadata Backend
-func (bmb *MetadataBackend) RemoveUser(ctx *juliet.Context, user *common.User) (err error) {
+func (b *Backend) RemoveUser(ctx *juliet.Context, user *common.User) (err error) {
 	log := common.GetLogger(ctx)
 
 	if user == nil {
@@ -514,7 +518,7 @@ func (bmb *MetadataBackend) RemoveUser(ctx *juliet.Context, user *common.User) (
 	}
 
 	// Remove user from bolt database
-	err = bmb.db.Update(func(tx *bolt.Tx) error {
+	err = b.db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte("users"))
 		err := bucket.Delete([]byte(user.ID))
 		if err != nil {
@@ -541,7 +545,7 @@ func (bmb *MetadataBackend) RemoveUser(ctx *juliet.Context, user *common.User) (
 }
 
 // GetUserUploads implementation for Bolt Metadata Backend
-func (bmb *MetadataBackend) GetUserUploads(ctx *juliet.Context, user *common.User, token *common.Token) (ids []string, err error) {
+func (b *Backend) GetUserUploads(ctx *juliet.Context, user *common.User, token *common.Token) (ids []string, err error) {
 	log := common.GetLogger(ctx)
 
 	if user == nil {
@@ -549,7 +553,7 @@ func (bmb *MetadataBackend) GetUserUploads(ctx *juliet.Context, user *common.Use
 		return
 	}
 
-	err = bmb.db.View(func(tx *bolt.Tx) error {
+	err = b.db.View(func(tx *bolt.Tx) error {
 		c := tx.Bucket([]byte("uploads")).Cursor()
 
 		// User index key is build as follow :
@@ -584,8 +588,8 @@ func (bmb *MetadataBackend) GetUserUploads(ctx *juliet.Context, user *common.Use
 }
 
 // GetUploadsToRemove implementation for Bolt Metadata Backend
-func (bmb *MetadataBackend) GetUploadsToRemove(ctx *juliet.Context) (ids []string, err error) {
-	err = bmb.db.View(func(tx *bolt.Tx) error {
+func (b *Backend) GetUploadsToRemove(ctx *juliet.Context) (ids []string, err error) {
+	err = b.db.View(func(tx *bolt.Tx) error {
 		c := tx.Bucket([]byte("uploads")).Cursor()
 
 		// Expire index is build as follow :

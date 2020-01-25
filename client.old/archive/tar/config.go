@@ -27,24 +27,25 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 **/
 
-package weedfs
+package tar
 
 import (
 	"github.com/root-gg/utils"
 )
 
-// BackendConfig describes configuration for WeedFS data backend
+// BackendConfig object
 type BackendConfig struct {
-	MasterURL          string
-	ReplicationPattern string
+	Tar      string
+	Compress string
+	Options  string
 }
 
-// NewWeedFsBackendConfig instantiate a new default configuration
-// and override it with configuration passed as argument
-func NewWeedFsBackendConfig(config map[string]interface{}) (bc *BackendConfig) {
-	bc = new(BackendConfig)
-	bc.MasterURL = "http://127.0.0.1:9333"
-	bc.ReplicationPattern = "000"
-	utils.Assign(bc, config)
+// NewTarBackendConfig instantiate a new Backend Configuration
+// from config map passed as argument
+func NewTarBackendConfig(config map[string]interface{}) (tb *BackendConfig) {
+	tb = new(BackendConfig)
+	tb.Tar = "/bin/tar"
+	tb.Compress = "gzip"
+	utils.Assign(tb, config)
 	return
 }

@@ -1,6 +1,6 @@
 /**
 
-    Plik upload server
+    Plik upload client
 
 The MIT License (MIT)
 
@@ -27,22 +27,23 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 **/
 
-package file
+package zip
 
 import (
 	"github.com/root-gg/utils"
 )
 
-// BackendConfig describes configuration for File Databackend
+// BackendConfig object
 type BackendConfig struct {
-	Directory string
+	Zip     string
+	Options string
 }
 
-// NewFileBackendConfig instantiate a new default configuration
-// and override it with configuration passed as argument
-func NewFileBackendConfig(config map[string]interface{}) (fb *BackendConfig) {
-	fb = new(BackendConfig)
-	fb.Directory = "files" // Default upload directory is ./files
-	utils.Assign(fb, config)
+// NewZipBackendConfig instantiate a new Backend Configuration
+// from config map passed as argument
+func NewZipBackendConfig(config map[string]interface{}) (zb *BackendConfig) {
+	zb = new(BackendConfig)
+	zb.Zip = "/bin/zip"
+	utils.Assign(zb, config)
 	return
 }

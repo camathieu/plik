@@ -42,11 +42,11 @@ var metadataBackend Backend
 // Backend interface describes methods that metadata backends
 // must implements to be compatible with plik.
 type Backend interface {
-	Create(ctx *juliet.Context, upload *common.Upload) (err error)
-	Get(ctx *juliet.Context, id string) (upload *common.Upload, err error)
+	CreateUpload(ctx *juliet.Context, upload *common.Upload) (err error)
+	GetUpload(ctx *juliet.Context, id string) (upload *common.Upload, err error)
 	AddOrUpdateFile(ctx *juliet.Context, upload *common.Upload, file *common.File) (err error)
 	RemoveFile(ctx *juliet.Context, upload *common.Upload, file *common.File) (err error)
-	Remove(ctx *juliet.Context, upload *common.Upload) (err error)
+	RemoveUpload(ctx *juliet.Context, upload *common.Upload) (err error)
 
 	SaveUser(ctx *juliet.Context, user *common.User) (err error)
 	GetUser(ctx *juliet.Context, id string, token string) (user *common.User, err error)
@@ -74,7 +74,7 @@ func Initialize() {
 		case "mongo":
 			metadataBackend = mongo.NewMongoMetadataBackend(common.Config.MetadataBackendConfig)
 		case "bolt":
-			metadataBackend = bolt.NewBoltMetadataBackend(common.Config.MetadataBackendConfig)
+			metadataBackend = bolt.NewBackend(common.Config.MetadataBackendConfig)
 		default:
 			common.Logger().Fatalf("Invalid metadata backend %s", common.Config.DataBackend)
 		}

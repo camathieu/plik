@@ -30,13 +30,13 @@ THE SOFTWARE.
 package common
 
 import (
+	"fmt"
 	"net"
 	"net/url"
 	"strings"
 
 	"github.com/BurntSushi/toml"
 	"github.com/GeertJohan/yubigo"
-	"github.com/root-gg/logger"
 )
 
 // Configuration object
@@ -57,13 +57,11 @@ type Configuration struct {
 	SslCert    string `json:"-"`
 	SslKey     string `json:"-"`
 
-	DownloadDomain    string   `json:"downloadDomain"`
-	DownloadDomainURL *url.URL `json:"-"`
+	DownloadDomain string `json:"downloadDomain"`
 
-	YubikeyEnabled   bool             `json:"yubikeyEnabled"`
-	YubikeyAPIKey    string           `json:"-"`
-	YubikeyAPISecret string           `json:"-"`
-	YubiAuth         *yubigo.YubiAuth `json:"-"`
+	YubikeyEnabled   bool   `json:"yubikeyEnabled"`
+	YubikeyAPIKey    string `json:"-"`
+	YubikeyAPISecret string `json:"-"`
 
 	SourceIPHeader  string   `json:"-"`
 	UploadWhitelist []string `json:"-"`
@@ -71,14 +69,17 @@ type Configuration struct {
 	Authentication       bool     `json:"authentication"`
 	NoAnonymousUploads   bool     `json:"-"`
 	OneShot              bool     `json:"oneShot"`
+	Removable            bool     `json:"removable"`
 	ProtectedByPassword  bool     `json:"protectedByPassword"`
 	GoogleAuthentication bool     `json:"googleAuthentication"`
 	GoogleAPISecret      string   `json:"-"`
 	GoogleAPIClientID    string   `json:"-"`
 	GoogleValidDomains   []string `json:"-"`
 	OvhAuthentication    bool     `json:"ovhAuthentication"`
+	OvhAPIEndpoint       string   `json:"ovhApiEndpoint"`
 	OvhAPIKey            string   `json:"-"`
 	OvhAPISecret         string   `json:"-"`
+	Admins               []string `json:"-"`
 
 	MetadataBackend       string                 `json:"-"`
 	MetadataBackendConfig map[string]interface{} `json:"-"`
@@ -88,13 +89,12 @@ type Configuration struct {
 
 	StreamMode          bool                   `json:"streamMode"`
 	StreamBackendConfig map[string]interface{} `json:"-"`
+
+	clean             bool
+	yubiAuth          *yubigo.YubiAuth
+	downloadDomainURL *url.URL
+	uploadWhitelist   []*net.IPNet
 }
-
-// Config static variable
-var Config *Configuration
-
-// UploadWhitelist is only parsed once at startup time
-var UploadWhitelist []*net.IPNet
 
 // NewConfiguration creates a new configuration
 // object with default values
@@ -104,7 +104,7 @@ func NewConfiguration() (config *Configuration) {
 	config.ListenAddress = "0.0.0.0"
 	config.ListenPort = 8080
 	config.DataBackend = "file"
-	config.MetadataBackend = "file"
+	config.MetadataBackend = "bolt"
 	config.MaxFileSize = 10737418240 // 10GB
 	config.MaxFilePerUpload = 1000
 	config.DefaultTTL = 2592000 // 30 days
@@ -112,84 +112,140 @@ func NewConfiguration() (config *Configuration) {
 	config.SslEnabled = false
 	config.StreamMode = true
 	config.OneShot = true
+	config.Removable = true
 	config.ProtectedByPassword = true
+	config.OvhAPIEndpoint = "https://eu.api.ovh.com/1.0"
+	config.clean = true
 	return
 }
 
 // LoadConfiguration creates a new empty configuration
 // and try to load specified file with toml library to
 // override default params
-func LoadConfiguration(file string) {
-	Config = NewConfiguration()
+func LoadConfiguration(file string) (config *Configuration, err error) {
+	config = NewConfiguration()
 
-	if _, err := toml.DecodeFile(file, Config); err != nil {
-		Logger().Fatalf("Unable to load config file %s : %s", file, err)
-	}
-	Logger().SetMinLevelFromString(Config.LogLevel)
-
-	if Config.LogLevel == "DEBUG" {
-		Logger().SetFlags(logger.Fdate | logger.Flevel | logger.FfixedSizeLevel | logger.FshortFile | logger.FshortFunction)
-	} else {
-		Logger().SetFlags(logger.Fdate | logger.Flevel | logger.FfixedSizeLevel)
+	if _, err := toml.DecodeFile(file, config); err != nil {
+		return nil, fmt.Errorf("Unable to load config file %s : %s", file, err)
 	}
 
-	Config.Path = strings.TrimSuffix(Config.Path, "/")
+	err = config.Initialize()
+	if err != nil {
+		return nil, err
+	}
+
+	return config, nil
+}
+
+// Initialize config internal parameters
+func (config *Configuration) Initialize() (err error) {
+	config.Path = strings.TrimSuffix(config.Path, "/")
 
 	// Do user specified a ApiKey and ApiSecret for Yubikey
-	if Config.YubikeyEnabled {
-		yubiAuth, err := yubigo.NewYubiAuth(Config.YubikeyAPIKey, Config.YubikeyAPISecret)
+	if config.YubikeyEnabled {
+		yubiAuth, err := yubigo.NewYubiAuth(config.YubikeyAPIKey, config.YubikeyAPISecret)
 		if err != nil {
-			Logger().Warningf("Failed to load yubikey backend : %s", err)
-			Config.YubikeyEnabled = false
+			return fmt.Errorf("Failed to load yubikey backend : %s", err)
+		}
+		config.yubiAuth = yubiAuth
+	}
+
+	// UploadWhitelist is only parsed once at startup time
+	for _, cidr := range config.UploadWhitelist {
+		if !strings.Contains(cidr, "/") {
+			cidr += "/32"
+		}
+		if _, cidr, err := net.ParseCIDR(cidr); err == nil {
+			config.uploadWhitelist = append(config.uploadWhitelist, cidr)
 		} else {
-			Config.YubiAuth = yubiAuth
+			return fmt.Errorf("Failed to parse upload whitelist : %s", cidr)
 		}
 	}
 
-	// Parse upload whitelist
-	UploadWhitelist = make([]*net.IPNet, 0)
-	if Config.UploadWhitelist != nil {
-		for _, cidr := range Config.UploadWhitelist {
-			if !strings.Contains(cidr, "/") {
-				cidr += "/32"
-			}
-			if _, net, err := net.ParseCIDR(cidr); err == nil {
-				UploadWhitelist = append(UploadWhitelist, net)
-			} else {
-				Logger().Fatalf("Failed to parse upload whitelist : %s", cidr)
-			}
-		}
-	}
-
-	if Config.GoogleAPIClientID != "" && Config.GoogleAPISecret != "" {
-		Config.GoogleAuthentication = true
+	if config.GoogleAPIClientID != "" && config.GoogleAPISecret != "" {
+		config.GoogleAuthentication = true
 	} else {
-		Config.GoogleAuthentication = false
+		config.GoogleAuthentication = false
 	}
 
-	if Config.OvhAPIKey != "" && Config.OvhAPISecret != "" {
-		Config.OvhAuthentication = true
+	if config.OvhAPIKey != "" && config.OvhAPISecret != "" {
+		config.OvhAuthentication = true
 	} else {
-		Config.OvhAuthentication = false
+		config.OvhAuthentication = false
 	}
 
-	if !Config.GoogleAuthentication && !Config.OvhAuthentication {
-		Config.Authentication = false
-		Config.NoAnonymousUploads = false
+	if !config.GoogleAuthentication && !config.OvhAuthentication {
+		config.Authentication = false
+		config.NoAnonymousUploads = false
 	}
 
-	if Config.MetadataBackend == "file" {
-		Config.Authentication = false
-		Config.NoAnonymousUploads = false
-	}
-
-	if Config.DownloadDomain != "" {
-		strings.Trim(Config.DownloadDomain, "/ ")
+	if config.DownloadDomain != "" {
+		strings.Trim(config.DownloadDomain, "/ ")
 		var err error
-		if Config.DownloadDomainURL, err = url.Parse(Config.DownloadDomain); err != nil {
-			Logger().Fatalf("Invalid download domain URL %s : %s", Config.DownloadDomain, err)
+		if config.downloadDomainURL, err = url.Parse(config.DownloadDomain); err != nil {
+			return fmt.Errorf("Invalid download domain URL %s : %s", config.DownloadDomain, err)
 		}
 	}
 
-	Logger().Dump(logger.DEBUG, Config)
+	return nil
+}
+
+// GetUploadWhitelist return the parsed IP upload whitelist
+func (config *Configuration) GetUploadWhitelist() []*net.IPNet {
+	return config.uploadWhitelist
+}
+
+// GetDownloadDomain return the parsed download domain URL
+func (config *Configuration) GetDownloadDomain() *url.URL {
+	return config.downloadDomainURL
+}
+
+// GetYubiAuth return the Yubikey authenticator
+func (config *Configuration) GetYubiAuth() *yubigo.YubiAuth {
+	return config.yubiAuth
+}
+
+// AutoClean enable or disables the periodical upload cleaning goroutine.
+// This needs to be called before Plik server starts to have effect
+func (config *Configuration) AutoClean(value bool) {
+	config.clean = value
+}
+
+// IsAutoClean return weather or not to start the cleaning goroutine
+func (config *Configuration) IsAutoClean() bool {
+	return config.clean
+}
+
+// IsUserAdmin check if the user is a Plik server administrator
+func (config *Configuration) IsUserAdmin(user *User) bool {
+	for _, id := range config.Admins {
+		if user.ID == id {
+			return true
+		}
+	}
+
+	return false
+}
+
+// GetServerURL is a helper to get the server HTP URL
+func (config *Configuration) GetServerURL() *url.URL {
+	URL := &url.URL{}
+
+	if config.SslEnabled {
+		URL.Scheme = "https"
+	} else {
+		URL.Scheme = "http"
+	}
+
+	var addr string
+	if config.ListenAddress == "0.0.0.0" {
+		addr = "127.0.0.1"
+	} else {
+		addr = config.ListenAddress
+	}
+
+	URL.Host = fmt.Sprintf("%s:%d", addr, config.ListenPort)
+	URL.Path = config.Path
+
+	return URL
 }

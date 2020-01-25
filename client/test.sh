@@ -171,8 +171,7 @@ function uploadOpts {
 # Download files by running the output cmds
 function download {
     cd $TMPDIR/download
-
-    local COMMANDS=$(cat $CLIENT_LOG | grep -a curl)
+    local COMMANDS=$(cat $CLIENT_LOG | grep curl)
     local IFS='\n'
     for COMMAND in "$COMMANDS"
     do
@@ -329,7 +328,7 @@ cp $SPECIMEN $TMPDIR/upload/$FILE
 (
     set -e
     upload --stream &
-    child=$(ps x | grep "plik \-S $FILE" | awk '{print $1}')
+    child=$(ps x | grep "plik \--stream $FILE" | awk '{print $1}')
     sleep 1
     (
         kill -0 $child && kill $child
@@ -499,7 +498,7 @@ cp $SPECIMEN $TMPDIR/upload/FILE1
 upload --archive zip && download
 # Unzip manually
 cd $TMPDIR/download
-test -f FILE1.zip
+test -f FILE1.zip || exit 1
 unzip FILE1.zip >/dev/null 2>/dev/null
 rm FILE1.zip
 check
@@ -515,7 +514,7 @@ cp $SPECIMEN $TMPDIR/upload/DIR/FILE2
 upload --archive zip && download
 # Unzip manually
 cd $TMPDIR/download
-test -f DIR.zip
+test -f DIR.zip || exit 1
 unzip DIR.zip >/dev/null 2>/dev/null
 rm DIR.zip
 check
@@ -532,7 +531,7 @@ rm $TMPDIR/upload/EXCLUDE
 download
 # Unzip manually
 cd $TMPDIR/download
-test -f archive.zip
+test -f archive.zip || exit 1
 unzip archive.zip >/dev/null 2>/dev/null
 rm archive.zip
 check
@@ -546,7 +545,7 @@ cp $SPECIMEN $TMPDIR/upload/FILE1
 upload --archive zip --name foobar.zip && download
 # Unzip manually
 cd $TMPDIR/download
-test -f foobar.zip
+test -f foobar.zip || exit 1
 unzip foobar.zip >/dev/null 2>/dev/null
 rm foobar.zip
 check
@@ -562,7 +561,7 @@ cp $SPECIMEN $TMPDIR/upload/DIR/FILE2
 upload --archive zip --name foobar.zip && download
 # Unzip manually
 cd $TMPDIR/download
-test -f foobar.zip
+test -f foobar.zip || exit 1
 unzip foobar.zip >/dev/null 2>/dev/null
 rm foobar.zip
 check
@@ -613,7 +612,7 @@ echo -n " - openssl custom options : "
 before
 cp $SPECIMEN $TMPDIR/upload/FILE1
 upload -s --secure-options '-a' && download && check
-curl $(cat $CLIENT_LOG | grep -a "curl" | sed -n 's/^.*"\(.*\)".*$/\1/p') >$TMPDIR/download/ARMORED 2>/dev/null
+curl $(cat $CLIENT_LOG | grep "curl" | sed -n 's/^.*"\(.*\)".*$/\1/p') >$TMPDIR/download/ARMORED 2>/dev/null
 file $TMPDIR/download/ARMORED | grep "ASCII text\|base64" >/dev/null 2>/dev/null
 echo "OK"
 

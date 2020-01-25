@@ -57,10 +57,22 @@
 			"revisionTime": "2019-02-19T06:25:09Z"
 		},
 		{
+			"checksumSHA1": "1u7H4ZVGqPX5gFyHIr5DpIbu3Js=",
+			"path": "github.com/camathieu/pb",
+			"revision": "889de99fc8d51d3efa9ccd29c1cc42182d88d500",
+			"revisionTime": "2019-04-03T13:24:34Z"
+		},
+		{
 			"checksumSHA1": "0cPhH3GjPywWjl151UV2X5cazNA=",
 			"path": "github.com/cheggaaa/pb",
 			"revision": "ca7ab10606663e9efdbc3c1ad157459b5a2b0edf",
 			"revisionTime": "2020-01-09T12:30:23Z"
+		},
+		{
+			"checksumSHA1": "CSPbwbyzqA6sfORicn4HFtIhF/c=",
+			"path": "github.com/davecgh/go-spew/spew",
+			"revision": "d8f796af33cc11cb798c1aaeb27a4ebc5099927d",
+			"revisionTime": "2018-08-30T19:11:22Z"
 		},
 		{
 			"checksumSHA1": "blOHP3HPYU+IeV6yWCalQuuM+zE=",
@@ -171,6 +183,12 @@
 			"revisionTime": "2017-10-02T11:52:56Z"
 		},
 		{
+			"checksumSHA1": "LuFv4/jlrmFNnDb/5SCSEPAM9vU=",
+			"path": "github.com/pmezard/go-difflib/difflib",
+			"revision": "5d4384ee4fb2527b0a1256a821ebfc92f91efefc",
+			"revisionTime": "2018-12-26T10:54:42Z"
+		},
+		{
 			"checksumSHA1": "QClkJfURV05f9rjLK6TEfYWDVOA=",
 			"path": "github.com/root-gg/juliet",
 			"revision": "63378c6bd35ef966dfc638dbae835a0380a4ea80",
@@ -183,10 +201,44 @@
 			"revisionTime": "2015-05-01T17:38:26Z"
 		},
 		{
+			"checksumSHA1": "lU1aQ3jYGtks09nr39PYLGc8IWU=",
+			"path": "github.com/root-gg/plik/client/config",
+			"revision": "98aca9174999d1dc5853ba37f2b6573338fd68d8",
+			"revisionTime": "2019-11-28T07:43:16Z"
+		},
+		{
+			"path": "github.com/root-gg/plik/server/context",
+			"revision": ""
+		},
+		{
+			"path": "github.com/root-gg/plik/server/data/testing",
+			"revision": ""
+		},
+		{
+			"path": "github.com/root-gg/plik/server/metadata/testing",
+			"revision": ""
+		},
+		{
+			"path": "github.com/root-gg/plik/server/server",
+			"revision": ""
+		},
+		{
 			"checksumSHA1": "JQlSlJ7cA9/vKAd3r6Y2IRTGVJ4=",
 			"path": "github.com/root-gg/utils",
 			"revision": "38f45ede2ce220d9c08734edd8a13107022cc20d",
 			"revisionTime": "2015-10-25T16:16:26Z"
+		},
+		{
+			"checksumSHA1": "e8iJvB1LMyOqULpk3rMP1LloR7I=",
+			"path": "github.com/stretchr/testify/assert",
+			"revision": "8c465a0c8e8057d28111e5ec72860f23965439e5",
+			"revisionTime": "2018-10-27T06:52:51Z"
+		},
+		{
+			"checksumSHA1": "kgLDGe+L+vJ7WGrZh9xuaXN2Ifg=",
+			"path": "github.com/stretchr/testify/require",
+			"revision": "8c465a0c8e8057d28111e5ec72860f23965439e5",
+			"revisionTime": "2018-10-27T06:52:51Z"
 		},
 		{
 			"checksumSHA1": "x2GBAYCmQlV8IOwIfXPlHO3gkVY=",
@@ -775,6 +827,12 @@
 			"path": "gopkg.in/mgo.v2/internal/scram",
 			"revision": "9856a29383ce1c59f308dd1cf0363a79b5bef6b5",
 			"revisionTime": "2018-07-05T11:36:04Z"
+		},
+		{
+			"checksumSHA1": "dIH8v3OdMGX07t3yJGMODGFUKPg=",
+			"path": "gopkg.in/yaml.v2",
+			"revision": "53403b58ad1b561927d19068c655246f2db79d48",
+			"revisionTime": "2020-01-21T17:19:40Z"
 		}
 	],
 	"rootPath": "github.com/root-gg/plik"
