@@ -31,7 +31,6 @@ package handlers
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"io/ioutil"
 	"net/http"
@@ -47,7 +46,7 @@ import (
 
 func TestRemoveFile(t *testing.T) {
 	ctx := context.NewTestingContext(common.NewConfiguration())
-	ctx.Set("is_upload_admin", true)
+	context.SetUploadAdmin(ctx, true)
 
 	data := "data"
 
@@ -70,8 +69,8 @@ func TestRemoveFile(t *testing.T) {
 
 	createTestUpload(ctx, upload)
 
-	ctx.Set("upload", upload)
-	ctx.Set("file", file1)
+	context.SetUpload(ctx, upload)
+	context.SetFile(ctx, file1)
 
 	req, err := http.NewRequest("DELETE", "/file/"+upload.ID+"/"+file1.ID+"/"+file1.Name, bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -82,15 +81,14 @@ func TestRemoveFile(t *testing.T) {
 
 	respBody, err := ioutil.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
+	require.Equal(t, "ok", string(respBody))
 
-	var uploadResult = &common.Upload{}
-	err = json.Unmarshal(respBody, uploadResult)
-	require.NoError(t, err, "unable to unmarshal response body")
+	upload, err = context.GetMetadataBackend(ctx).GetUpload(upload.ID)
+	require.NoError(t, err)
+	require.Equal(t, 2, len(upload.Files), "invalid upload files count")
+	require.Equal(t, common.FILE_DELETED, upload.Files[file1.ID].Status, "invalid removed file status")
 
-	require.Equal(t, 2, len(uploadResult.Files), "invalid upload files count")
-	require.Equal(t, "removed", uploadResult.Files[file1.ID].Status, "invalid removed file status")
-
-	_, err = context.GetDataBackend(ctx).GetFile(ctx, upload, file1.ID)
+	_, err = context.GetDataBackend(ctx).GetFile(upload, file1.ID)
 	require.Error(t, err, "removed file still exists")
 }
 
@@ -111,8 +109,8 @@ func TestRemoveFileNotAdmin(t *testing.T) {
 
 	createTestUpload(ctx, upload)
 
-	ctx.Set("upload", upload)
-	ctx.Set("file", file1)
+	context.SetUpload(ctx, upload)
+	context.SetFile(ctx, file1)
 
 	req, err := http.NewRequest("DELETE", "/file/"+upload.ID+"/"+file1.ID+"/"+file1.Name, bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -125,7 +123,7 @@ func TestRemoveFileNotAdmin(t *testing.T) {
 
 func TestRemoveRemovedFile(t *testing.T) {
 	ctx := context.NewTestingContext(common.NewConfiguration())
-	ctx.Set("is_upload_admin", true)
+	context.SetUploadAdmin(ctx, true)
 
 	data := "data"
 
@@ -141,8 +139,8 @@ func TestRemoveRemovedFile(t *testing.T) {
 
 	createTestUpload(ctx, upload)
 
-	ctx.Set("upload", upload)
-	ctx.Set("file", file1)
+	context.SetUpload(ctx, upload)
+	context.SetFile(ctx, file1)
 
 	req, err := http.NewRequest("DELETE", "/file/"+upload.ID+"/"+file1.ID+"/"+file1.Name, bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -154,7 +152,7 @@ func TestRemoveRemovedFile(t *testing.T) {
 
 func TestRemoveLastFile(t *testing.T) {
 	ctx := context.NewTestingContext(common.NewConfiguration())
-	ctx.Set("is_upload_admin", true)
+	context.SetUploadAdmin(ctx, true)
 
 	data := "data"
 
@@ -170,8 +168,8 @@ func TestRemoveLastFile(t *testing.T) {
 
 	createTestUpload(ctx, upload)
 
-	ctx.Set("upload", upload)
-	ctx.Set("file", file1)
+	context.SetUpload(ctx, upload)
+	context.SetFile(ctx, file1)
 
 	req, err := http.NewRequest("DELETE", "/file/"+upload.ID+"/"+file1.ID+"/"+file1.Name, bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -182,18 +180,13 @@ func TestRemoveLastFile(t *testing.T) {
 
 	respBody, err := ioutil.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
+	require.Equal(t, "ok", string(respBody))
 
-	var uploadResult = &common.Upload{}
-	err = json.Unmarshal(respBody, uploadResult)
-	require.NoError(t, err, "unable to unmarshal response body")
+	u, err := context.GetMetadataBackend(ctx).GetUpload(upload.ID)
+	require.NoError(t, err, "removed upload still exists")
+	require.Nil(t, u, "removed upload still exists")
 
-	require.Equal(t, 1, len(uploadResult.Files), "invalid upload files count")
-	require.Equal(t, "removed", uploadResult.Files[file1.ID].Status, "invalid removed file status")
-
-	_, err = context.GetMetadataBackend(ctx).GetUpload(ctx, upload.ID)
-	require.Error(t, err, "removed upload still exists")
-
-	_, err = context.GetDataBackend(ctx).GetFile(ctx, upload, file1.ID)
+	_, err = context.GetDataBackend(ctx).GetFile(upload, file1.ID)
 	require.Error(t, err, "removed file still exists")
 }
 
@@ -210,10 +203,10 @@ func TestRemoveFileNoUpload(t *testing.T) {
 
 func TestRemoveFileNoFile(t *testing.T) {
 	ctx := context.NewTestingContext(common.NewConfiguration())
-	ctx.Set("is_upload_admin", true)
+	context.SetUploadAdmin(ctx, true)
 
 	upload := common.NewUpload()
-	ctx.Set("upload", upload)
+	context.SetUpload(ctx, upload)
 
 	req, err := http.NewRequest("DELETE", "/file/uploadID/fileID/fileName", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -225,7 +218,7 @@ func TestRemoveFileNoFile(t *testing.T) {
 
 func TestRemoveFileMetadataBackendError(t *testing.T) {
 	ctx := context.NewTestingContext(common.NewConfiguration())
-	ctx.Set("is_upload_admin", true)
+	context.SetUploadAdmin(ctx, true)
 
 	data := "data"
 
@@ -241,8 +234,8 @@ func TestRemoveFileMetadataBackendError(t *testing.T) {
 
 	createTestUpload(ctx, upload)
 
-	ctx.Set("upload", upload)
-	ctx.Set("file", file1)
+	context.SetUpload(ctx, upload)
+	context.SetFile(ctx, file1)
 
 	req, err := http.NewRequest("DELETE", "/file/uploadID/fileID/fileName", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -256,7 +249,7 @@ func TestRemoveFileMetadataBackendError(t *testing.T) {
 
 func TestRemoveFileDataBackendError(t *testing.T) {
 	ctx := context.NewTestingContext(common.NewConfiguration())
-	ctx.Set("is_upload_admin", true)
+	context.SetUploadAdmin(ctx, true)
 
 	data := "data"
 
@@ -272,8 +265,8 @@ func TestRemoveFileDataBackendError(t *testing.T) {
 
 	createTestUpload(ctx, upload)
 
-	ctx.Set("upload", upload)
-	ctx.Set("file", file1)
+	context.SetUpload(ctx, upload)
+	context.SetFile(ctx, file1)
 
 	req, err := http.NewRequest("DELETE", "/file/uploadID/fileID/fileName", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -282,5 +275,5 @@ func TestRemoveFileDataBackendError(t *testing.T) {
 
 	rr := httptest.NewRecorder()
 	RemoveFile(ctx, rr, req)
-	context.TestFail(t, rr, http.StatusInternalServerError, "Unable to delete file")
+	require.Equal(t, http.StatusOK, rr.Code, "handler returned wrong status code")
 }

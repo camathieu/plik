@@ -72,7 +72,7 @@ func TestOVHLogin(t *testing.T) {
 			resp.Write(responseBody)
 			return
 		}
-		resp.WriteHeader(500)
+		resp.WriteHeader(http.StatusInternalServerError)
 	}
 
 	shutdown, err := common.StartAPIMockServer(http.HandlerFunc(handler))
@@ -137,7 +137,7 @@ func TestOVHLoginInvalidOVHResponse(t *testing.T) {
 	req.Header.Set("referer", origin)
 
 	handler := func(resp http.ResponseWriter, req *http.Request) {
-		resp.WriteHeader(500)
+		resp.WriteHeader(http.StatusInternalServerError)
 	}
 
 	shutdown, err := common.StartAPIMockServer(http.HandlerFunc(handler))
@@ -281,7 +281,7 @@ func TestOVHCallback(t *testing.T) {
 			resp.Write(responseBody)
 			return
 		}
-		resp.WriteHeader(500)
+		resp.WriteHeader(http.StatusInternalServerError)
 	}
 
 	shutdown, err := common.StartAPIMockServer(http.HandlerFunc(handler))
@@ -317,7 +317,7 @@ func TestOVHCallback(t *testing.T) {
 
 func TestOVHCallbackCreateUser(t *testing.T) {
 	ctx := context.NewTestingContext(common.NewConfiguration())
-	ctx.Set("IsWhitelisted", true)
+	context.SetWhitelisted(ctx, true)
 
 	context.GetConfig(ctx).Authentication = true
 	context.GetConfig(ctx).OvhAuthentication = true
@@ -363,7 +363,7 @@ func TestOVHCallbackCreateUser(t *testing.T) {
 			resp.Write(responseBody)
 			return
 		}
-		resp.WriteHeader(500)
+		resp.WriteHeader(http.StatusInternalServerError)
 	}
 
 	shutdown, err := common.StartAPIMockServer(http.HandlerFunc(handler))
@@ -396,7 +396,7 @@ func TestOVHCallbackCreateUser(t *testing.T) {
 	require.NotEqual(t, "", sessionCookie, "missing plik session cookie")
 	require.NotEqual(t, "", xsrfCookie, "missing plik xsrf cookie")
 
-	user, err := context.GetMetadataBackend(ctx).GetUser(ctx, "ovh:plik", "")
+	user, err := context.GetMetadataBackend(ctx).GetUser("ovh:plik")
 	require.NotNil(t, user, "missing user")
 	require.Equal(t, ovhUserResponse.Email, user.Email, "invalid user email")
 	require.Equal(t, ovhUserResponse.FirstName+" "+ovhUserResponse.LastName, user.Name, "invalid user name")
@@ -404,7 +404,7 @@ func TestOVHCallbackCreateUser(t *testing.T) {
 
 func TestOVHCallbackCreateUserNotWhitelisted(t *testing.T) {
 	ctx := context.NewTestingContext(common.NewConfiguration())
-	ctx.Set("IsWhitelisted", false)
+	context.SetWhitelisted(ctx, false)
 
 	context.GetConfig(ctx).Authentication = true
 	context.GetConfig(ctx).OvhAuthentication = true
@@ -449,7 +449,7 @@ func TestOVHCallbackCreateUserNotWhitelisted(t *testing.T) {
 			resp.Write(responseBody)
 			return
 		}
-		resp.WriteHeader(500)
+		resp.WriteHeader(http.StatusInternalServerError)
 	}
 
 	shutdown, err := common.StartAPIMockServer(http.HandlerFunc(handler))
@@ -662,7 +662,7 @@ func TestOVHCallbackInvalidOvhApiResponse(t *testing.T) {
 	req.AddCookie(ovhAuthCookie)
 
 	handler := func(resp http.ResponseWriter, req *http.Request) {
-		resp.WriteHeader(500)
+		resp.WriteHeader(http.StatusInternalServerError)
 	}
 
 	shutdown, err := common.StartAPIMockServer(http.HandlerFunc(handler))
@@ -704,7 +704,7 @@ func TestOVHCallbackInvalidOvhApiResponseJson(t *testing.T) {
 	req.AddCookie(ovhAuthCookie)
 
 	handler := func(resp http.ResponseWriter, req *http.Request) {
-		resp.WriteHeader(500)
+		resp.WriteHeader(http.StatusInternalServerError)
 		resp.Write([]byte("invalid json"))
 	}
 

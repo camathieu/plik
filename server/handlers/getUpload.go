@@ -47,7 +47,7 @@ func GetUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request)
 	if upload == nil {
 		// This should never append
 		log.Critical("Missing upload in getUploadHandler")
-		context.Fail(ctx, req, resp, "Internal error", 500)
+		context.Fail(ctx, req, resp, "Internal error", http.StatusInternalServerError)
 		return
 	}
 
@@ -64,7 +64,7 @@ func GetUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request)
 	json, err := utils.ToJson(upload)
 	if err != nil {
 		log.Warningf("Unable to serialize json response : %s", err)
-		context.Fail(ctx, req, resp, "Unable to serialize json response", 500)
+		context.Fail(ctx, req, resp, "Unable to serialize json response", http.StatusInternalServerError)
 		return
 	}
 

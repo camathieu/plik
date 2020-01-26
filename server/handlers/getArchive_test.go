@@ -64,7 +64,7 @@ func TestGetArchive(t *testing.T) {
 	err := createTestFile(ctx, upload, file, bytes.NewBuffer([]byte(data)))
 	require.NoError(t, err, "unable to create test file")
 
-	ctx.Set("upload", upload)
+	context.SetUpload(ctx, upload)
 
 	req, err := http.NewRequest("GET", "/archive/"+upload.ID+"/"+"archive.zip", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -104,7 +104,7 @@ func TestGetArchiveNoFile(t *testing.T) {
 	ctx := context.NewTestingContext(common.NewConfiguration())
 
 	upload := common.NewUpload()
-	ctx.Set("upload", upload)
+	context.SetUpload(ctx, upload)
 
 	req, err := http.NewRequest("GET", "/archive/"+upload.ID+"/"+"archive.zip", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -163,7 +163,7 @@ func TestGetArchiveOneShot(t *testing.T) {
 	err := createTestFile(ctx, upload, file, bytes.NewBuffer([]byte(data)))
 	require.NoError(t, err, "unable to create test file")
 
-	ctx.Set("upload", upload)
+	context.SetUpload(ctx, upload)
 
 	req, err := http.NewRequest("GET", "/archive/"+upload.ID+"/"+"archive.zip", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -198,10 +198,10 @@ func TestGetArchiveOneShot(t *testing.T) {
 	require.NoError(t, err, "unable to read archived file")
 	require.Equal(t, data, string(content), "invalid archived file content")
 
-	_, err = context.GetDataBackend(ctx).GetFile(ctx, upload, file.ID)
+	_, err = context.GetDataBackend(ctx).GetFile(upload, file.ID)
 	require.Error(t, err, "downloaded file still exists")
 
-	_, err = context.GetMetadataBackend(ctx).GetUpload(ctx, upload.ID)
+	_, err = context.GetMetadataBackend(ctx).GetUpload(upload.ID)
 	require.Error(t, err, "downloaded upload still exists")
 }
 
@@ -218,7 +218,7 @@ func TestGetArchiveNoArchiveName(t *testing.T) {
 	err := createTestFile(ctx, upload, file, bytes.NewBuffer([]byte(data)))
 	require.NoError(t, err, "unable to create test file")
 
-	ctx.Set("upload", upload)
+	context.SetUpload(ctx, upload)
 
 	req, err := http.NewRequest("GET", "/archive/"+upload.ID+"/"+"archive.zip", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -242,7 +242,7 @@ func TestGetArchiveInvalidArchiveName(t *testing.T) {
 	err := createTestFile(ctx, upload, file, bytes.NewBuffer([]byte(data)))
 	require.NoError(t, err, "unable to create test file")
 
-	ctx.Set("upload", upload)
+	context.SetUpload(ctx, upload)
 
 	req, err := http.NewRequest("GET", "/archive/"+upload.ID+"/"+"archive.zip", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -272,7 +272,7 @@ func TestGetArchiveDataBackendError(t *testing.T) {
 	err := createTestFile(ctx, upload, file, bytes.NewBuffer([]byte(data)))
 	require.NoError(t, err, "unable to create test file")
 
-	ctx.Set("upload", upload)
+	context.SetUpload(ctx, upload)
 
 	req, err := http.NewRequest("GET", "/archive/"+upload.ID+"/"+"archive.zip", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -305,7 +305,7 @@ func TestGetArchiveMetadataBackendError(t *testing.T) {
 	err := createTestFile(ctx, upload, file, bytes.NewBuffer([]byte(data)))
 	require.NoError(t, err, "unable to create test file")
 
-	ctx.Set("upload", upload)
+	context.SetUpload(ctx, upload)
 
 	req, err := http.NewRequest("GET", "/archive/"+upload.ID+"/"+"archive.zip", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -321,5 +321,5 @@ func TestGetArchiveMetadataBackendError(t *testing.T) {
 	rr := httptest.NewRecorder()
 	GetArchive(ctx, rr, req)
 
-	context.TestFail(t, rr, http.StatusNotFound, "Nothing to archive")
+	context.TestFail(t, rr, http.StatusInternalServerError, "Unable to update upload metadata")
 }

@@ -44,6 +44,8 @@ import (
 	api_oauth2 "google.golang.org/api/oauth2/v2"
 )
 
+var googeleEndpointContextKey = "google_endpoint"
+
 // GoogleLogin return google api user consent URL.
 func GoogleLogin(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	log := context.GetLogger(ctx)
@@ -51,20 +53,20 @@ func GoogleLogin(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 
 	if !config.Authentication {
 		log.Warning("Authentication is disabled")
-		context.Fail(ctx, req, resp, "Authentication is disabled", 400)
+		context.Fail(ctx, req, resp, "Authentication is disabled", http.StatusBadRequest)
 		return
 	}
 
 	if !config.GoogleAuthentication {
 		log.Warning("Missing google api credentials")
-		context.Fail(ctx, req, resp, "Missing google API credentials", 500)
+		context.Fail(ctx, req, resp, "Missing google API credentials", http.StatusInternalServerError)
 		return
 	}
 
 	origin := req.Header.Get("referer")
 	if origin == "" {
 		log.Warning("Missing referer header")
-		context.Fail(ctx, req, resp, "Missing referer header", 400)
+		context.Fail(ctx, req, resp, "Missing referer header", http.StatusBadRequest)
 		return
 	}
 
@@ -88,7 +90,7 @@ func GoogleLogin(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 	b64state, err := state.SignedString([]byte(config.GoogleAPISecret))
 	if err != nil {
 		log.Warningf("Unable to sign state : %s", err)
-		context.Fail(ctx, req, resp, "Unable to sign state", 500)
+		context.Fail(ctx, req, resp, "Unable to sign state", http.StatusInternalServerError)
 		return
 	}
 
@@ -106,27 +108,27 @@ func GoogleCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 
 	if !config.Authentication {
 		log.Warning("Authentication is disabled")
-		context.Fail(ctx, req, resp, "Authentication is disabled", 400)
+		context.Fail(ctx, req, resp, "Authentication is disabled", http.StatusBadRequest)
 		return
 	}
 
 	if config.GoogleAPIClientID == "" || config.GoogleAPISecret == "" {
 		log.Warning("Missing google api credentials")
-		context.Fail(ctx, req, resp, "Missing google API credentials", 500)
+		context.Fail(ctx, req, resp, "Missing google API credentials", http.StatusInternalServerError)
 		return
 	}
 
 	code := req.URL.Query().Get("code")
 	if code == "" {
 		log.Warning("Missing oauth2 authorization code")
-		context.Fail(ctx, req, resp, "Missing oauth2 authorization code", 400)
+		context.Fail(ctx, req, resp, "Missing oauth2 authorization code", http.StatusBadRequest)
 		return
 	}
 
 	b64state := req.URL.Query().Get("state")
 	if b64state == "" {
 		log.Warning("Missing oauth2 state")
-		context.Fail(ctx, req, resp, "Missing oauth2 state", 400)
+		context.Fail(ctx, req, resp, "Missing oauth2 state", http.StatusBadRequest)
 		return
 	}
 
@@ -154,19 +156,19 @@ func GoogleCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 	})
 	if err != nil {
 		log.Warningf("Invalid oauth2 state : %s", err)
-		context.Fail(ctx, req, resp, "Invalid oauth2 state", 400)
+		context.Fail(ctx, req, resp, "Invalid oauth2 state", http.StatusBadRequest)
 		return
 	}
 
 	if _, ok := state.Claims.(jwt.MapClaims)["origin"]; !ok {
 		log.Warning("Invalid oauth2 state : missing origin")
-		context.Fail(ctx, req, resp, "Invalid oauth2 state", 400)
+		context.Fail(ctx, req, resp, "Invalid oauth2 state", http.StatusBadRequest)
 		return
 	}
 
 	if _, ok := state.Claims.(jwt.MapClaims)["origin"].(string); !ok {
 		log.Warning("Invalid oauth2 state : invalid origin")
-		context.Fail(ctx, req, resp, "Invalid oauth2 state", 400)
+		context.Fail(ctx, req, resp, "Invalid oauth2 state", http.StatusBadRequest)
 		return
 	}
 
@@ -183,41 +185,41 @@ func GoogleCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 		Endpoint: google.Endpoint,
 	}
 
-	if customEndpoint, ok := ctx.Get("google_endpoint"); ok {
+	if customEndpoint, ok := ctx.Get(googeleEndpointContextKey); ok {
 		conf.Endpoint = customEndpoint.(oauth2.Endpoint)
 	}
 
 	token, err := conf.Exchange(oauth2.NoContext, code)
 	if err != nil {
 		log.Warningf("Unable to create google API token : %s", err)
-		context.Fail(ctx, req, resp, "Unable to get user info from google API", 500)
+		context.Fail(ctx, req, resp, "Unable to get user info from google API", http.StatusInternalServerError)
 		return
 	}
 
 	client, err := api_oauth2.New(conf.Client(oauth2.NoContext, token))
 	if err != nil {
 		log.Warningf("Unable to create google API client : %s", err)
-		context.Fail(ctx, req, resp, "Unable to get user info from google API", 500)
+		context.Fail(ctx, req, resp, "Unable to get user info from google API", http.StatusInternalServerError)
 		return
 	}
 
-	if customEndpoint, ok := ctx.Get("google_endpoint"); ok {
+	if customEndpoint, ok := ctx.Get(googeleEndpointContextKey); ok {
 		client.BasePath = customEndpoint.(oauth2.Endpoint).AuthURL
 	}
 
 	userInfo, err := client.Userinfo.Get().Do()
 	if err != nil {
 		log.Warningf("Unable to get userinfo from google API : %s", err)
-		context.Fail(ctx, req, resp, "Unable to get user info from google API", 500)
+		context.Fail(ctx, req, resp, "Unable to get user info from google API", http.StatusInternalServerError)
 		return
 	}
 	userID := "google:" + userInfo.Id
 
 	// Get user from metadata backend
-	user, err := context.GetMetadataBackend(ctx).GetUser(userID, "")
+	user, err := context.GetMetadataBackend(ctx).GetUser(userID)
 	if err != nil {
 		log.Warningf("Unable to get user : %s", err)
-		context.Fail(ctx, req, resp, "Unable to get user", 500)
+		context.Fail(ctx, req, resp, "Unable to get user", http.StatusInternalServerError)
 		return
 	}
 
@@ -246,7 +248,7 @@ func GoogleCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 			if !goodDomain {
 				// User not from accepted google domains list
 				log.Warningf("Unacceptable user domain : %s", components[1])
-				context.Fail(ctx, req, resp, fmt.Sprintf("Authentication error : Unauthorized domain %s", components[1]), 403)
+				context.Fail(ctx, req, resp, fmt.Sprintf("Authentication error : Unauthorized domain %s", components[1]), http.StatusForbidden)
 				return
 			}
 
@@ -254,12 +256,12 @@ func GoogleCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 			err = context.GetMetadataBackend(ctx).CreateUser(user)
 			if err != nil {
 				log.Warningf("Unable to save user to metadata backend : %s", err)
-				context.Fail(ctx, req, resp, "Authentication error", 403)
+				context.Fail(ctx, req, resp, "Authentication error", http.StatusForbidden)
 				return
 			}
 		} else {
 			log.Warning("Unable to create user from untrusted source IP address")
-			context.Fail(ctx, req, resp, "Unable to create user from untrusted source IP address", 403)
+			context.Fail(ctx, req, resp, "Unable to create user from untrusted source IP address", http.StatusForbidden)
 			return
 		}
 	}
@@ -268,10 +270,10 @@ func GoogleCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 	sessionCookie, xsrfCookie, err := common.GenAuthCookies(user, context.GetConfig(ctx))
 	if err != nil {
 		log.Warningf("Unable to generate session cookies : %s", err)
-		context.Fail(ctx, req, resp, "Authentication error", 403)
+		context.Fail(ctx, req, resp, "Authentication error", http.StatusForbidden)
 	}
 	http.SetCookie(resp, sessionCookie)
 	http.SetCookie(resp, xsrfCookie)
 
-	http.Redirect(resp, req, config.Path+"/#/login", 301)
+	http.Redirect(resp, req, config.Path+"/#/login", http.StatusMovedPermanently)
 }

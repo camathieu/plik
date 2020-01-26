@@ -46,14 +46,14 @@ func RemoveUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reque
 	if upload == nil {
 		// This should never append
 		log.Critical("Missing upload in removeUploadHandler")
-		context.Fail(ctx, req, resp, "Internal error", 500)
+		context.Fail(ctx, req, resp, "Internal error", http.StatusInternalServerError)
 		return
 	}
 
 	// Check authorization
 	if !upload.Removable && !context.IsUploadAdmin(ctx) {
 		log.Warningf("Unable to remove upload : unauthorized")
-		context.Fail(ctx, req, resp, "You are not allowed to remove this upload", 403)
+		context.Fail(ctx, req, resp, "You are not allowed to remove this upload", http.StatusForbidden)
 		return
 	}
 
@@ -62,28 +62,34 @@ func RemoveUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reque
 		files = []*common.File{}
 		for _, f := range u.Files {
 			if f.Status == common.FILE_UPLOADED {
-				f.Status = common.FILE_REMOVED
 				files = append(files, f)
+			}
+
+			if f.Status != common.FILE_DELETED {
+				f.Status = common.FILE_REMOVED
 			}
 		}
 		return nil
 	}
 
-	err := context.GetMetadataBackend(ctx).UpdateUpload(upload, tx)
+	upload, err := context.GetMetadataBackend(ctx).UpdateUpload(upload, tx)
 	if err != nil {
-		log.Warningf("Unable to update upload %s", upload.ID)
-		context.Fail(ctx, req, resp, "Unable to add file", http.StatusInternalServerError)
+		log.Warningf("Unable to update upload metadata : %s", err)
+		context.Fail(ctx, req, resp, "Unable to update upload metadata", http.StatusInternalServerError)
 		return
 	}
 
 	// Remove files
 	for _, file := range upload.Files {
-		err = DeleteFile(ctx, upload, file)
+		err = DeleteRemovedFile(ctx, upload, file)
 		if err != nil {
 			// Don't block here
-			log.Warningf("Unable to delete file : %s")
+			log.Warningf("Unable to delete file %s (%s)", file.Name, file.ID)
 		}
 	}
 
-	RemoveEmptyUpload(ctx, upload)
+	if err != nil {
+		context.Fail(ctx, req, resp, "Unable to remove all files", http.StatusInternalServerError)
+		return
+	}
 }

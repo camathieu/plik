@@ -91,20 +91,20 @@ func OvhLogin(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) 
 
 	if !config.Authentication {
 		log.Warning("Authentication is disabled")
-		context.Fail(ctx, req, resp, "Authentication is disabled", 400)
+		context.Fail(ctx, req, resp, "Authentication is disabled", http.StatusBadRequest)
 		return
 	}
 
 	if !config.OvhAuthentication {
 		log.Warning("Missing ovh api credentials")
-		context.Fail(ctx, req, resp, "Missing OVH API credentials", 500)
+		context.Fail(ctx, req, resp, "Missing OVH API credentials", http.StatusInternalServerError)
 		return
 	}
 
 	origin := req.Header.Get("referer")
 	if origin == "" {
 		log.Warning("Missing referer header")
-		context.Fail(ctx, req, resp, "Missing referer header", 400)
+		context.Fail(ctx, req, resp, "Missing referer header", http.StatusBadRequest)
 		return
 	}
 
@@ -123,14 +123,14 @@ func OvhLogin(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) 
 	ovhResp, err := client.Do(ovhReq)
 	if err != nil {
 		log.Warningf("Error with ovh API %s : %s", url, err)
-		context.Fail(ctx, req, resp, "Error with OVH API ", 500)
+		context.Fail(ctx, req, resp, "Error with OVH API ", http.StatusInternalServerError)
 		return
 	}
 	defer ovhResp.Body.Close()
 	ovhRespBody, err := decodeOVHResponse(ovhResp)
 	if err != nil {
 		log.Warningf("Error with ovh API %s : %s", url, err)
-		context.Fail(ctx, req, resp, fmt.Sprintf("Error with OVH API : %s", err), 500)
+		context.Fail(ctx, req, resp, fmt.Sprintf("Error with OVH API : %s", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -138,7 +138,7 @@ func OvhLogin(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) 
 	err = json.Unmarshal(ovhRespBody, &userConsentResponse)
 	if err != nil {
 		log.Warningf("Unable to unserialize OVH API response : %s", err)
-		context.Fail(ctx, req, resp, "Unable to unserialize OVH API response", 500)
+		context.Fail(ctx, req, resp, "Unable to unserialize OVH API response", http.StatusInternalServerError)
 		return
 	}
 
@@ -150,7 +150,7 @@ func OvhLogin(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) 
 	sessionString, err := session.SignedString([]byte(config.OvhAPISecret))
 	if err != nil {
 		log.Warningf("Unable to sign OVH session cookie : %s", err)
-		context.Fail(ctx, req, resp, "Unable to sign OVH session cookie", 500)
+		context.Fail(ctx, req, resp, "Unable to sign OVH session cookie", http.StatusInternalServerError)
 		return
 	}
 
@@ -189,13 +189,13 @@ func OvhCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 
 	if !config.Authentication {
 		log.Warning("Authentication is disabled")
-		context.Fail(ctx, req, resp, "Authentication is disabled", 400)
+		context.Fail(ctx, req, resp, "Authentication is disabled", http.StatusBadRequest)
 		return
 	}
 
 	if config.OvhAPIKey == "" || config.OvhAPISecret == "" || config.OvhAPIEndpoint == "" {
 		log.Warning("Missing ovh api credentials")
-		context.Fail(ctx, req, resp, "Missing OVH API credentials", 500)
+		context.Fail(ctx, req, resp, "Missing OVH API credentials", http.StatusInternalServerError)
 		return
 	}
 
@@ -203,7 +203,7 @@ func OvhCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 	ovhSessionCookie, err := req.Cookie("plik-ovh-session")
 	if err != nil || ovhSessionCookie == nil {
 		log.Warning("Missing OVH session cookie")
-		context.Fail(ctx, req, resp, "Missing OVH session cookie", 400)
+		context.Fail(ctx, req, resp, "Missing OVH session cookie", http.StatusBadRequest)
 		return
 	}
 
@@ -218,7 +218,7 @@ func OvhCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 	})
 	if err != nil {
 		log.Warningf("Invalid OVH session cookie : %s", err)
-		context.Fail(ctx, req, resp, "Invalid OVH session cookie", 400)
+		context.Fail(ctx, req, resp, "Invalid OVH session cookie", http.StatusBadRequest)
 		return
 	}
 
@@ -226,7 +226,7 @@ func OvhCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 	ovhConsumerKey, ok := ovhAuthCookie.Claims.(jwt.MapClaims)["ovh-consumer-key"]
 	if !ok {
 		log.Warning("Invalid OVH session cookie : missing ovh-consumer-key")
-		context.Fail(ctx, req, resp, "Invalid OVH session cookie : missing ovh-consumer-key", 400)
+		context.Fail(ctx, req, resp, "Invalid OVH session cookie : missing ovh-consumer-key", http.StatusBadRequest)
 		return
 	}
 
@@ -234,7 +234,7 @@ func OvhCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 	endpoint, ok := ovhAuthCookie.Claims.(jwt.MapClaims)["ovh-api-endpoint"]
 	if !ok {
 		log.Warning("Invalid OVH session cookie : missing ovh-api-endpoint")
-		context.Fail(ctx, req, resp, "Invalid OVH session cookie : missing ovh-api-endpoint", 400)
+		context.Fail(ctx, req, resp, "Invalid OVH session cookie : missing ovh-api-endpoint", http.StatusBadRequest)
 		return
 	}
 
@@ -243,7 +243,7 @@ func OvhCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 	ovhReq, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		log.Warningf("Unable to create new http GET request to %s : %s", url, err)
-		context.Fail(ctx, req, resp, "Unable to create new http GET request to OVH API", 500)
+		context.Fail(ctx, req, resp, "Unable to create new http GET request to OVH API", http.StatusInternalServerError)
 		return
 	}
 
@@ -269,14 +269,14 @@ func OvhCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 	ovhResp, err := client.Do(ovhReq)
 	if err != nil {
 		log.Warningf("Error with ovh API %s : %s", url, err)
-		context.Fail(ctx, req, resp, "Error with ovh API", 500)
+		context.Fail(ctx, req, resp, "Error with ovh API", http.StatusInternalServerError)
 		return
 	}
 	defer ovhResp.Body.Close()
 	ovhRespBody, err := decodeOVHResponse(ovhResp)
 	if err != nil {
 		log.Warningf("Error with ovh API %s : %s", url, err)
-		context.Fail(ctx, req, resp, fmt.Sprintf("Error with OVH API : %s", err), 500)
+		context.Fail(ctx, req, resp, fmt.Sprintf("Error with OVH API : %s", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -285,17 +285,17 @@ func OvhCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 	err = json.Unmarshal(ovhRespBody, &userInfo)
 	if err != nil {
 		log.Warningf("Unable to unserialize OVH API response : %s", err)
-		context.Fail(ctx, req, resp, "Unable to unserialize OVH API response", 500)
+		context.Fail(ctx, req, resp, "Unable to unserialize OVH API response", http.StatusInternalServerError)
 		return
 	}
 
 	userID := "ovh:" + userInfo.Nichandle
 
 	// Get user from metadata backend
-	user, err := context.GetMetadataBackend(ctx).GetUser(userID, "")
+	user, err := context.GetMetadataBackend(ctx).GetUser(userID)
 	if err != nil {
 		log.Warningf("Unable to get user from metadata backend : %s", err)
-		context.Fail(ctx, req, resp, "Unable to get user from metadata backend", 500)
+		context.Fail(ctx, req, resp, "Unable to get user from metadata backend", http.StatusInternalServerError)
 		return
 	}
 
@@ -312,12 +312,12 @@ func OvhCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 			err = context.GetMetadataBackend(ctx).CreateUser(user)
 			if err != nil {
 				log.Warningf("Unable to save user to metadata backend : %s", err)
-				context.Fail(ctx, req, resp, "Authentication error", 403)
+				context.Fail(ctx, req, resp, "Authentication error", http.StatusForbidden)
 				return
 			}
 		} else {
 			log.Warning("Unable to create user from untrusted source IP address")
-			context.Fail(ctx, req, resp, "Unable to create user from untrusted source IP address", 403)
+			context.Fail(ctx, req, resp, "Unable to create user from untrusted source IP address", http.StatusForbidden)
 			return
 		}
 	}
@@ -326,10 +326,10 @@ func OvhCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 	sessionCookie, xsrfCookie, err := common.GenAuthCookies(user, context.GetConfig(ctx))
 	if err != nil {
 		log.Warningf("Unable to generate session cookies : %s", err)
-		context.Fail(ctx, req, resp, "Authentication error", 403)
+		context.Fail(ctx, req, resp, "Authentication error", http.StatusForbidden)
 	}
 	http.SetCookie(resp, sessionCookie)
 	http.SetCookie(resp, xsrfCookie)
 
-	http.Redirect(resp, req, config.Path+"/#/login", 301)
+	http.Redirect(resp, req, config.Path+"/#/login", http.StatusMovedPermanently)
 }

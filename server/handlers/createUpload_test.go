@@ -48,7 +48,7 @@ import (
 
 func createTestUpload(ctx *juliet.Context, uploadToCreate *common.Upload) {
 	metadataBackend := context.GetMetadataBackend(ctx)
-	_ = metadataBackend.CreateUpload(ctx, uploadToCreate)
+	_ = metadataBackend.CreateUpload(uploadToCreate)
 }
 
 func TestCreateUploadWithoutOptions(t *testing.T) {
@@ -184,7 +184,7 @@ func TestCreateWithoutAnonymousUpload(t *testing.T) {
 
 func TestCreateNotWhitelisted(t *testing.T) {
 	ctx := context.NewTestingContext(common.NewConfiguration())
-	ctx.Set("IsWhitelisted", false)
+	context.SetWhitelisted(ctx, false)
 
 	uploadToCreate := &common.Upload{}
 	reqBody, err := json.Marshal(uploadToCreate)

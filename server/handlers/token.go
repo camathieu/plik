@@ -49,7 +49,7 @@ func CreateToken(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 	// Get user from context
 	user := context.GetUser(ctx)
 	if user == nil {
-		context.Fail(ctx, req, resp, "Missing user, Please login first", 401)
+		context.Fail(ctx, req, resp, "Missing user, Please login first", http.StatusUnauthorized)
 		return
 	}
 
@@ -62,7 +62,7 @@ func CreateToken(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
 		log.Warningf("Unable to read request body : %s", err)
-		context.Fail(ctx, req, resp, "Unable to read request body", 403)
+		context.Fail(ctx, req, resp, "Unable to read request body", http.StatusForbidden)
 		return
 	}
 
@@ -71,7 +71,7 @@ func CreateToken(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 		err = json.Unmarshal(body, token)
 		if err != nil {
 			log.Warningf("Unable to deserialize json request body : %s", err)
-			context.Fail(ctx, req, resp, "Unable to deserialize json request body", 400)
+			context.Fail(ctx, req, resp, "Unable to deserialize json request body", http.StatusBadRequest)
 			return
 		}
 	}
@@ -86,10 +86,10 @@ func CreateToken(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 	}
 
 	// Save user
-	err = context.GetMetadataBackend(ctx).UpdateUser(user, tx)
+	user, err = context.GetMetadataBackend(ctx).UpdateUser(user, tx)
 	if err != nil {
-		log.Warningf("Unable to save user to metadata backend : %s", err)
-		context.Fail(ctx, req, resp, "Unable to update user", 500)
+		log.Warningf("Unable update user metadata : %s", err)
+		context.Fail(ctx, req, resp, "Unable to update user metadata", http.StatusInternalServerError)
 		return
 	}
 
@@ -97,7 +97,7 @@ func CreateToken(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 	var json []byte
 	if json, err = utils.ToJson(token); err != nil {
 		log.Warningf("Unable to serialize json response : %s", err)
-		context.Fail(ctx, req, resp, "Unable to serialize json response", 500)
+		context.Fail(ctx, req, resp, "Unable to serialize json response", http.StatusInternalServerError)
 		return
 	}
 	resp.Write(json)
@@ -110,7 +110,7 @@ func RevokeToken(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 	// Get user from context
 	user := context.GetUser(ctx)
 	if user == nil {
-		context.Fail(ctx, req, resp, "Missing user, Please login first", 401)
+		context.Fail(ctx, req, resp, "Missing user, Please login first", http.StatusUnauthorized)
 		return
 	}
 
@@ -118,9 +118,8 @@ func RevokeToken(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 	vars := mux.Vars(req)
 	tokenStr, ok := vars["token"]
 	if !ok || tokenStr == "" {
-		context.Fail(ctx, req, resp, "Missing token", 400)
+		context.Fail(ctx, req, resp, "Missing token", http.StatusBadRequest)
 	}
-
 
 	// Remove token from user
 	tx := func(u *common.User) error {
@@ -133,20 +132,27 @@ func RevokeToken(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 			}
 		}
 		if index < 0 {
-			return fmt.Errorf("Unable to get token %s from user %s", tokenStr, user.ID)
+			return common.NewTxError(fmt.Sprintf("unable to get token %s from user %s", tokenStr, user.ID), http.StatusNotFound)
 		}
 
 		// Delete token
-		user.Tokens = append(user.Tokens[:index], user.Tokens[index+1:]...)
+		u.Tokens = append(u.Tokens[:index], u.Tokens[index+1:]...)
 
 		return nil
 	}
 
 	// Save user
-	err := context.GetMetadataBackend(ctx).UpdateUser(user, tx)
+	user, err := context.GetMetadataBackend(ctx).UpdateUser(user, tx)
 	if err != nil {
-		log.Warningf("Unable to save user to metadata backend : %s", err)
-		context.Fail(ctx, req, resp, "Unable to update user", 500)
-		return
+		if txError, ok := err.(common.TxError) ; ok {
+			context.Fail(ctx, req, resp, txError.Error(), txError.GetStatusCode())
+			return
+		} else {
+			log.Warningf("Unable to update upload metadata : %s", err)
+			context.Fail(ctx, req, resp, "Unable to update upload metadata", http.StatusInternalServerError)
+			return
+		}
 	}
+
+	_,_ = resp.Write([]byte("ok"))
 }

@@ -54,7 +54,7 @@ func GetFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 				config.GetDownloadDomain().Host,
 				req.RequestURI)
 			log.Warningf("Invalid download domain %s, expected %s", req.Host, config.GetDownloadDomain().Host)
-			http.Redirect(resp, req, downloadURL, 301)
+			http.Redirect(resp, req, downloadURL, http.StatusMovedPermanently)
 			return
 		}
 	}
@@ -64,7 +64,7 @@ func GetFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	if upload == nil {
 		// This should never append
 		log.Critical("Missing upload in getFileHandler")
-		context.Fail(ctx, req, resp, "Internal error", 500)
+		context.Fail(ctx, req, resp, "Internal error", http.StatusInternalServerError)
 		return
 	}
 
@@ -73,28 +73,68 @@ func GetFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	if file == nil {
 		// This should never append
 		log.Critical("Missing file in getFileHandler")
-		context.Fail(ctx, req, resp, "Internal error", 500)
+		context.Fail(ctx, req, resp, "Internal error", http.StatusInternalServerError)
 		return
 	}
 
-	if upload.OneShot {
+	if upload.Stream {
+		if file.Status != common.FILE_UPLOADING {
+			context.Fail(ctx, req, resp, fmt.Sprintf("file %s (%s) status is not %s", file.Name, file.ID, common.FILE_UPLOADING), http.StatusBadRequest)
+			return
+		}
+	} else {
+		if file.Status != common.FILE_UPLOADED {
+			context.Fail(ctx, req, resp, fmt.Sprintf("file %s (%s) status is not %s", file.Name, file.ID, common.FILE_UPLOADED), http.StatusBadRequest)
+			return
+		}
+	}
+
+	if req.Method == "GET" && (upload.Stream || upload.OneShot) {
+		// If this is a one shot or stream upload we have to ensure it's downloaded only once
 		tx := func(u *common.Upload) error {
+			if u == nil {
+				return fmt.Errorf("missing upload from transaction")
+			}
+
 			f, ok := u.Files[file.ID]
 			if !ok {
-				return fmt.Errorf("Unable to find file %s", file.ID)
+				return fmt.Errorf("unable to find file %s (%s)", file.Name, file.ID)
 			}
-			if f.Status != common.FILE_UPLOADED {
-				return fmt.Errorf("Unable to remove file %s", file.ID)
+
+			if upload.Stream {
+				if f.Status != common.FILE_UPLOADED {
+					return common.NewTxError(fmt.Sprintf("file %s (%s) status is not %s", file.Name, file.ID, common.FILE_UPLOADED), http.StatusBadRequest)
+				}
+				f.Status = common.FILE_REMOVED
+			} else {
+				if f.Status != common.FILE_UPLOADED {
+					return common.NewTxError(fmt.Sprintf("file %s (%s) status is not %s", file.Name, file.ID, common.FILE_UPLOADED), http.StatusBadRequest)
+				}
+				f.Status = common.FILE_DELETED
 			}
-			f.Status = common.FILE_REMOVED
 			return nil
 		}
 
-		err := context.GetMetadataBackend(ctx).UpdateUpload(upload, tx)
+		upload, err := context.GetMetadataBackend(ctx).UpdateUpload(upload, tx)
 		if err != nil {
-			log.Warningf("Unable to update upload %s : %s", upload.ID, err)
-			context.Fail(ctx, req, resp, "Unable to get file", http.StatusInternalServerError)
-			return
+			if txError, ok := err.(common.TxError) ; ok {
+				context.Fail(ctx, req, resp, txError.Error(), txError.GetStatusCode())
+				return
+			} else {
+				log.Warningf("Unable to update upload metadata : %s", err)
+				context.Fail(ctx, req, resp, "Unable to update upload metadata", http.StatusInternalServerError)
+				return
+			}
+		}
+
+		if !upload.Stream {
+			// From now on we'll try to delete the file from the data backend whatever happens
+			defer func() {
+				err = DeleteRemovedFile(ctx, upload, file)
+				if err != nil {
+					log.Warningf("Unable to delete file %s (%s) : %s", file.Name, file.ID, err)
+				}
+			}()
 		}
 	}
 
@@ -149,30 +189,18 @@ func GetFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 			backend = context.GetDataBackend(ctx)
 		}
 
-		fileReader, err := backend.GetFile(ctx, upload, file.ID)
+		fileReader, err := backend.GetFile(upload, file.ID)
 		if err != nil {
 			log.Warningf("Failed to get file %s in upload %s : %s", file.Name, upload.ID, err)
-			context.Fail(ctx, req, resp, fmt.Sprintf("Failed to read file %s", file.Name), 404)
+			context.Fail(ctx, req, resp, fmt.Sprintf("Failed to read file %s", file.Name), http.StatusNotFound)
 			return
 		}
-		defer fileReader.Close()
+		defer func() { _ = fileReader.Close() }()
 
 		// File is piped directly to http response body without buffering
 		_, err = io.Copy(resp, fileReader)
 		if err != nil {
 			log.Warningf("Error while copying file to response : %s", err)
 		}
-
-		// Remove file from data backend if oneShot option is set
-		if upload.OneShot && !upload.Stream {
-			err = backend.RemoveFile(ctx, upload, file.ID)
-			if err != nil {
-				log.Warningf("Error while deleting file %s from upload %s : %s", file.Name, upload.ID, err)
-				return
-			}
-		}
-
-		// Remove upload if no files anymore
-		RemoveEmptyUpload(ctx, upload)
 	}
 }

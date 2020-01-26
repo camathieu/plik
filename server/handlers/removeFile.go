@@ -47,14 +47,14 @@ func RemoveFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request
 	if upload == nil {
 		// This should never append
 		log.Critical("Missing upload in removeFileHandler")
-		context.Fail(ctx, req, resp, "Internal error", 500)
+		context.Fail(ctx, req, resp, "Internal error", http.StatusInternalServerError)
 		return
 	}
 
 	// Check authorization
 	if !upload.Removable && !context.IsUploadAdmin(ctx) {
 		log.Warningf("Unable to remove file : unauthorized")
-		context.Fail(ctx, req, resp, "You are not allowed to remove file from this upload", 403)
+		context.Fail(ctx, req, resp, "You are not allowed to remove file from this upload", http.StatusForbidden)
 		return
 	}
 
@@ -63,49 +63,52 @@ func RemoveFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request
 	if file == nil {
 		// This should never append
 		log.Critical("Missing file in removeFileHandler")
-		context.Fail(ctx, req, resp, "Internal error", 500)
+		context.Fail(ctx, req, resp, "Internal error", http.StatusInternalServerError)
 		return
 	}
 
 	// Check if file is not already removed
 	if file.Status == "removed" {
 		log.Warning("Can't remove an already removed file")
-		context.Fail(ctx, req, resp, fmt.Sprintf("File %s has already been removed", file.Name), 404)
+		context.Fail(ctx, req, resp, fmt.Sprintf("File %s has already been removed", file.Name), http.StatusNotFound)
 		return
 	}
 
 	remove := true
 	tx := func(u *common.Upload) error {
+		if u == nil {
+			return fmt.Errorf("missing upload from transaction")
+		}
+
 		f, ok := u.Files[file.ID]
 		if !ok {
-			return fmt.Errorf("Unable to find file %s", file.ID)
+			return fmt.Errorf("unable to find file %s (%s)", file.Name, file.ID)
 		}
-		if f.Status != common.FILE_UPLOADED {
+
+		if f.Status == common.FILE_REMOVED || f.Status == common.FILE_DELETED {
 			// Nothing to do
 			remove = false
 			return nil
 		}
+
 		f.Status = common.FILE_REMOVED
 		return nil
 	}
 
-	err := context.GetMetadataBackend(ctx).UpdateUpload(upload, tx)
+	upload, err := context.GetMetadataBackend(ctx).UpdateUpload(upload, tx)
 	if err != nil {
-		log.Warningf("Unable to update upload %s", upload.ID)
-		context.Fail(ctx, req, resp, "Unable to add file", http.StatusInternalServerError)
+		log.Warningf("Unable to update upload metadata : %s", err)
+		context.Fail(ctx, req, resp, "Unable to update upload metadata", http.StatusInternalServerError)
 		return
 	}
 
 	if remove {
-		err := DeleteFile(ctx, upload, file)
+		err := DeleteRemovedFile(ctx, upload, file)
 		if err != nil {
-			log.Warningf("Unable to delete file : %s")
+			log.Warningf("Unable to delete file %s (%s) : %s", file.Name, file.ID, err)
 			// Do not block here
 		}
-
-		// Remove upload if no files anymore
-		RemoveEmptyUpload(ctx, upload)
 	}
 
-	resp.Write([]byte("ok"))
+	_,_ = resp.Write([]byte("ok"))
 }

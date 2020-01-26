@@ -55,7 +55,7 @@ func GetArchive(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request
 				config.GetDownloadDomain().Host,
 				req.RequestURI)
 			log.Warningf("Invalid download domain %s, expected %s", req.Host, config.GetDownloadDomain().Host)
-			http.Redirect(resp, req, downloadURL, 301)
+			http.Redirect(resp, req, downloadURL, http.StatusMovedPermanently)
 			return
 		}
 	}
@@ -65,7 +65,12 @@ func GetArchive(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request
 	if upload == nil {
 		// This should never append
 		log.Critical("Missing upload in getFileHandler")
-		context.Fail(ctx, req, resp, "Internal error", 500)
+		context.Fail(ctx, req, resp, "Internal error", http.StatusInternalServerError)
+		return
+	}
+
+	if upload.Stream {
+		context.Fail(ctx, req, resp, "Archive feature is not available in stream mode", 404)
 		return
 	}
 
@@ -113,35 +118,54 @@ func GetArchive(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request
 	// HEAD Request => Do not print file, user just wants http headers
 	// GET  Request => Print file content
 	if req.Method == "GET" {
-		// Get file in data backend
-
-		if upload.Stream {
-			context.Fail(ctx, req, resp, "Archive feature is not available in stream mode", 404)
-			return
-		}
-
 		// Get files to archive
 		var files []*common.File
 
-		tx := func(u *common.Upload) error {
-			files = []*common.File{}
-			for _, f := range u.Files {
+		if upload.OneShot {
+			// If this is a one shot upload we have to ensure it's downloaded only once now
+			tx := func(u *common.Upload) error {
+				if u == nil {
+					return fmt.Errorf("missing upload from transaction")
+				}
+
+				for _, f := range u.Files {
+					// Ignore uploading, missing, removed, one shot already downloaded,...
+					if f.Status != common.FILE_UPLOADED {
+						continue
+					}
+
+					f.Status = common.FILE_REMOVED
+					files = append(files, f)
+				}
+				return nil
+			}
+
+			upload, err := context.GetMetadataBackend(ctx).UpdateUpload(upload, tx)
+			if err != nil {
+				log.Warningf("Unable to update upload metadata : %s", err)
+				context.Fail(ctx, req, resp, "Unable to update upload metadata", http.StatusInternalServerError)
+				return
+			}
+
+			// From now on we'll try to delete the files from the data backend whatever happens
+			defer func() {
+				for _, file := range files {
+					err = DeleteRemovedFile(ctx, upload, file)
+					if err != nil {
+						log.Warningf("Unable to delete file %s (%s) : %s", file.Name, file.ID, err)
+					}
+				}
+			}()
+		} else {
+			// Without one shot mode we do not need as strong guaranties, no need to re-fetch upload metadata
+			for _, f := range upload.Files {
 				// Ignore uploading, missing, removed, one shot already downloaded,...
 				if f.Status != common.FILE_UPLOADED {
 					continue
 				}
 
-				f.Status = common.FILE_REMOVED
 				files = append(files, f)
 			}
-			return nil
-		}
-
-		err := context.GetMetadataBackend(ctx).UpdateUpload(upload, tx)
-		if err != nil {
-			log.Warningf("Unable to update upload %s : %s", upload.ID, err)
-			context.Fail(ctx, req, resp, "Unable to get archive files", http.StatusInternalServerError)
-			return
 		}
 
 		if len(files) == 0 {
@@ -155,7 +179,7 @@ func GetArchive(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request
 		archive := zip.NewWriter(resp)
 
 		for _, file := range files {
-			fileReader, err := backend.GetFile(ctx, upload, file.ID)
+			fileReader, err := backend.GetFile(upload, file.ID)
 			if err != nil {
 				log.Warningf("Failed to get file %s in upload %s : %s", file.Name, upload.ID, err)
 				context.Fail(ctx, req, resp, fmt.Sprintf("Failed to read file %s", file.Name), 404)
@@ -181,13 +205,10 @@ func GetArchive(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request
 			}
 		}
 
-		err = archive.Close()
+		err := archive.Close()
 		if err != nil {
 			log.Warningf("Failed to close zip archive : %s", err)
 			return
 		}
-
-		// Remove upload if no files anymore
-		RemoveEmptyUpload(ctx, upload)
 	}
 }

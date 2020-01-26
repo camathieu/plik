@@ -73,14 +73,14 @@ func getMultipartFormData(name string, in io.Reader) (out io.Reader, contentType
 
 func TestAddFileWithID(t *testing.T) {
 	ctx := context.NewTestingContext(common.NewConfiguration())
-	ctx.Set("is_upload_admin", true)
+	context.SetUploadAdmin(ctx, true)
 
 	upload := common.NewUpload()
 	file := upload.NewFile()
 	file.Name = "file"
 
 	createTestUpload(ctx, upload)
-	ctx.Set("upload", upload)
+	context.SetUpload(ctx, upload)
 
 	data := "data"
 	reader, contentType, err := getMultipartFormData(file.Name, bytes.NewBuffer([]byte(data)))
@@ -120,7 +120,7 @@ func TestAddFileWithID(t *testing.T) {
 
 func TestAddFileWithInvalidID(t *testing.T) {
 	ctx := context.NewTestingContext(common.NewConfiguration())
-	ctx.Set("is_upload_admin", true)
+	context.SetUploadAdmin(ctx, true)
 
 	upload := common.NewUpload()
 
@@ -128,7 +128,7 @@ func TestAddFileWithInvalidID(t *testing.T) {
 	file.Name = "file"
 
 	createTestUpload(ctx, upload)
-	ctx.Set("upload", upload)
+	context.SetUpload(ctx, upload)
 
 	data := "data"
 	reader, contentType, err := getMultipartFormData(file.Name, bytes.NewBuffer([]byte(data)))
@@ -153,11 +153,11 @@ func TestAddFileWithInvalidID(t *testing.T) {
 
 func TestAddFileWithoutID(t *testing.T) {
 	ctx := context.NewTestingContext(common.NewConfiguration())
-	ctx.Set("is_upload_admin", true)
+	context.SetUploadAdmin(ctx, true)
 
 	upload := common.NewUpload()
 	createTestUpload(ctx, upload)
-	ctx.Set("upload", upload)
+	context.SetUpload(ctx, upload)
 
 	name := "file"
 	data := "data"
@@ -204,11 +204,11 @@ func TestAddFileWithoutUploadInContext(t *testing.T) {
 func TestAddFileWithoutAnonymousUploads(t *testing.T) {
 	ctx := context.NewTestingContext(common.NewConfiguration())
 	context.GetConfig(ctx).NoAnonymousUploads = true
-	ctx.Set("is_upload_admin", true)
+	context.SetUploadAdmin(ctx, true)
 
 	upload := common.NewUpload()
 	createTestUpload(ctx, upload)
-	ctx.Set("upload", upload)
+	context.SetUpload(ctx, upload)
 
 	req, err := http.NewRequest("POST", "/file/uploadID", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -224,7 +224,7 @@ func TestAddFileNotAdmin(t *testing.T) {
 
 	upload := common.NewUpload()
 	createTestUpload(ctx, upload)
-	ctx.Set("upload", upload)
+	context.SetUpload(ctx, upload)
 
 	req, err := http.NewRequest("POST", "/file/uploadID", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -238,7 +238,7 @@ func TestAddFileNotAdmin(t *testing.T) {
 func TestAddFileTooManyFiles(t *testing.T) {
 	ctx := context.NewTestingContext(common.NewConfiguration())
 	context.GetConfig(ctx).MaxFilePerUpload = 2
-	ctx.Set("is_upload_admin", true)
+	context.SetUploadAdmin(ctx, true)
 
 	upload := common.NewUpload()
 
@@ -247,7 +247,7 @@ func TestAddFileTooManyFiles(t *testing.T) {
 	}
 
 	createTestUpload(ctx, upload)
-	ctx.Set("upload", upload)
+	context.SetUpload(ctx, upload)
 
 	req, err := http.NewRequest("POST", "/file/uploadID", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -255,16 +255,16 @@ func TestAddFileTooManyFiles(t *testing.T) {
 	rr := httptest.NewRecorder()
 	AddFile(ctx, rr, req)
 
-	context.TestFail(t, rr, http.StatusForbidden, "Maximum number file per upload reached")
+	context.TestFail(t, rr, http.StatusBadRequest, "Maximum number file per upload reached")
 }
 
 func TestAddFileInvalidMultipartData(t *testing.T) {
 	ctx := context.NewTestingContext(common.NewConfiguration())
-	ctx.Set("is_upload_admin", true)
+	context.SetUploadAdmin(ctx, true)
 
 	upload := common.NewUpload()
 	createTestUpload(ctx, upload)
-	ctx.Set("upload", upload)
+	context.SetUpload(ctx, upload)
 
 	req, err := http.NewRequest("POST", "/file/"+upload.ID, bytes.NewBuffer([]byte("invalid multipart data")))
 	require.NoError(t, err, "unable to create new request")
@@ -277,22 +277,22 @@ func TestAddFileInvalidMultipartData(t *testing.T) {
 
 func TestAddFileWithFilenameTooLong(t *testing.T) {
 	ctx := context.NewTestingContext(common.NewConfiguration())
-	ctx.Set("is_upload_admin", true)
+	context.SetUploadAdmin(ctx, true)
 
 	upload := common.NewUpload()
 
 	file := upload.NewFile()
+
+	createTestUpload(ctx, upload)
+	context.SetUpload(ctx, upload)
+
 	name := make([]byte, 2000)
 	for i := range name {
 		name[i] = 'x'
 	}
-	file.Name = string(name)
-
-	createTestUpload(ctx, upload)
-	ctx.Set("upload", upload)
 
 	data := "data"
-	reader, contentType, err := getMultipartFormData(file.Name, bytes.NewBuffer([]byte(data)))
+	reader, contentType, err := getMultipartFormData(string(name), bytes.NewBuffer([]byte(data)))
 	require.NoError(t, err, "unable get multipart form data")
 
 	req, err := http.NewRequest("POST", "/file/"+upload.ID+"/"+file.ID+"/"+file.Name, reader)
@@ -314,11 +314,11 @@ func TestAddFileWithFilenameTooLong(t *testing.T) {
 
 func TestAddFileWithNoFile(t *testing.T) {
 	ctx := context.NewTestingContext(common.NewConfiguration())
-	ctx.Set("is_upload_admin", true)
+	context.SetUploadAdmin(ctx, true)
 
 	upload := common.NewUpload()
 	createTestUpload(ctx, upload)
-	ctx.Set("upload", upload)
+	context.SetUpload(ctx, upload)
 
 	buffer := new(bytes.Buffer)
 	multipartWriter := multipart.NewWriter(buffer)
@@ -339,13 +339,13 @@ func TestAddFileWithNoFile(t *testing.T) {
 
 func TestAddFileWithEmptyName(t *testing.T) {
 	ctx := context.NewTestingContext(common.NewConfiguration())
-	ctx.Set("is_upload_admin", true)
+	context.SetUploadAdmin(ctx, true)
 
 	upload := common.NewUpload()
 	file := upload.NewFile()
 
 	createTestUpload(ctx, upload)
-	ctx.Set("upload", upload)
+	context.SetUpload(ctx, upload)
 
 	data := "data"
 	reader, contentType, err := getMultipartFormData(file.Name, bytes.NewBuffer([]byte(data)))
@@ -371,14 +371,14 @@ func TestAddFileWithEmptyName(t *testing.T) {
 func TestAddFileWithDataBackendError(t *testing.T) {
 	ctx := context.NewTestingContext(common.NewConfiguration())
 	context.GetDataBackend(ctx).(*data_test.Backend).SetError(errors.New("data backend error"))
-	ctx.Set("is_upload_admin", true)
+	context.SetUploadAdmin(ctx, true)
 
 	upload := common.NewUpload()
 	file := upload.NewFile()
 	file.Name = "name"
 
 	createTestUpload(ctx, upload)
-	ctx.Set("upload", upload)
+	context.SetUpload(ctx, upload)
 
 	data := "data"
 	reader, contentType, err := getMultipartFormData(file.Name, bytes.NewBuffer([]byte(data)))
@@ -404,14 +404,14 @@ func TestAddFileWithDataBackendError(t *testing.T) {
 func TestAddFileWithMetadataBackendError(t *testing.T) {
 	ctx := context.NewTestingContext(common.NewConfiguration())
 	context.GetMetadataBackend(ctx).(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
-	ctx.Set("is_upload_admin", true)
+	context.SetUploadAdmin(ctx, true)
 
 	upload := common.NewUpload()
 	file := upload.NewFile()
 	file.Name = "name"
 
 	createTestUpload(ctx, upload)
-	ctx.Set("upload", upload)
+	context.SetUpload(ctx, upload)
 
 	data := "data"
 	reader, contentType, err := getMultipartFormData(file.Name, bytes.NewBuffer([]byte(data)))
@@ -431,5 +431,5 @@ func TestAddFileWithMetadataBackendError(t *testing.T) {
 	rr := httptest.NewRecorder()
 	AddFile(ctx, rr, req)
 
-	context.TestFail(t, rr, http.StatusInternalServerError, "Unable to update upload metadata")
+	context.TestFail(t, rr, http.StatusInternalServerError, "Unable to add file")
 }

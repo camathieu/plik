@@ -58,7 +58,7 @@ func TestGetUser(t *testing.T) {
 
 	err := addTestUser(ctx, user)
 	require.NoError(t, err, "unable to add user")
-	ctx.Set("user", user)
+	context.SetUser(ctx, user)
 
 	req, err := http.NewRequest("GET", "/me", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -99,7 +99,7 @@ func TestDeleteUser(t *testing.T) {
 
 	err := addTestUser(ctx, user)
 	require.NoError(t, err, "unable to add user")
-	ctx.Set("user", user)
+	context.SetUser(ctx, user)
 
 	req, err := http.NewRequest("DELETE", "/me", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -136,7 +136,7 @@ func TestGetUserUploads(t *testing.T) {
 
 	err := addTestUser(ctx, user)
 	require.NoError(t, err, "unable to add user")
-	ctx.Set("user", user)
+	context.SetUser(ctx, user)
 
 	upload1 := common.NewUpload()
 	upload1.User = user.ID
@@ -197,7 +197,7 @@ func TestGetUserUploadsWithToken(t *testing.T) {
 
 	err := addTestUser(ctx, user)
 	require.NoError(t, err, "unable to add user")
-	ctx.Set("user", user)
+	context.SetUser(ctx, user)
 
 	upload1 := common.NewUpload()
 	upload1.User = user.ID
@@ -241,7 +241,7 @@ func TestGetUserUploadsInvalidToken(t *testing.T) {
 
 	err := addTestUser(ctx, user)
 	require.NoError(t, err, "unable to add user")
-	ctx.Set("user", user)
+	context.SetUser(ctx, user)
 
 	//Create a request
 	req, err := http.NewRequest("GET", "/me/uploads?token=invalid_token", bytes.NewBuffer([]byte{}))
@@ -261,7 +261,7 @@ func TestGetUserUploadsWithSizeAndOffset(t *testing.T) {
 
 	err := addTestUser(ctx, user)
 	require.NoError(t, err, "unable to add user")
-	ctx.Set("user", user)
+	context.SetUser(ctx, user)
 
 	upload1 := common.NewUpload()
 	upload1.User = user.ID
@@ -306,7 +306,7 @@ func TestGetUserUploadsWithInvalidSize(t *testing.T) {
 
 	err := addTestUser(ctx, user)
 	require.NoError(t, err, "unable to add user")
-	ctx.Set("user", user)
+	context.SetUser(ctx, user)
 
 	//Create a request
 	req, err := http.NewRequest("GET", "/me/uploads?size=-1", bytes.NewBuffer([]byte{}))
@@ -326,7 +326,7 @@ func TestGetUserUploadsWithInvalidOffset(t *testing.T) {
 
 	err := addTestUser(ctx, user)
 	require.NoError(t, err, "unable to add user")
-	ctx.Set("user", user)
+	context.SetUser(ctx, user)
 
 	//Create a request
 	req, err := http.NewRequest("GET", "/me/uploads?offset=-1", bytes.NewBuffer([]byte{}))
@@ -346,7 +346,7 @@ func TestGetUserStatisticsMetadataBackendError(t *testing.T) {
 
 	err := addTestUser(ctx, user)
 	require.NoError(t, err, "unable to add user")
-	ctx.Set("user", user)
+	context.SetUser(ctx, user)
 
 	upload1 := common.NewUpload()
 	upload1.User = user.ID
@@ -373,7 +373,7 @@ func TestRemoveUserUploads(t *testing.T) {
 
 	err := addTestUser(ctx, user)
 	require.NoError(t, err, "unable to add user")
-	ctx.Set("user", user)
+	context.SetUser(ctx, user)
 
 	upload1 := common.NewUpload()
 	upload1.User = user.ID
@@ -430,7 +430,7 @@ func TestRemoveUserUploadsWithToken(t *testing.T) {
 
 	err := addTestUser(ctx, user)
 	require.NoError(t, err, "unable to add user")
-	ctx.Set("user", user)
+	context.SetUser(ctx, user)
 
 	upload1 := common.NewUpload()
 	upload1.User = user.ID
@@ -471,7 +471,7 @@ func TestRemoveUserUploadsInvalidToken(t *testing.T) {
 
 	err := addTestUser(ctx, user)
 	require.NoError(t, err, "unable to add user")
-	ctx.Set("user", user)
+	context.SetUser(ctx, user)
 
 	//Create a request
 	req, err := http.NewRequest("DELETE", "/me/uploads?token=invalid_token", bytes.NewBuffer([]byte{}))
@@ -491,7 +491,7 @@ func TestRemoveUserUploadsMetadataBackendError(t *testing.T) {
 
 	err := addTestUser(ctx, user)
 	require.NoError(t, err, "unable to add user")
-	ctx.Set("user", user)
+	context.SetUser(ctx, user)
 
 	upload1 := common.NewUpload()
 	upload1.User = user.ID
@@ -518,7 +518,7 @@ func TestGetUserStatistics(t *testing.T) {
 
 	err := addTestUser(ctx, user)
 	require.NoError(t, err, "unable to add user")
-	ctx.Set("user", user)
+	context.SetUser(ctx, user)
 
 	upload1 := common.NewUpload()
 	upload1.User = user.ID
@@ -574,7 +574,7 @@ func TestGetUserStatisticsToken(t *testing.T) {
 
 	err := addTestUser(ctx, user)
 	require.NoError(t, err, "unable to add user")
-	ctx.Set("user", user)
+	context.SetUser(ctx, user)
 
 	upload1 := common.NewUpload()
 	upload1.User = user.ID
@@ -627,7 +627,7 @@ func TestGetUserStatisticsInvalidToken(t *testing.T) {
 
 	err := addTestUser(ctx, user)
 	require.NoError(t, err, "unable to add user")
-	ctx.Set("user", user)
+	context.SetUser(ctx, user)
 
 	//Create a request
 	req, err := http.NewRequest("DELETE", "/me/uploads?token=invalid_token", bytes.NewBuffer([]byte{}))
@@ -659,7 +659,7 @@ func TestRemoveUserStatisticsMetadataBackendError(t *testing.T) {
 
 	err := addTestUser(ctx, user)
 	require.NoError(t, err, "unable to add user")
-	ctx.Set("user", user)
+	context.SetUser(ctx, user)
 
 	upload1 := common.NewUpload()
 	upload1.User = user.ID

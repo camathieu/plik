@@ -166,7 +166,7 @@ func TestGoogleCallback(t *testing.T) {
 	state.Claims.(jwt.MapClaims)["origin"] = "origin"
 	state.Claims.(jwt.MapClaims)["expire"] = time.Now().Add(time.Minute * 5).Unix()
 
-	ctx.Set("google_endpoint", oauth2TestEndpoint)
+	ctx.Set(googeleEndpointContextKey, oauth2TestEndpoint)
 
 	oauthToken := struct {
 		AccessToken  string `json:"access_token"`
@@ -187,7 +187,7 @@ func TestGoogleCallback(t *testing.T) {
 	}
 
 	user := common.NewUser()
-	user.ID = "ovh:plik"
+	user.ID = "google:plik"
 	user.Login = googleUser.Email
 	user.Name = googleUser.Email
 	user.Email = googleUser.Email
@@ -209,7 +209,7 @@ func TestGoogleCallback(t *testing.T) {
 			resp.Write(responseBody)
 			return
 		}
-		resp.WriteHeader(500)
+		resp.WriteHeader(http.StatusInternalServerError)
 	}
 
 	shutdown, err := common.StartAPIMockServer(http.HandlerFunc(handler))
@@ -471,7 +471,7 @@ func TestGoogleCallbackNoApi(t *testing.T) {
 	state.Claims.(jwt.MapClaims)["origin"] = "origin"
 	state.Claims.(jwt.MapClaims)["expire"] = time.Now().Add(time.Minute * 5).Unix()
 
-	ctx.Set("google_endpoint", oauth2TestEndpoint)
+	ctx.Set(googeleEndpointContextKey, oauth2TestEndpoint)
 
 	/* Sign state */
 	b64state, err := state.SignedString([]byte(context.GetConfig(ctx).GoogleAPISecret))
@@ -499,7 +499,7 @@ func TestGoogleCallbackCreateUser(t *testing.T) {
 	state.Claims.(jwt.MapClaims)["origin"] = "origin"
 	state.Claims.(jwt.MapClaims)["expire"] = time.Now().Add(time.Minute * 5).Unix()
 
-	ctx.Set("google_endpoint", oauth2TestEndpoint)
+	ctx.Set(googeleEndpointContextKey, oauth2TestEndpoint)
 
 	oauthToken := struct {
 		AccessToken  string `json:"access_token"`
@@ -534,7 +534,7 @@ func TestGoogleCallbackCreateUser(t *testing.T) {
 			resp.Write(responseBody)
 			return
 		}
-		resp.WriteHeader(500)
+		resp.WriteHeader(http.StatusInternalServerError)
 	}
 
 	shutdown, err := common.StartAPIMockServer(http.HandlerFunc(handler))
@@ -574,14 +574,14 @@ func TestGoogleCallbackCreateUser(t *testing.T) {
 	require.NotEqual(t, "", sessionCookie, "missing plik session cookie")
 	require.NotEqual(t, "", xsrfCookie, "missing plik xsrf cookie")
 
-	user, err := context.GetMetadataBackend(ctx).GetUser(ctx, "google:plik", "")
+	user, err := context.GetMetadataBackend(ctx).GetUser("google:plik")
 	require.NotNil(t, user, "missing user")
 	require.Equal(t, googleUser.Email, user.Email, "invalid user email")
 	require.Equal(t, googleUser.Name, user.Name, "invalid user name")
 }
 func TestGoogleCallbackCreateUserNotWhitelisted(t *testing.T) {
 	ctx := context.NewTestingContext(common.NewConfiguration())
-	ctx.Set("IsWhitelisted", false)
+	context.SetWhitelisted(ctx, false)
 
 	context.GetConfig(ctx).Authentication = true
 	context.GetConfig(ctx).GoogleAuthentication = true
@@ -593,7 +593,7 @@ func TestGoogleCallbackCreateUserNotWhitelisted(t *testing.T) {
 	state.Claims.(jwt.MapClaims)["origin"] = "origin"
 	state.Claims.(jwt.MapClaims)["expire"] = time.Now().Add(time.Minute * 5).Unix()
 
-	ctx.Set("google_endpoint", oauth2TestEndpoint)
+	ctx.Set(googeleEndpointContextKey, oauth2TestEndpoint)
 
 	oauthToken := struct {
 		AccessToken  string `json:"access_token"`
@@ -628,7 +628,7 @@ func TestGoogleCallbackCreateUserNotWhitelisted(t *testing.T) {
 			resp.Write(responseBody)
 			return
 		}
-		resp.WriteHeader(500)
+		resp.WriteHeader(http.StatusInternalServerError)
 	}
 
 	shutdown, err := common.StartAPIMockServer(http.HandlerFunc(handler))

@@ -45,7 +45,7 @@ import (
 
 func addTestUser(ctx *juliet.Context, user *common.User) (err error) {
 	metadataBackend := context.GetMetadataBackend(ctx)
-	return metadataBackend.CreateUser(ctx, user)
+	return metadataBackend.CreateUser(user)
 }
 
 func addTestUserAdmin(ctx *juliet.Context) (user *common.User, err error) {
@@ -53,8 +53,8 @@ func addTestUserAdmin(ctx *juliet.Context) (user *common.User, err error) {
 	user.ID = "admin"
 	user.Email = "admin@root.gg"
 	user.Login = "admin"
-	ctx.Set("user", user)
-	ctx.Set("is_admin", true)
+	context.SetUser(ctx, user)
+	context.SetAdmin(ctx, true)
 	return user, addTestUser(ctx, user)
 }
 
@@ -115,7 +115,7 @@ func TestGetUsersNotAdmin(t *testing.T) {
 
 	_, err := addTestUserAdmin(ctx)
 	require.NoError(t, err, "unable to add admin")
-	ctx.Set("is_admin", false)
+	context.SetAdmin(ctx, false)
 
 	req, err := http.NewRequest("GET", "/admin/users", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -153,7 +153,7 @@ func TestGetServerStatistics(t *testing.T) {
 			file.Type = item.typ
 			file.CurrentSize = item.size
 
-			err := context.GetMetadataBackend(ctx).CreateUpload(ctx, upload)
+			err := context.GetMetadataBackend(ctx).CreateUpload(upload)
 			require.NoError(t, err, "create error")
 		}
 	}
@@ -204,7 +204,7 @@ func TestGetServerStatisticsNotAdmin(t *testing.T) {
 
 	_, err := addTestUserAdmin(ctx)
 	require.NoError(t, err, "unable to add admin")
-	ctx.Set("is_admin", false)
+	context.SetAdmin(ctx, false)
 
 	req, err := http.NewRequest("GET", "/admin/users", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
