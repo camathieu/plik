@@ -1,80 +1,141 @@
 package mongo
 
 import (
-	"github.com/root-gg/juliet"
-	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/plik/server/context"
-	"gopkg.in/mgo.v2"
+	"errors"
+	"fmt"
+
+	"go.mongodb.org/mongo-driver/mongo"
 	"gopkg.in/mgo.v2/bson"
+
+	"github.com/root-gg/plik/server/common"
 )
 
-// SaveUser implementation from MongoDB Metadata Backend
-func (b *Backend) SaveUser(user *common.User) (err error) {
+// Create user
+func (b *Backend) CreateUser(user *common.User) (err error) {
 	if user == nil {
-		err = log.EWarning("Unable to save user : Missing user")
-		return
+		return errors.New("missing user")
 	}
 
-	session := b.session.Copy()
-	defer session.Close()
-	collection := session.DB(b.config.Database).C(b.config.UserCollection)
+	ctx, cancel := newContext()
+	defer cancel()
 
-	_, err = collection.Upsert(bson.M{"id": user.ID}, &user)
-	if err != nil {
-		err = log.EWarningf("Unable to save user to mongodb : %s", err)
-	}
-	return
+	_, err = b.userCollection.InsertOne(ctx, user)
+
+	return err
 }
 
-// GetUser implementation from MongoDB Metadata Backend
-func (b *Backend) GetUser(id string, token string) (user *common.User, err error) {
-	if id == "" && token == "" {
-		err = log.EWarning("Unable to get user : Missing user id or token")
-		return
+// Get implementation from MongoDB Metadata Backend
+func (b *Backend) GetUser(userID string) (user *common.User, err error) {
+	if userID == "" {
+		return nil, errors.New("missing user id")
 	}
 
-	session := b.session.Copy()
-	defer session.Close()
-	collection := session.DB(b.config.Database).C(b.config.UserCollection)
+	ctx, cancel := newContext()
+	defer cancel()
 
 	user = &common.User{}
-	if id != "" {
-		err = collection.Find(bson.M{"id": id}).One(user)
-		if err == mgo.ErrNotFound {
-			return nil, nil
-		} else if err != nil {
-			err = log.EWarningf("Unable to get user from mongodb : %s", err)
-		}
-	} else if token != "" {
-		err = collection.Find(bson.M{"tokens.token": token}).One(user)
-		if err == mgo.ErrNotFound {
-			return nil, nil
-		} else if err != nil {
-			err = log.EWarningf("Unable to get user from mongodb : %s", err)
-		}
-	} else {
-		err = log.EWarning("Unable to get user from mongodb : Missing user id or token")
+	err = b.userCollection.FindOne(ctx, bson.M{"id": userID}).Decode(&user)
+	if err != nil {
+		return nil, err
 	}
 
+	return user, nil
+}
+
+// Get implementation from MongoDB Metadata Backend
+func (b *Backend) GetUserFromToken(token string) (user *common.User, err error) {
+	if token == "" {
+		return nil, errors.New("missing user token")
+	}
+
+	ctx, cancel := newContext()
+	defer cancel()
+
+	user = &common.User{}
+	err = b.userCollection.FindOne(ctx, bson.M{"tokens.token": token}).Decode(&user)
+	if err != nil {
+		return nil, err
+	}
+
+	return user, nil
+}
+
+// UpdateUser implementation from MongoDB Metadata Backend
+func (b *Backend) UpdateUser(user *common.User, userTx common.UserTx) (u *common.User, err error) {
+	if user == nil {
+		return nil, errors.New("missing user")
+	}
+
+	ctx, cancel := newContext()
+	defer cancel()
+
+	err = b.client.UseSession(ctx, func(sessionContext mongo.SessionContext) error {
+		err = sessionContext.StartTransaction()
+		if err != nil {
+			return err
+		}
+
+		u := &common.User{}
+		err := b.userCollection.FindOne(sessionContext, bson.M{"id": user.ID}).Decode(&u)
+		if err != nil {
+			err2 := sessionContext.AbortTransaction(sessionContext)
+			if err2 != nil {
+				return fmt.Errorf("%s : %s", err, err2)
+			}
+			return err
+		}
+
+		err = userTx(u)
+		if err != nil {
+			err2 := sessionContext.AbortTransaction(sessionContext)
+			if err2 != nil {
+				return fmt.Errorf("%s : %s", err, err2)
+			}
+			return err
+		}
+
+		// Avoid the possibility to override an other upload by changing the upload.ID in the tx
+		_, err = b.userCollection.ReplaceOne(sessionContext, bson.M{"id": user.ID}, u)
+		if err != nil {
+			err2 := sessionContext.AbortTransaction(sessionContext)
+			if err2 != nil {
+				return fmt.Errorf("%s : %s", err, err2)
+			}
+			return err
+		}
+
+		return sessionContext.CommitTransaction(sessionContext)
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return u, nil
+}
+
+// Remove implementation from MongoDB Metadata Backend
+func (b *Backend) RemoveUser(user *common.User) (err error) {
+	if user == nil {
+		return errors.New("missing user")
+	}
+
+	ctx, cancel := newContext()
+	defer cancel()
+
+	user = &common.User{}
+	collection := b.database.Collection(b.config.UserCollection)
+	_, err = collection.DeleteOne(ctx, bson.M{"id": user.ID})
+
+	return err
+}
+
+func (b *Backend) GetUserUploads(user *common.User, token *common.Token) (ids []string, err error) {
+	panic("Not Yet Implemented")
 	return
 }
 
-// RemoveUser implementation from MongoDB Metadata Backend
-func (b *Backend) RemoveUser(user *common.User) (err error) {
-	if user == nil {
-		err = log.EWarning("Unable to remove user : Missing user")
-		return
-	}
-
-	session := b.session.Copy()
-	defer session.Close()
-
-	collection := session.DB(b.config.Database).C(b.config.UserCollection)
-
-	err = collection.Remove(bson.M{"id": user.ID})
-	if err != nil {
-		err = log.EWarningf("Unable to remove user from mongodb : %s", err)
-	}
-
+func (b *Backend) GetUserStatistics(user *common.User, token *common.Token) (stats *common.UserStats, err error) {
+	panic("Not Yet Implemented")
 	return
 }

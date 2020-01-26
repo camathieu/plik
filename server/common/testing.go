@@ -4,12 +4,13 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"github.com/stretchr/testify/require"
 	"net"
 	"net/http"
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 // ErrorReader impement io.Reader and return err for every read call attempted
@@ -81,7 +82,12 @@ func StartAPIMockServerCustomPort(port int, next http.Handler) (shutdown func(),
 
 	httpServer := &http.Server{Handler: handler}
 
-	shutdown = func() { _ = httpServer.Close() }
+	shutdown = func() {
+		err = httpServer.Close()
+		if err != nil {
+			panic(err)
+		}
+	}
 
 	go httpServer.Serve(tcpListener)
 

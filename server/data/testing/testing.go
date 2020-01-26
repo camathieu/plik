@@ -1,32 +1,3 @@
-/**
-
-    Plik upload server
-
-The MIT License (MIT)
-
-Copyright (c) <2015>
-	- Mathieu Bodjikian <mathieu@bodjikian.fr>
-	- Charles-Antoine Mathieu <skatkatt@root.gg>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-**/
-
 package file
 
 import (
@@ -36,7 +7,6 @@ import (
 	"io/ioutil"
 	"sync"
 
-	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
 )
 
@@ -57,7 +27,7 @@ func NewBackend() (b *Backend) {
 
 // GetFile implementation for testing data backend will search
 // on filesystem the asked file and return its reading filehandle
-func (b *Backend) GetFile(ctx *juliet.Context, upload *common.Upload, id string) (file io.ReadCloser, err error) {
+func (b *Backend) GetFile(upload *common.Upload, id string) (file io.ReadCloser, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -74,7 +44,7 @@ func (b *Backend) GetFile(ctx *juliet.Context, upload *common.Upload, id string)
 
 // AddFile implementation for testing data backend will creates a new file for the given upload
 // and save it on filesystem with the given file reader
-func (b *Backend) AddFile(ctx *juliet.Context, upload *common.Upload, file *common.File, fileReader io.Reader) (backendDetails map[string]interface{}, err error) {
+func (b *Backend) AddFile(upload *common.Upload, file *common.File, fileReader io.Reader) (backendDetails map[string]interface{}, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -98,7 +68,7 @@ func (b *Backend) AddFile(ctx *juliet.Context, upload *common.Upload, file *comm
 
 // RemoveFile implementation for testing data backend will delete the given
 // file from filesystem
-func (b *Backend) RemoveFile(ctx *juliet.Context, upload *common.Upload, id string) (err error) {
+func (b *Backend) RemoveFile(upload *common.Upload, id string) (err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -114,7 +84,7 @@ func (b *Backend) RemoveFile(ctx *juliet.Context, upload *common.Upload, id stri
 // RemoveUpload implementation for testing data backend will
 // delete the whole upload. Given that an upload is a directory,
 // we remove the whole directory at once.
-func (b *Backend) RemoveUpload(ctx *juliet.Context, upload *common.Upload) (err error) {
+func (b *Backend) RemoveUpload(upload *common.Upload) (err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 

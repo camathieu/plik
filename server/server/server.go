@@ -1,31 +1,7 @@
-/* The MIT License (MIT)
-
-Copyright (c) <2015>
-	- Mathieu Bodjikian <mathieu@bodjikian.fr>
-	- Charles-Antoine Mathieu <skatkatt@root.gg>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE. */
-
 package server
 
 import (
-	"context"
+	goContext "context"
 	"crypto/rand"
 	"crypto/tls"
 	"errors"
@@ -37,9 +13,11 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/logger"
 	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/plik/server/context"
 	"github.com/root-gg/plik/server/data"
 	"github.com/root-gg/plik/server/data/file"
 	"github.com/root-gg/plik/server/data/stream"
@@ -209,7 +187,7 @@ func (ps *PlikServer) shutdown(timeout time.Duration) (err error) {
 	}
 
 	if timeout > 0 {
-		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		ctx, cancel := goContext.WithTimeout(goContext.Background(), timeout)
 		defer cancel()
 
 		err = ps.httpServer.Shutdown(ctx)
@@ -382,10 +360,9 @@ func (ps *PlikServer) uploadsCleaningRoutine() {
 // Clean removes expired uploads from the servers
 func (ps *PlikServer) Clean() {
 	log := ps.logger
-	ctx := ps.NewContext()
 
 	// Get uploads that needs to be removed
-	uploadIds, err := ps.metadataBackend.GetUploadsToRemove(ctx)
+	uploadIds, err := ps.metadataBackend.GetUploadsToRemove()
 	if err != nil {
 		log.Warningf("Failed to get expired uploads : %s", err)
 	} else {
@@ -393,21 +370,21 @@ func (ps *PlikServer) Clean() {
 		for _, uploadID := range uploadIds {
 			log.Infof("Removing expired upload %s", uploadID)
 			// Get upload metadata
-			upload, err := ps.metadataBackend.Get(ctx, uploadID)
+			upload, err := ps.metadataBackend.GetUpload(uploadID)
 			if err != nil {
 				log.Warningf("Unable to get infos for upload: %s", err)
 				continue
 			}
 
 			// Remove from data backend
-			err = ps.dataBackend.RemoveUpload(ctx, upload)
+			err = ps.dataBackend.RemoveUpload(upload)
 			if err != nil {
 				log.Warningf("Unable to remove upload data : %s", err)
 				continue
 			}
 
 			// Remove from metadata backend
-			err = ps.metadataBackend.Remove(ctx, upload)
+			err = ps.metadataBackend.RemoveUpload(upload)
 			if err != nil {
 				log.Warningf("Unable to remove upload metadata : %s", err)
 			}
@@ -435,13 +412,13 @@ func (ps *PlikServer) GetStreamBackend() data.Backend {
 	return ps.streamBackend
 }
 
-// NewContext return a new scoped context to pass along
+// NewContext return a new scoped httpContext to pass along
 func (ps *PlikServer) NewContext() *juliet.Context {
 	ctx := juliet.NewContext()
-	ctx.Set("config", ps.config)
-	ctx.Set("logger", ps.logger.Copy())
-	ctx.Set("metadata_backend", ps.metadataBackend)
-	ctx.Set("data_backend", ps.dataBackend)
-	ctx.Set("stream_backend", ps.streamBackend)
+	context.SetConfig(ctx, ps.config)
+	context.SetLogger(ctx, ps.logger.Copy())
+	context.SetMetadataBackend(ctx, ps.metadataBackend)
+	context.SetDataBackend(ctx, ps.dataBackend)
+	context.SetStreamBackend(ctx, ps.streamBackend)
 	return ctx
 }

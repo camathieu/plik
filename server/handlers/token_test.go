@@ -1,32 +1,3 @@
-/**
-
-    Plik upload server
-
-The MIT License (MIT)
-
-Copyright (c) <2015>
-	- Mathieu Bodjikian <mathieu@bodjikian.fr>
-	- Charles-Antoine Mathieu <skatkatt@root.gg>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-**/
-
 package handlers
 
 import (
@@ -46,7 +17,7 @@ import (
 )
 
 func TestCreateToken(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	user := common.NewUser()
 	user.ID = "user1"
@@ -83,7 +54,7 @@ func TestCreateToken(t *testing.T) {
 }
 
 func TestCreateTokenWithForbiddenOptions(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	user := common.NewUser()
 	user.ID = "user1"
@@ -123,7 +94,7 @@ func TestCreateTokenWithForbiddenOptions(t *testing.T) {
 
 func TestCreateTokenMissingUser(t *testing.T) {
 	config := common.NewConfiguration()
-	ctx := context.NewTestingContext(config)
+	ctx := newTestingContext(config)
 
 	req, err := http.NewRequest("GET", "/me/token", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -135,7 +106,7 @@ func TestCreateTokenMissingUser(t *testing.T) {
 
 func TestCreateTokenMetadataBackendError(t *testing.T) {
 	config := common.NewConfiguration()
-	ctx := context.NewTestingContext(config)
+	ctx := newTestingContext(config)
 
 	user := common.NewUser()
 	user.ID = "user1"
@@ -162,7 +133,7 @@ func TestCreateTokenMetadataBackendError(t *testing.T) {
 }
 
 func TestRemoveToken(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	user := common.NewUser()
 	user.ID = "user1"
@@ -201,7 +172,7 @@ func TestRemoveToken(t *testing.T) {
 }
 
 func TestRemoveMissingToken(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	user := common.NewUser()
 	user.ID = "user1"
@@ -232,7 +203,7 @@ func TestRemoveMissingToken(t *testing.T) {
 
 func TestRevokeTokenMissingUser(t *testing.T) {
 	config := common.NewConfiguration()
-	ctx := context.NewTestingContext(config)
+	ctx := newTestingContext(config)
 
 	req, err := http.NewRequest("DELETE", "/me/token", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -244,7 +215,7 @@ func TestRevokeTokenMissingUser(t *testing.T) {
 
 func TestRevokeTokenMetadataBackendError(t *testing.T) {
 	config := common.NewConfiguration()
-	ctx := context.NewTestingContext(config)
+	ctx := newTestingContext(config)
 
 	user := common.NewUser()
 	user.ID = "user1"

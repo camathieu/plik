@@ -1,32 +1,3 @@
-/**
-
-    Plik upload server
-
-The MIT License (MIT)
-
-Copyright (c) <2015>
-	- Mathieu Bodjikian <mathieu@bodjikian.fr>
-	- Charles-Antoine Mathieu <skatkatt@root.gg>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-**/
-
 package handlers
 
 import (
@@ -77,20 +48,21 @@ func GetFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// File status pre-check
 	if upload.Stream {
 		if file.Status != common.FILE_UPLOADING {
-			context.Fail(ctx, req, resp, fmt.Sprintf("file %s (%s) status is not %s", file.Name, file.ID, common.FILE_UPLOADING), http.StatusBadRequest)
+			context.Fail(ctx, req, resp, fmt.Sprintf("file %s (%s) status is not %s", file.Name, file.ID, common.FILE_UPLOADING), http.StatusNotFound)
 			return
 		}
 	} else {
 		if file.Status != common.FILE_UPLOADED {
-			context.Fail(ctx, req, resp, fmt.Sprintf("file %s (%s) status is not %s", file.Name, file.ID, common.FILE_UPLOADED), http.StatusBadRequest)
+			context.Fail(ctx, req, resp, fmt.Sprintf("file %s (%s) status is not %s", file.Name, file.ID, common.FILE_UPLOADED), http.StatusNotFound)
 			return
 		}
 	}
 
 	if req.Method == "GET" && (upload.Stream || upload.OneShot) {
-		// If this is a one shot or stream upload we have to ensure it's downloaded only once
+		// If this is a one shot or stream upload we have to ensure it's downloaded only once.
 		tx := func(u *common.Upload) error {
 			if u == nil {
 				return fmt.Errorf("missing upload from transaction")
@@ -101,23 +73,25 @@ func GetFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 				return fmt.Errorf("unable to find file %s (%s)", file.Name, file.ID)
 			}
 
+			// File status double-check
 			if upload.Stream {
-				if f.Status != common.FILE_UPLOADED {
-					return common.NewTxError(fmt.Sprintf("file %s (%s) status is not %s", file.Name, file.ID, common.FILE_UPLOADED), http.StatusBadRequest)
-				}
-				f.Status = common.FILE_REMOVED
-			} else {
-				if f.Status != common.FILE_UPLOADED {
-					return common.NewTxError(fmt.Sprintf("file %s (%s) status is not %s", file.Name, file.ID, common.FILE_UPLOADED), http.StatusBadRequest)
+				if f.Status != common.FILE_UPLOADING {
+					return common.NewTxError(fmt.Sprintf("invalid file %s (%s) status %s, expected %s", file.Name, file.ID, file.Status, common.FILE_UPLOADING), http.StatusBadRequest)
 				}
 				f.Status = common.FILE_DELETED
+			} else if upload.OneShot {
+				if f.Status != common.FILE_UPLOADED {
+					return common.NewTxError(fmt.Sprintf("invalid file %s (%s) status %s, expected %s", file.Name, file.ID, file.Status, common.FILE_UPLOADED), http.StatusBadRequest)
+				}
+				f.Status = common.FILE_REMOVED
 			}
+
 			return nil
 		}
 
 		upload, err := context.GetMetadataBackend(ctx).UpdateUpload(upload, tx)
 		if err != nil {
-			if txError, ok := err.(common.TxError) ; ok {
+			if txError, ok := err.(common.TxError); ok {
 				context.Fail(ctx, req, resp, txError.Error(), txError.GetStatusCode())
 				return
 			} else {
@@ -158,7 +132,7 @@ func GetFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	resp.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'none'; style-src 'none'; img-src 'none'; connect-src 'none'; font-src 'none'; object-src 'none'; media-src 'self'; child-src 'none'; form-action 'none'; frame-ancestors 'none'; plugin-types; sandbox")
 
 	/* Additional header for disabling cache if the upload is OneShot */
-	if upload.OneShot {
+	if upload.OneShot { // If this is a one shot or stream upload we have to ensure it's downloaded only once.
 		resp.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate") // HTTP 1.1
 		resp.Header().Set("Pragma", "no-cache")                                   // HTTP 1.0
 		resp.Header().Set("Expires", "0")                                         // Proxies

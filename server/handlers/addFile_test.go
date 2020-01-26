@@ -1,32 +1,3 @@
-/**
-
-    Plik upload server
-
-The MIT License (MIT)
-
-Copyright (c) <2015>
-	- Mathieu Bodjikian <mathieu@bodjikian.fr>
-	- Charles-Antoine Mathieu <skatkatt@root.gg>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-**/
-
 package handlers
 
 import (
@@ -72,7 +43,7 @@ func getMultipartFormData(name string, in io.Reader) (out io.Reader, contentType
 }
 
 func TestAddFileWithID(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 	context.SetUploadAdmin(ctx, true)
 
 	upload := common.NewUpload()
@@ -119,7 +90,7 @@ func TestAddFileWithID(t *testing.T) {
 }
 
 func TestAddFileWithInvalidID(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 	context.SetUploadAdmin(ctx, true)
 
 	upload := common.NewUpload()
@@ -152,7 +123,7 @@ func TestAddFileWithInvalidID(t *testing.T) {
 }
 
 func TestAddFileWithoutID(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 	context.SetUploadAdmin(ctx, true)
 
 	upload := common.NewUpload()
@@ -190,7 +161,7 @@ func TestAddFileWithoutID(t *testing.T) {
 }
 
 func TestAddFileWithoutUploadInContext(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	req, err := http.NewRequest("POST", "/file/uploadID", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -202,7 +173,7 @@ func TestAddFileWithoutUploadInContext(t *testing.T) {
 }
 
 func TestAddFileWithoutAnonymousUploads(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 	context.GetConfig(ctx).NoAnonymousUploads = true
 	context.SetUploadAdmin(ctx, true)
 
@@ -220,7 +191,7 @@ func TestAddFileWithoutAnonymousUploads(t *testing.T) {
 }
 
 func TestAddFileNotAdmin(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	upload := common.NewUpload()
 	createTestUpload(ctx, upload)
@@ -236,7 +207,7 @@ func TestAddFileNotAdmin(t *testing.T) {
 }
 
 func TestAddFileTooManyFiles(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 	context.GetConfig(ctx).MaxFilePerUpload = 2
 	context.SetUploadAdmin(ctx, true)
 
@@ -259,7 +230,7 @@ func TestAddFileTooManyFiles(t *testing.T) {
 }
 
 func TestAddFileInvalidMultipartData(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 	context.SetUploadAdmin(ctx, true)
 
 	upload := common.NewUpload()
@@ -276,7 +247,7 @@ func TestAddFileInvalidMultipartData(t *testing.T) {
 }
 
 func TestAddFileWithFilenameTooLong(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 	context.SetUploadAdmin(ctx, true)
 
 	upload := common.NewUpload()
@@ -313,7 +284,7 @@ func TestAddFileWithFilenameTooLong(t *testing.T) {
 }
 
 func TestAddFileWithNoFile(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 	context.SetUploadAdmin(ctx, true)
 
 	upload := common.NewUpload()
@@ -338,7 +309,7 @@ func TestAddFileWithNoFile(t *testing.T) {
 }
 
 func TestAddFileWithEmptyName(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 	context.SetUploadAdmin(ctx, true)
 
 	upload := common.NewUpload()
@@ -369,7 +340,7 @@ func TestAddFileWithEmptyName(t *testing.T) {
 }
 
 func TestAddFileWithDataBackendError(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 	context.GetDataBackend(ctx).(*data_test.Backend).SetError(errors.New("data backend error"))
 	context.SetUploadAdmin(ctx, true)
 
@@ -402,7 +373,7 @@ func TestAddFileWithDataBackendError(t *testing.T) {
 }
 
 func TestAddFileWithMetadataBackendError(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 	context.GetMetadataBackend(ctx).(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
 	context.SetUploadAdmin(ctx, true)
 

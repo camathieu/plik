@@ -1,32 +1,3 @@
-/**
-
-    Plik upload server
-
-The MIT License (MIT)
-
-Copyright (c) <2015>
-	- Mathieu Bodjikian <mathieu@bodjikian.fr>
-	- Charles-Antoine Mathieu <skatkatt@root.gg>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-**/
-
 package handlers
 
 import (
@@ -54,7 +25,7 @@ var oauth2TestEndpoint = oauth2.Endpoint{
 }
 
 func TestGoogleLogin(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	context.GetConfig(ctx).Authentication = true
 	context.GetConfig(ctx).GoogleAuthentication = true
@@ -107,7 +78,7 @@ func TestGoogleLogin(t *testing.T) {
 }
 
 func TestGoogleLoginAuthDisabled(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	context.GetConfig(ctx).Authentication = false
 	context.GetConfig(ctx).GoogleAuthentication = false
@@ -122,7 +93,7 @@ func TestGoogleLoginAuthDisabled(t *testing.T) {
 }
 
 func TestGoogleLoginGoogleAuthDisabled(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	context.GetConfig(ctx).Authentication = true
 	context.GetConfig(ctx).GoogleAuthentication = false
@@ -139,7 +110,7 @@ func TestGoogleLoginGoogleAuthDisabled(t *testing.T) {
 }
 
 func TestGoogleLoginMissingReferer(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	context.GetConfig(ctx).Authentication = true
 	context.GetConfig(ctx).GoogleAuthentication = true
@@ -154,7 +125,7 @@ func TestGoogleLoginMissingReferer(t *testing.T) {
 }
 
 func TestGoogleCallback(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	context.GetConfig(ctx).Authentication = true
 	context.GetConfig(ctx).GoogleAuthentication = true
@@ -251,7 +222,7 @@ func TestGoogleCallback(t *testing.T) {
 }
 
 func TestGoogleCallbackAuthDisabled(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	context.GetConfig(ctx).Authentication = false
 
@@ -267,7 +238,7 @@ func TestGoogleCallbackAuthDisabled(t *testing.T) {
 }
 
 func TestGoogleCallbackMissingGoogleAuthParams(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	context.GetConfig(ctx).Authentication = true
 
@@ -283,7 +254,7 @@ func TestGoogleCallbackMissingGoogleAuthParams(t *testing.T) {
 }
 
 func TestGoogleCallbackMissingCode(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	context.GetConfig(ctx).Authentication = true
 	context.GetConfig(ctx).GoogleAuthentication = true
@@ -300,7 +271,7 @@ func TestGoogleCallbackMissingCode(t *testing.T) {
 }
 
 func TestGoogleCallbackMissingState(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	context.GetConfig(ctx).Authentication = true
 	context.GetConfig(ctx).GoogleAuthentication = true
@@ -317,7 +288,7 @@ func TestGoogleCallbackMissingState(t *testing.T) {
 }
 
 func TestGoogleCallbackInvalidState(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	context.GetConfig(ctx).Authentication = true
 	context.GetConfig(ctx).GoogleAuthentication = true
@@ -334,7 +305,7 @@ func TestGoogleCallbackInvalidState(t *testing.T) {
 }
 
 func TestGoogleCallbackExpiredState(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	context.GetConfig(ctx).Authentication = true
 	context.GetConfig(ctx).GoogleAuthentication = true
@@ -359,7 +330,7 @@ func TestGoogleCallbackExpiredState(t *testing.T) {
 }
 
 func TestGoogleCallbackInvalidStateExpirationDate(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	context.GetConfig(ctx).Authentication = true
 	context.GetConfig(ctx).GoogleAuthentication = true
@@ -384,7 +355,7 @@ func TestGoogleCallbackInvalidStateExpirationDate(t *testing.T) {
 }
 
 func TestGoogleCallbackMissingStateExpirationDate(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	context.GetConfig(ctx).Authentication = true
 	context.GetConfig(ctx).GoogleAuthentication = true
@@ -408,7 +379,7 @@ func TestGoogleCallbackMissingStateExpirationDate(t *testing.T) {
 }
 
 func TestGoogleCallbackMissingOrigin(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	context.GetConfig(ctx).Authentication = true
 	context.GetConfig(ctx).GoogleAuthentication = true
@@ -433,7 +404,7 @@ func TestGoogleCallbackMissingOrigin(t *testing.T) {
 }
 
 func TestGoogleCallbackInvalidOrigin(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	context.GetConfig(ctx).Authentication = true
 	context.GetConfig(ctx).GoogleAuthentication = true
@@ -459,7 +430,7 @@ func TestGoogleCallbackInvalidOrigin(t *testing.T) {
 }
 
 func TestGoogleCallbackNoApi(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	context.GetConfig(ctx).Authentication = true
 	context.GetConfig(ctx).GoogleAuthentication = true
@@ -487,7 +458,7 @@ func TestGoogleCallbackNoApi(t *testing.T) {
 }
 
 func TestGoogleCallbackCreateUser(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	context.GetConfig(ctx).Authentication = true
 	context.GetConfig(ctx).GoogleAuthentication = true
@@ -580,7 +551,7 @@ func TestGoogleCallbackCreateUser(t *testing.T) {
 	require.Equal(t, googleUser.Name, user.Name, "invalid user name")
 }
 func TestGoogleCallbackCreateUserNotWhitelisted(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 	context.SetWhitelisted(ctx, false)
 
 	context.GetConfig(ctx).Authentication = true

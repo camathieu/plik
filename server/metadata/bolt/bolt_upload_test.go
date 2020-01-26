@@ -1,4 +1,5 @@
 package bolt
+
 //
 //import (
 //	"encoding/json"
@@ -12,7 +13,7 @@ package bolt
 //)
 //
 //func TestBackend_CreateUpload_NoUpload(t *testing.T) {
-//	ctx := context.NewTestingContext(common.NewConfiguration())
+//	ctx := newTestingContext(common.NewConfiguration())
 //
 //	backend, cleanup := newBackend(t)
 //	defer cleanup()
@@ -22,7 +23,7 @@ package bolt
 //}
 //
 //func TestBackend_CreateUpload_MissingBucket(t *testing.T) {
-//	ctx := context.NewTestingContext(common.NewConfiguration())
+//	ctx := newTestingContext(common.NewConfiguration())
 //
 //	backend, cleanup := newBackend(t)
 //	defer cleanup()
@@ -40,7 +41,7 @@ package bolt
 //}
 //
 //func TestBackend_CreateUpload(t *testing.T) {
-//	ctx := context.NewTestingContext(common.NewConfiguration())
+//	ctx := newTestingContext(common.NewConfiguration())
 //
 //	backend, cleanup := newBackend(t)
 //	defer cleanup()
@@ -53,7 +54,7 @@ package bolt
 //}
 //
 //func TestBackend_CreateUpload_AlreadyExists(t *testing.T) {
-//	ctx := context.NewTestingContext(common.NewConfiguration())
+//	ctx := newTestingContext(common.NewConfiguration())
 //
 //	backend, cleanup := newBackend(t)
 //	defer cleanup()
@@ -69,7 +70,7 @@ package bolt
 //}
 //
 //func TestBackend_CreateUpload_User(t *testing.T) {
-//	ctx := context.NewTestingContext(common.NewConfiguration())
+//	ctx := newTestingContext(common.NewConfiguration())
 //
 //	backend, cleanup := newBackend(t)
 //	defer cleanup()
@@ -83,7 +84,7 @@ package bolt
 //}
 //
 //func TestBackend_CreateUpload_TTL(t *testing.T) {
-//	ctx := context.NewTestingContext(common.NewConfiguration())
+//	ctx := newTestingContext(common.NewConfiguration())
 //
 //	backend, cleanup := newBackend(t)
 //	defer cleanup()
@@ -97,7 +98,7 @@ package bolt
 //}
 //
 //func TestBackend_GetUpload_NoUpload(t *testing.T) {
-//	ctx := context.NewTestingContext(common.NewConfiguration())
+//	ctx := newTestingContext(common.NewConfiguration())
 //
 //	backend, cleanup := newBackend(t)
 //	defer cleanup()
@@ -107,7 +108,7 @@ package bolt
 //}
 //
 //func TestBackend_GetUpload_MissingBucket(t *testing.T) {
-//	ctx := context.NewTestingContext(common.NewConfiguration())
+//	ctx := newTestingContext(common.NewConfiguration())
 //
 //	backend, cleanup := newBackend(t)
 //	defer cleanup()
@@ -122,7 +123,7 @@ package bolt
 //}
 //
 //func TestBackend_GetUpload_NotFound(t *testing.T) {
-//	ctx := context.NewTestingContext(common.NewConfiguration())
+//	ctx := newTestingContext(common.NewConfiguration())
 //
 //	backend, cleanup := newBackend(t)
 //	defer cleanup()
@@ -132,7 +133,7 @@ package bolt
 //}
 //
 //func TestBackend_GetUpload_InvalidJSON(t *testing.T) {
-//	ctx := context.NewTestingContext(common.NewConfiguration())
+//	ctx := newTestingContext(common.NewConfiguration())
 //
 //	backend, cleanup := newBackend(t)
 //	defer cleanup()
@@ -160,7 +161,7 @@ package bolt
 //}
 //
 //func TestBackend_GetUpload(t *testing.T) {
-//	ctx := context.NewTestingContext(common.NewConfiguration())
+//	ctx := newTestingContext(common.NewConfiguration())
 //
 //	backend, cleanup := newBackend(t)
 //	defer cleanup()
@@ -193,7 +194,7 @@ package bolt
 //}
 //
 //func TestBackend_RemoveUpload_NoUpload(t *testing.T) {
-//	ctx := context.NewTestingContext(common.NewConfiguration())
+//	ctx := newTestingContext(common.NewConfiguration())
 //
 //	backend, cleanup := newBackend(t)
 //	defer cleanup()
@@ -203,7 +204,7 @@ package bolt
 //}
 //
 //func TestBackend_RemoveUpload_MissingBucket(t *testing.T) {
-//	ctx := context.NewTestingContext(common.NewConfiguration())
+//	ctx := newTestingContext(common.NewConfiguration())
 //
 //	backend, cleanup := newBackend(t)
 //	defer cleanup()
@@ -221,7 +222,7 @@ package bolt
 //}
 //
 //func TestBackend_RemoveUpload_NotFound(t *testing.T) {
-//	ctx := context.NewTestingContext(common.NewConfiguration())
+//	ctx := newTestingContext(common.NewConfiguration())
 //
 //	backend, cleanup := newBackend(t)
 //	defer cleanup()
@@ -234,7 +235,7 @@ package bolt
 //}
 //
 //func TestBackend_RemoveUpload(t *testing.T) {
-//	ctx := context.NewTestingContext(common.NewConfiguration())
+//	ctx := newTestingContext(common.NewConfiguration())
 //
 //	backend, cleanup := newBackend(t)
 //	defer cleanup()
@@ -267,7 +268,7 @@ package bolt
 //}
 //
 //func TestBackend_RemoveUpload_User(t *testing.T) {
-//	ctx := context.NewTestingContext(common.NewConfiguration())
+//	ctx := newTestingContext(common.NewConfiguration())
 //
 //	backend, cleanup := newBackend(t)
 //	defer cleanup()
@@ -281,7 +282,7 @@ package bolt
 //}
 //
 //func TestBackend_RemoveUpload_TTL(t *testing.T) {
-//	ctx := context.NewTestingContext(common.NewConfiguration())
+//	ctx := newTestingContext(common.NewConfiguration())
 //
 //	backend, cleanup := newBackend(t)
 //	defer cleanup()

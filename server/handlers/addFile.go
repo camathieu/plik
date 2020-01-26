@@ -1,32 +1,3 @@
-/**
-
-    Plik upload server
-
-The MIT License (MIT)
-
-Copyright (c) <2015>
-	- Mathieu Bodjikian <mathieu@bodjikian.fr>
-	- Charles-Antoine Mathieu <skatkatt@root.gg>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-**/
-
 package handlers
 
 import (
@@ -99,7 +70,7 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	} else {
 		// Get file object from upload
 		var ok bool
-		file, ok = upload.Files[fileID] 
+		file, ok = upload.Files[fileID]
 		if !ok {
 			log.Warningf("Missing file with id %s", fileID)
 			context.Fail(ctx, req, resp, "Invalid file id", http.StatusNotFound)
@@ -113,7 +84,7 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 		if u == nil {
 			return fmt.Errorf("missing upload from transaction")
 		}
-		
+
 		f, ok := u.Files[file.ID]
 		if !ok {
 			// Add new file to the upload metadata
@@ -125,11 +96,11 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 		if len(u.Files) > config.MaxFilePerUpload {
 			return common.NewTxError(fmt.Sprintf("Maximum number file per upload reached (%d)", config.MaxFilePerUpload), http.StatusBadRequest)
 		}
-		
+
 		if !(f.Status == "" || f.Status == common.FILE_MISSING) {
 			return common.NewTxError(fmt.Sprintf("File %s (%s) has already been uploaded or removed", f.Name, f.ID), http.StatusBadRequest)
 		}
-		
+
 		f.Status = common.FILE_UPLOADING
 
 		return nil
@@ -138,7 +109,7 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	// Update upload metadata
 	upload, err := context.GetMetadataBackend(ctx).UpdateUpload(upload, tx)
 	if err != nil {
-		if txError, ok := err.(common.TxError) ; ok {
+		if txError, ok := err.(common.TxError); ok {
 			context.Fail(ctx, req, resp, txError.Error(), txError.GetStatusCode())
 			return
 		} else {
@@ -186,10 +157,10 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 					context.Fail(ctx, req, resp, "File name is too long. Maximum length is 1024 characters", http.StatusBadRequest)
 					return
 				}
-				
+
 				file.Name = part.FileName()
 			}
-			
+
 			break
 		}
 	}
@@ -241,43 +212,48 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	file.Type = preprocessOutput.mimeType
 	file.CurrentSize = preprocessOutput.size
 	file.Md5 = preprocessOutput.md5sum
-
-	if upload.Stream {
-		file.Status = common.FILE_REMOVED
-	} else {
-		file.Status = common.FILE_UPLOADED
-	}
 	file.UploadDate = time.Now().Unix()
 	file.BackendDetails = backendDetails
 
-	// Double check file status and upload file metadata
-	tx = func(u *common.Upload) (err error) {
-		if u == nil {
-			return fmt.Errorf("missing upload from upload transaction")
+	if !upload.Stream {
+
+		// For steam upload the file will be removed by the getFile handler
+		// If there is only one file the upload could even not exist anymore
+
+		// Double check file status and update upload metadata
+		tx = func(u *common.Upload) (err error) {
+			if u == nil {
+				return fmt.Errorf("missing upload from upload transaction")
+			}
+
+			// Just to check that the file has not been already removed
+			f, ok := u.Files[file.ID]
+			if !ok {
+				return fmt.Errorf("missing file %s from upload transaction", file.ID)
+			}
+			if f.Status != common.FILE_UPLOADING {
+				return common.NewTxError(fmt.Sprintf("invalid file status %s, expected %s", f.Status, common.FILE_UPLOADING), http.StatusInternalServerError)
+			}
+
+			// Update file status
+			file.Status = common.FILE_UPLOADED
+
+			// Update file
+			u.Files[file.ID] = file
+
+			return nil
 		}
 
-		f, ok := u.Files[file.ID]
-		if !ok {
-			return fmt.Errorf("missing file %s from upload transaction", file.ID)
-		}
-		
-		if f.Status != common.FILE_UPLOADING {
-			return common.NewTxError(fmt.Sprintf("invalid file status %s, expected %s", f.Status, common.FILE_UPLOADING), http.StatusBadRequest)
-		}
-		
-		u.Files[file.ID] = file
-		return nil
-	}
-
-	upload, err = context.GetMetadataBackend(ctx).UpdateUpload(upload, tx)
-	if err != nil {
-		if txError, ok := err.(common.TxError) ; ok {
-			context.Fail(ctx, req, resp, txError.Error(), txError.GetStatusCode())
-			return
-		} else {
-			log.Warningf("Unable to update upload metadata : %s", err)
-			context.Fail(ctx, req, resp, "Unable to update upload metadata", http.StatusInternalServerError)
-			return
+		upload, err = context.GetMetadataBackend(ctx).UpdateUpload(upload, tx)
+		if err != nil {
+			if txError, ok := err.(common.TxError); ok {
+				context.Fail(ctx, req, resp, txError.Error(), txError.GetStatusCode())
+				return
+			} else {
+				log.Warningf("Unable to update upload metadata : %s", err)
+				context.Fail(ctx, req, resp, "Unable to update upload metadata", http.StatusInternalServerError)
+				return
+			}
 		}
 	}
 
@@ -291,7 +267,6 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	// Remove all private information (ip, data backend details, ...) before
 	// sending metadata back to the client
 	file.Sanitize()
-
 
 	if context.IsQuick(ctx) {
 		// Print the file url in the response.
@@ -309,7 +284,7 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 
 		url += fmt.Sprintf("/file/%s/%s/%s", upload.ID, file.ID, file.Name)
 
-		_,_ = resp.Write([]byte(url + "\n"))
+		_, _ = resp.Write([]byte(url + "\n"))
 	} else {
 		// Print file metadata in json in the response.
 		var json []byte

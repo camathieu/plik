@@ -1,31 +1,3 @@
-/**
-
-    Plik upload server
-
-The MIT License (MIT)
-
-Copyright (c) <2015>
-	- Mathieu Bodjikian <mathieu@bodjikian.fr>
-	- Charles-Antoine Mathieu <skatkatt@root.gg>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-**/
 package middleware
 
 import (
@@ -41,7 +13,7 @@ import (
 )
 
 func TestFileNoUpload(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
 	require.NoError(t, err, "unable to create new request")
@@ -53,8 +25,8 @@ func TestFileNoUpload(t *testing.T) {
 }
 
 func TestFileNoFileID(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
-	ctx.Set("upload", common.NewUpload())
+	ctx := newTestingContext(common.NewConfiguration())
+	context.SetUpload(ctx, common.NewUpload())
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
 	require.NoError(t, err, "unable to create new request")
@@ -66,8 +38,8 @@ func TestFileNoFileID(t *testing.T) {
 }
 
 func TestFileNoFileName(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
-	ctx.Set("upload", common.NewUpload())
+	ctx := newTestingContext(common.NewConfiguration())
+	context.SetUpload(ctx, common.NewUpload())
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
 	require.NoError(t, err, "unable to create new request")
@@ -85,8 +57,8 @@ func TestFileNoFileName(t *testing.T) {
 }
 
 func TestFileNotFound(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
-	ctx.Set("upload", common.NewUpload())
+	ctx := newTestingContext(common.NewConfiguration())
+	context.SetUpload(ctx, common.NewUpload())
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
 	require.NoError(t, err, "unable to create new request")
@@ -105,13 +77,13 @@ func TestFileNotFound(t *testing.T) {
 }
 
 func TestFileInvalidFileName(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	upload := common.NewUpload()
 	file := upload.NewFile()
 	file.Name = "filename"
 
-	ctx.Set("upload", upload)
+	context.SetUpload(ctx, upload)
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
 	require.NoError(t, err, "unable to create new request")
@@ -130,13 +102,13 @@ func TestFileInvalidFileName(t *testing.T) {
 }
 
 func TestFile(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	upload := common.NewUpload()
 	file := upload.NewFile()
 	file.Name = "filename"
 
-	ctx.Set("upload", upload)
+	context.SetUpload(ctx, upload)
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
 	require.NoError(t, err, "unable to create new request")
@@ -153,7 +125,7 @@ func TestFile(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, rr.Code, "invalid handler response status code")
 
-	f, ok := ctx.Get("file")
-	require.True(t, ok, "missing file from context")
+	f := context.GetFile(ctx)
+	require.NotNil(t, f, "missing file from context")
 	require.Equal(t, file, f, "invalid file from context")
 }

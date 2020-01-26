@@ -1,31 +1,3 @@
-/**
-
-    Plik upload server
-
-The MIT License (MIT)
-
-Copyright (c) <2015>
-	- Mathieu Bodjikian <mathieu@bodjikian.fr>
-	- Charles-Antoine Mathieu <skatkatt@root.gg>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-**/
 package middleware
 
 import (
@@ -46,7 +18,7 @@ import (
 )
 
 func TestUploadNoUploadID(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
 	require.NoError(t, err, "unable to create new request")
@@ -58,7 +30,7 @@ func TestUploadNoUploadID(t *testing.T) {
 }
 
 func TestUploadMetadataBackendError(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 	context.GetMetadataBackend(ctx).(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
@@ -73,16 +45,16 @@ func TestUploadMetadataBackendError(t *testing.T) {
 	rr := httptest.NewRecorder()
 	Upload(ctx, common.DummyHandler).ServeHTTP(rr, req)
 
-	context.TestFail(t, rr, http.StatusNotFound, "Upload uploadID not found")
+	context.TestFail(t, rr, http.StatusInternalServerError, "metadata backend error")
 }
 
 func TestUpload(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	upload := common.NewUpload()
 	upload.Create()
 
-	err := context.GetMetadataBackend(ctx).Upsert(ctx, upload)
+	err := context.GetMetadataBackend(ctx).CreateUpload(upload)
 	require.NoError(t, err, "Unable to create upload")
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
@@ -102,14 +74,14 @@ func TestUpload(t *testing.T) {
 }
 
 func TestUploadExpired(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	upload := common.NewUpload()
 	upload.Create()
 	upload.TTL = 60
 	upload.Creation = time.Now().Add(-10 * time.Minute).Unix()
 
-	err := context.GetMetadataBackend(ctx).Upsert(ctx, upload)
+	err := context.GetMetadataBackend(ctx).CreateUpload(upload)
 	require.NoError(t, err, "Unable to create upload")
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
@@ -128,13 +100,13 @@ func TestUploadExpired(t *testing.T) {
 }
 
 func TestUploadToken(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	upload := common.NewUpload()
 	upload.Create()
 	upload.UploadToken = "token"
 
-	err := context.GetMetadataBackend(ctx).Upsert(ctx, upload)
+	err := context.GetMetadataBackend(ctx).CreateUpload(upload)
 	require.NoError(t, err, "Unable to create upload")
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
@@ -157,18 +129,18 @@ func TestUploadToken(t *testing.T) {
 }
 
 func TestUploadUser(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 	context.GetConfig(ctx).Authentication = true
 
 	user := common.NewUser()
 	user.ID = "user"
-	ctx.Set("user", user)
+	context.SetUser(ctx, user)
 
 	upload := common.NewUpload()
 	upload.Create()
 	upload.User = user.ID
 
-	err := context.GetMetadataBackend(ctx).Upsert(ctx, upload)
+	err := context.GetMetadataBackend(ctx).CreateUpload(upload)
 	require.NoError(t, err, "Unable to create upload")
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
@@ -189,18 +161,18 @@ func TestUploadUser(t *testing.T) {
 }
 
 func TestUploadUserAdmin(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 	context.GetConfig(ctx).Authentication = true
 
 	user := common.NewUser()
 	user.ID = "user"
-	ctx.Set("is_admin", true)
-	ctx.Set("user", user)
+	context.SetAdmin(ctx, true)
+	context.SetUser(ctx, user)
 
 	upload := common.NewUpload()
 	upload.Create()
 
-	err := context.GetMetadataBackend(ctx).Upsert(ctx, upload)
+	err := context.GetMetadataBackend(ctx).CreateUpload(upload)
 	require.NoError(t, err, "Unable to create upload")
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
@@ -221,14 +193,14 @@ func TestUploadUserAdmin(t *testing.T) {
 }
 
 func TestUploadPasswordMissingHeader(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 	context.GetConfig(ctx).Authentication = true
 
 	upload := common.NewUpload()
 	upload.ProtectedByPassword = true
 	upload.Create()
 
-	err := context.GetMetadataBackend(ctx).Upsert(ctx, upload)
+	err := context.GetMetadataBackend(ctx).CreateUpload(upload)
 	require.NoError(t, err, "Unable to create upload")
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
@@ -247,14 +219,14 @@ func TestUploadPasswordMissingHeader(t *testing.T) {
 }
 
 func TestUploadPasswordInvalidHeader(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 	context.GetConfig(ctx).Authentication = true
 
 	upload := common.NewUpload()
 	upload.ProtectedByPassword = true
 	upload.Create()
 
-	err := context.GetMetadataBackend(ctx).Upsert(ctx, upload)
+	err := context.GetMetadataBackend(ctx).CreateUpload(upload)
 	require.NoError(t, err, "Unable to create upload")
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
@@ -275,14 +247,14 @@ func TestUploadPasswordInvalidHeader(t *testing.T) {
 }
 
 func TestUploadPasswordInvalidScheme(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 	context.GetConfig(ctx).Authentication = true
 
 	upload := common.NewUpload()
 	upload.ProtectedByPassword = true
 	upload.Create()
 
-	err := context.GetMetadataBackend(ctx).Upsert(ctx, upload)
+	err := context.GetMetadataBackend(ctx).CreateUpload(upload)
 	require.NoError(t, err, "Unable to create upload")
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
@@ -303,14 +275,14 @@ func TestUploadPasswordInvalidScheme(t *testing.T) {
 }
 
 func TestUploadPasswordInvalidPassword(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 	context.GetConfig(ctx).Authentication = true
 
 	upload := common.NewUpload()
 	upload.ProtectedByPassword = true
 	upload.Create()
 
-	err := context.GetMetadataBackend(ctx).Upsert(ctx, upload)
+	err := context.GetMetadataBackend(ctx).CreateUpload(upload)
 	require.NoError(t, err, "Unable to create upload")
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
@@ -331,7 +303,7 @@ func TestUploadPasswordInvalidPassword(t *testing.T) {
 }
 
 func TestUploadPassword(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 	context.GetConfig(ctx).Authentication = true
 
 	var err error
@@ -348,7 +320,7 @@ func TestUploadPassword(t *testing.T) {
 	upload.Password, err = utils.Md5sum(b64str)
 	require.NoError(t, err, "unable to b64encode upload credentials")
 
-	err = context.GetMetadataBackend(ctx).Upsert(ctx, upload)
+	err = context.GetMetadataBackend(ctx).CreateUpload(upload)
 	require.NoError(t, err, "Unable to create upload")
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})

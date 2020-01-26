@@ -1,33 +1,5 @@
-/**
-
-    Plik upload server
-
-The MIT License (MIT)
-
-Copyright (c) <2015>
-	- Mathieu Bodjikian <mathieu@bodjikian.fr>
-	- Charles-Antoine Mathieu <skatkatt@root.gg>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-**/
-
 package bolt
+
 //
 //import (
 //	"errors"
@@ -40,7 +12,7 @@ package bolt
 //)
 //
 //func TestBackend_CreateUser_MissingUser(t *testing.T) {
-//	ctx := context.NewTestingContext(common.NewConfiguration())
+//	ctx := newTestingContext(common.NewConfiguration())
 //
 //	backend, cleanup := newBackend(t)
 //	defer cleanup()
@@ -50,7 +22,7 @@ package bolt
 //}
 //
 //func TestBackend_CreateUser_MissingBucket(t *testing.T) {
-//	ctx := context.NewTestingContext(common.NewConfiguration())
+//	ctx := newTestingContext(common.NewConfiguration())
 //
 //	backend, cleanup := newBackend(t)
 //	defer cleanup()
@@ -66,7 +38,7 @@ package bolt
 //}
 //
 //func TestBackend_CreateUser(t *testing.T) {
-//	ctx := context.NewTestingContext(common.NewConfiguration())
+//	ctx := newTestingContext(common.NewConfiguration())
 //
 //	backend, cleanup := newBackend(t)
 //	defer cleanup()
@@ -79,7 +51,7 @@ package bolt
 //}
 //
 //func TestBackend_CreateUser_Token(t *testing.T) {
-//	ctx := context.NewTestingContext(common.NewConfiguration())
+//	ctx := newTestingContext(common.NewConfiguration())
 //
 //	backend, cleanup := newBackend(t)
 //	defer cleanup()
@@ -93,7 +65,7 @@ package bolt
 //}
 //
 //func TestBackend_GetUser_NoUser(t *testing.T) {
-//	ctx := context.NewTestingContext(common.NewConfiguration())
+//	ctx := newTestingContext(common.NewConfiguration())
 //
 //	backend, cleanup := newBackend(t)
 //	defer cleanup()
@@ -103,7 +75,7 @@ package bolt
 //}
 //
 //func TestBackend_GetUser_MissingBucket(t *testing.T) {
-//	ctx := context.NewTestingContext(common.NewConfiguration())
+//	ctx := newTestingContext(common.NewConfiguration())
 //
 //	backend, cleanup := newBackend(t)
 //	defer cleanup()
@@ -118,7 +90,7 @@ package bolt
 //}
 //
 //func TestBackend_GetUser_NotFound(t *testing.T) {
-//	ctx := context.NewTestingContext(common.NewConfiguration())
+//	ctx := newTestingContext(common.NewConfiguration())
 //
 //	backend, cleanup := newBackend(t)
 //	defer cleanup()
@@ -129,7 +101,7 @@ package bolt
 //}
 //
 //func TestBackend_GetUser_InvalidJSON(t *testing.T) {
-//	ctx := context.NewTestingContext(common.NewConfiguration())
+//	ctx := newTestingContext(common.NewConfiguration())
 //
 //	backend, cleanup := newBackend(t)
 //	defer cleanup()
@@ -157,7 +129,7 @@ package bolt
 //}
 //
 //func TestBackend_GetUser(t *testing.T) {
-//	ctx := context.NewTestingContext(common.NewConfiguration())
+//	ctx := newTestingContext(common.NewConfiguration())
 //
 //	backend, cleanup := newBackend(t)
 //	defer cleanup()
@@ -173,7 +145,7 @@ package bolt
 //}
 //
 //func TestBackend_GetUser_ByToken(t *testing.T) {
-//	ctx := context.NewTestingContext(common.NewConfiguration())
+//	ctx := newTestingContext(common.NewConfiguration())
 //
 //	backend, cleanup := newBackend(t)
 //	defer cleanup()
@@ -192,7 +164,7 @@ package bolt
 //}
 //
 //func TestBackend_RemoveUser_NoUser(t *testing.T) {
-//	ctx := context.NewTestingContext(common.NewConfiguration())
+//	ctx := newTestingContext(common.NewConfiguration())
 //
 //	backend, cleanup := newBackend(t)
 //	defer cleanup()
@@ -202,7 +174,7 @@ package bolt
 //}
 //
 //func TestBackend_RemoveUser_NoBucket(t *testing.T) {
-//	ctx := context.NewTestingContext(common.NewConfiguration())
+//	ctx := newTestingContext(common.NewConfiguration())
 //
 //	backend, cleanup := newBackend(t)
 //	defer cleanup()
@@ -218,7 +190,7 @@ package bolt
 //}
 //
 //func TestBackend_RemoveUser(t *testing.T) {
-//	ctx := context.NewTestingContext(common.NewConfiguration())
+//	ctx := newTestingContext(common.NewConfiguration())
 //
 //	backend, cleanup := newBackend(t)
 //	defer cleanup()
@@ -245,7 +217,7 @@ package bolt
 //}
 //
 //func TestBackend_RemoveUser_NotFound(t *testing.T) {
-//	ctx := context.NewTestingContext(common.NewConfiguration())
+//	ctx := newTestingContext(common.NewConfiguration())
 //
 //	backend, cleanup := newBackend(t)
 //	defer cleanup()
@@ -258,7 +230,7 @@ package bolt
 //}
 //
 //func TestBackend_GetUserUploads_NoUser(t *testing.T) {
-//	ctx := context.NewTestingContext(common.NewConfiguration())
+//	ctx := newTestingContext(common.NewConfiguration())
 //
 //	backend, cleanup := newBackend(t)
 //	defer cleanup()
@@ -268,7 +240,7 @@ package bolt
 //}
 //
 //func TestBackend_GetUserUploads_NoBucket(t *testing.T) {
-//	ctx := context.NewTestingContext(common.NewConfiguration())
+//	ctx := newTestingContext(common.NewConfiguration())
 //
 //	backend, cleanup := newBackend(t)
 //	defer cleanup()
@@ -284,7 +256,7 @@ package bolt
 //}
 //
 //func TestBackend_GetUserUploads(t *testing.T) {
-//	ctx := context.NewTestingContext(common.NewConfiguration())
+//	ctx := newTestingContext(common.NewConfiguration())
 //
 //	backend, cleanup := newBackend(t)
 //	defer cleanup()
@@ -313,7 +285,7 @@ package bolt
 //}
 //
 //func TestBackend_GetUserUploads_ByToken(t *testing.T) {
-//	ctx := context.NewTestingContext(common.NewConfiguration())
+//	ctx := newTestingContext(common.NewConfiguration())
 //
 //	backend, cleanup := newBackend(t)
 //	defer cleanup()
@@ -351,7 +323,7 @@ package bolt
 //}
 //
 //func TestBackend_GetUsers_MissingBucket(t *testing.T) {
-//	ctx := context.NewTestingContext(common.NewConfiguration())
+//	ctx := newTestingContext(common.NewConfiguration())
 //
 //	backend, cleanup := newBackend(t)
 //	defer cleanup()
@@ -366,7 +338,7 @@ package bolt
 //}
 //
 //func TestBackend_GetUsers(t *testing.T) {
-//	ctx := context.NewTestingContext(common.NewConfiguration())
+//	ctx := newTestingContext(common.NewConfiguration())
 //
 //	backend, cleanup := newBackend(t)
 //	defer cleanup()
@@ -391,7 +363,7 @@ package bolt
 //}
 //
 //func TestBackend_GetUserStatistics(t *testing.T) {
-//	ctx := context.NewTestingContext(common.NewConfiguration())
+//	ctx := newTestingContext(common.NewConfiguration())
 //
 //	backend, cleanup := newBackend(t)
 //	defer cleanup()
@@ -435,7 +407,7 @@ package bolt
 //}
 //
 //func TestBackend_GetUserStatistics_ByToken(t *testing.T) {
-//	ctx := context.NewTestingContext(common.NewConfiguration())
+//	ctx := newTestingContext(common.NewConfiguration())
 //
 //	backend, cleanup := newBackend(t)
 //	defer cleanup()

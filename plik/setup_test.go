@@ -20,6 +20,9 @@ import (
 	"testing"
 )
 
+//
+// /!\ Backends ARE NOT automatically cleared between tests /!\
+//
 var metadataBackend metadata.Backend
 var dataBackend data.Backend
 
@@ -150,6 +153,9 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
+//
+// /!\ Backends ARE NOT automatically cleared between tests /!\
+//
 func newPlikServerAndClient() (ps *server.PlikServer, pc *Client) {
 	config := common.NewConfiguration()
 	config.ListenAddress = "127.0.0.1"
@@ -163,7 +169,15 @@ func newPlikServerAndClient() (ps *server.PlikServer, pc *Client) {
 	return ps, pc
 }
 
+//
+// /!\ Backends ARE NOT automatically cleared between tests /!\
+//
 func start(ps *server.PlikServer) (err error) {
+	//err = common.CheckHTTPServer(ps.GetConfig().ListenPort)
+	//if err == nil {
+	//	return fmt.Errorf("plik server is already running")
+	//}
+
 	err = ps.Start()
 	if err != nil {
 		return err
@@ -175,4 +189,18 @@ func start(ps *server.PlikServer) (err error) {
 	}
 
 	return nil
+}
+
+//
+// /!\ Backends ARE NOT automatically cleared between tests /!\
+//
+func shutdown(ps *server.PlikServer) {
+	err := ps.ShutdownNow()
+	if err != nil {
+		panic("unable to shutdown server " + err.Error())
+	}
+	//err = common.CheckHTTPServer(ps.GetConfig().ListenPort)
+	//if err == nil {
+	//	panic("still able to join plik server after shutdown")
+	//}
 }

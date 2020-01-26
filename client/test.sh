@@ -1,31 +1,5 @@
 #!/bin/bash
 
-###
-# The MIT License (MIT)
-#
-# Copyright (c) <2015>
-# - Mathieu Bodjikian <mathieu@bodjikian.fr>
-# - Charles-Antoine Mathieu <skatkatt@root.gg>
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in
-# all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-# THE SOFTWARE.
-###
-
 set -e
 export SHELLOPTS
 export ENABLE_RACE_DETECTOR=1
@@ -64,7 +38,7 @@ SPECIMEN="$TMPDIR/SPECIMEN"
 Lorem ipsum dolor sit amet, eu munere invenire est, in vel liber salutatus, id eum atqui iisque. Ut eam semper possim ullamcorper. Quodsi complectitur an mea. Oratio pertinacia ius ea, duo quem dolorum omittam at. Vix eu idque admodum, quem animal eam et.
 Cu eum ullum constituto theophrastus, te eam nihil ignota iudicabit. Pri cu minim voluptatum inciderint. Ne nec inani latine. Ei voluptua splendide sit.
 At vix clita aliquam docendi. Ex eum utroque dignissim theophrastus, nullam facete vituperatoribus his ne, mei ad delectus constituto. Qui ne euripidis liberavisse, te per labores lucilius, eu ferri convenire mea. Ius dico ceteros feugait eu, cu nisl magna option pro, cu agam veritus aliquando has. At pro mandamus qualisque, eu vis nostro aeterno.
-Erat vulputate intellegebat an nam, te reque atomorum molestiae eos. Illud corpora incorrupte est cu, nullam audiam id per, mel et dicta legimus suscipiantur. Ad simul perfecto per, his veri legimus te. Cum aeque dissentiet et, atomorum aliquando efficiendi ex vix, his ei soleat omnium impetus.
+Erat vulputate intellegebat an nam, te reque atomorum molestiae eos. Illud corpora incorrupte est cu, nullam audiam id per, mel et dicta legimus suscipiantur. Ad simul perfecto per, his veri legimus te. Cum aeque dissentiet et, atomorum aliquando effctx := newTestingContext(config)endi ex vix, his ei soleat omnium impetus.
 Sed electram dignissim reformidans ut. In vim graeco torquatos pertinacia, duis tamquam duo id. Et viderer debitis vocibus quo, ea vero movet atomorum pri. Atqui delicatissimi an vis, amet deseruisse ius et. Eos rationibus scriptorem ex, vim meis eirmod consequuntur in.
 EOF
 

@@ -38,7 +38,7 @@ import (
 
 func TestCreateUpload(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
-	defer ps.ShutdownNow()
+	defer shutdown(ps)
 
 	err := start(ps)
 	require.NoError(t, err, "unable to start plik server")
@@ -96,7 +96,7 @@ func TestCreateUploadInvalidJSON(t *testing.T) {
 
 func TestUploadFileNoUpload(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
-	defer ps.ShutdownNow()
+	defer shutdown(ps)
 
 	err := start(ps)
 	require.NoError(t, err, "unable to start plik server")
@@ -115,7 +115,7 @@ func TestUploadFileNoUpload(t *testing.T) {
 
 func TestUploadFileReaderError(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
-	defer ps.ShutdownNow()
+	defer shutdown(ps)
 
 	err := start(ps)
 	require.NoError(t, err, "unable to start plik server")
@@ -409,7 +409,7 @@ func TestMakeRequestDebugGetArchive(t *testing.T) {
 
 func TestMakeRequestErrorParsing(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
-	defer ps.ShutdownNow()
+	defer shutdown(ps)
 
 	handler := http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
 		context.Fail(ps.NewContext(), req, resp, "plik_api_error", http.StatusInternalServerError)

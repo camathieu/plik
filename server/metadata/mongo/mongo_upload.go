@@ -2,85 +2,112 @@ package mongo
 
 import (
 	"errors"
+	"fmt"
 
-
+	"go.mongodb.org/mongo-driver/mongo"
+	"gopkg.in/mgo.v2/bson"
 
 	"github.com/root-gg/plik/server/common"
-	"gopkg.in/mgo.v2/bson"
 )
 
 // Create upload
-func (b *Backend) CreateUpload(upload *common.Upload) (u *common.Upload, err error) {
-	if id == "" {
-		return nil, errors.New("Unable to get upload : Missing upload id")
+func (b *Backend) CreateUpload(upload *common.Upload) (err error) {
+	if upload == nil {
+		return errors.New("missing upload")
 	}
 
-	session := b.session.Copy()
-	defer session.Close()
-	collection := session.DB(b.config.Database).C(b.config.Collection)
-	u = &common.Upload{}
-	err = collection.Insert(&upload)
+	ctx, cancel := newContext()
+	defer cancel()
 
+	_, err = b.uploadCollection.InsertOne(ctx, upload)
 
-	if err != nil {
-		err = log.EWarningf("Unable to get metadata from mongodb : %s", err)
-	}
-	return
+	return err
 }
 
 // Get implementation from MongoDB Metadata Backend
-func (b *Backend) GetUpload(id string) (u *common.Upload, err error) {
-	if id == "" {
-		err = log.EWarning("Unable to `" +
-			"" +
-			"" +
-			"" +
-			"" +
-			" upload : Missing upload id")
-		return
+func (b *Backend) GetUpload(ID string) (upload *common.Upload, err error) {
+	if ID == "" {
+		return nil, errors.New("missing upload id")
 	}
 
-	session := b.session.Copy()
-	defer session.Close()
-	collection := session.DB(b.config.Database).C(b.config.Collection)
-	u = &common.Upload{}
-	err = collection.Find(bson.M{"id": id}).One(u)
+	ctx, cancel := newContext()
+	defer cancel()
+
+	upload = &common.Upload{}
+	err = b.uploadCollection.FindOne(ctx, bson.M{"id": ID}).Decode(&upload)
 	if err != nil {
-		err = log.EWarningf("Unable to get metadata from mongodb : %s", err)
+		return nil, err
 	}
-	return
+
+	return upload, nil
 }
 
-// Upsert implementation from MongoDB Metadata Backend
-func (b *Backend) UpdateUpload(upload *common.Upload, uploadTx common.UploadTx) (err error) {
+// UpdateUpload implementation from MongoDB Metadata Backend
+func (b *Backend) UpdateUpload(upload *common.Upload, uploadTx common.UploadTx) (u *common.Upload, err error) {
 	if upload == nil {
-		err = log.EWarning("Unable to save upload : Missing upload")
-		return
+		return nil, errors.New("missing upload")
 	}
 
-	session := b.session.Copy()
-	defer session.Close()
-	collection := session.DB(b.config.Database).C(b.config.Collection)
-	_, err = collection.Upsert(bson.M{"id": upload.ID}, &upload)
+	ctx, cancel := newContext()
+	defer cancel()
+
+	err = b.client.UseSession(ctx, func(sessionContext mongo.SessionContext) error {
+		err = sessionContext.StartTransaction()
+		if err != nil {
+			return err
+		}
+
+		u = &common.Upload{}
+		err := b.uploadCollection.FindOne(sessionContext, bson.M{"id": upload.ID}).Decode(&u)
+		if err != nil {
+			err2 := sessionContext.AbortTransaction(sessionContext)
+			if err2 != nil {
+				return fmt.Errorf("%s : %s", err, err2)
+			}
+			return err
+		}
+
+		err = uploadTx(u)
+		if err != nil {
+			err2 := sessionContext.AbortTransaction(sessionContext)
+			if err2 != nil {
+				return fmt.Errorf("%s : %s", err, err2)
+			}
+			return err
+		}
+
+		// Avoid the possibility to override an other upload by changing the upload.ID in the tx
+		_, err = b.uploadCollection.ReplaceOne(sessionContext, bson.M{"id": upload.ID}, u)
+		if err != nil {
+			err2 := sessionContext.AbortTransaction(sessionContext)
+			if err2 != nil {
+				return fmt.Errorf("%s : %s", err, err2)
+			}
+			return err
+		}
+
+		return sessionContext.CommitTransaction(sessionContext)
+	})
+
 	if err != nil {
-		err = log.EWarningf("Unable to append metadata to mongodb : %s", err)
+		return nil, err
 	}
-	return
+
+	return u, nil
 }
 
 // Remove implementation from MongoDB Metadata Backend
 func (b *Backend) RemoveUpload(upload *common.Upload) (err error) {
 	if upload == nil {
-		err = log.EWarning("Unable to remove upload : Missing upload")
-		return
+		return errors.New("missing upload")
 	}
 
-	session := b.session.Copy()
-	defer session.Close()
-	collection := session.DB(b.config.Database).C(b.config.Collection)
-	err = collection.Remove(bson.M{"id": upload.ID})
-	if err != nil {
-		err = log.EWarningf("Unable to remove upload from mongodb : %s", err)
-	}
-	return
+	ctx, cancel := newContext()
+	defer cancel()
+
+	upload = &common.Upload{}
+	collection := b.database.Collection(b.config.UploadCollection)
+	_, err = collection.DeleteOne(ctx, bson.M{"id": upload.ID})
+
+	return err
 }

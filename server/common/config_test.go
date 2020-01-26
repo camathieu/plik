@@ -1,6 +1,3 @@
-/*
- * Charles-Antoine Mathieu <charles-antoine.mathieu@ovh.net>
- */
 
 package common
 

@@ -1,32 +1,3 @@
-/**
-
-    Plik upload server
-
-The MIT License (MIT)
-
-Copyright (c) <2015>
-	- Mathieu Bodjikian <mathieu@bodjikian.fr>
-	- Charles-Antoine Mathieu <skatkatt@root.gg>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-**/
-
 package handlers
 
 import (
@@ -45,7 +16,7 @@ import (
 )
 
 func TestGetUser(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	user := common.NewUser()
 	user.ID = "user1"
@@ -80,7 +51,7 @@ func TestGetUser(t *testing.T) {
 }
 
 func TestGetUserNoUser(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	req, err := http.NewRequest("GET", "/me", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -92,7 +63,7 @@ func TestGetUserNoUser(t *testing.T) {
 }
 
 func TestDeleteUser(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	user := common.NewUser()
 	user.ID = "user1"
@@ -117,7 +88,7 @@ func TestDeleteUser(t *testing.T) {
 }
 
 func TestDeleteUserNoUser(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	req, err := http.NewRequest("DELETE", "/me", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -129,7 +100,7 @@ func TestDeleteUserNoUser(t *testing.T) {
 }
 
 func TestGetUserUploads(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	user := common.NewUser()
 	user.ID = "user1"
@@ -173,7 +144,7 @@ func TestGetUserUploads(t *testing.T) {
 }
 
 func TestGetUserUploadsNoUser(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	req, err := http.NewRequest("GET", "/me/uploads", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -185,7 +156,7 @@ func TestGetUserUploadsNoUser(t *testing.T) {
 }
 
 func TestGetUserUploadsWithToken(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	user := common.NewUser()
 	user.ID = "user1"
@@ -234,7 +205,7 @@ func TestGetUserUploadsWithToken(t *testing.T) {
 }
 
 func TestGetUserUploadsInvalidToken(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	user := common.NewUser()
 	user.ID = "user1"
@@ -254,7 +225,7 @@ func TestGetUserUploadsInvalidToken(t *testing.T) {
 }
 
 func TestGetUserUploadsWithSizeAndOffset(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	user := common.NewUser()
 	user.ID = "user1"
@@ -299,7 +270,7 @@ func TestGetUserUploadsWithSizeAndOffset(t *testing.T) {
 }
 
 func TestGetUserUploadsWithInvalidSize(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	user := common.NewUser()
 	user.ID = "user1"
@@ -319,7 +290,7 @@ func TestGetUserUploadsWithInvalidSize(t *testing.T) {
 }
 
 func TestGetUserUploadsWithInvalidOffset(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	user := common.NewUser()
 	user.ID = "user1"
@@ -339,7 +310,7 @@ func TestGetUserUploadsWithInvalidOffset(t *testing.T) {
 }
 
 func TestGetUserStatisticsMetadataBackendError(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	user := common.NewUser()
 	user.ID = "user1"
@@ -366,7 +337,7 @@ func TestGetUserStatisticsMetadataBackendError(t *testing.T) {
 }
 
 func TestRemoveUserUploads(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	user := common.NewUser()
 	user.ID = "user1"
@@ -406,7 +377,7 @@ func TestRemoveUserUploads(t *testing.T) {
 }
 
 func TestRemoveUserUploadsNoUser(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	req, err := http.NewRequest("DELETE", "/me/uploads", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -418,7 +389,7 @@ func TestRemoveUserUploadsNoUser(t *testing.T) {
 }
 
 func TestRemoveUserUploadsWithToken(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	user := common.NewUser()
 	user.ID = "user1"
@@ -464,7 +435,7 @@ func TestRemoveUserUploadsWithToken(t *testing.T) {
 }
 
 func TestRemoveUserUploadsInvalidToken(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	user := common.NewUser()
 	user.ID = "user1"
@@ -484,7 +455,7 @@ func TestRemoveUserUploadsInvalidToken(t *testing.T) {
 }
 
 func TestRemoveUserUploadsMetadataBackendError(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	user := common.NewUser()
 	user.ID = "user1"
@@ -511,7 +482,7 @@ func TestRemoveUserUploadsMetadataBackendError(t *testing.T) {
 }
 
 func TestGetUserStatistics(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	user := common.NewUser()
 	user.ID = "user1"
@@ -563,7 +534,7 @@ func TestGetUserStatistics(t *testing.T) {
 }
 
 func TestGetUserStatisticsToken(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	token := common.NewToken()
 	token.Create()
@@ -620,7 +591,7 @@ func TestGetUserStatisticsToken(t *testing.T) {
 }
 
 func TestGetUserStatisticsInvalidToken(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	user := common.NewUser()
 	user.ID = "user1"
@@ -640,7 +611,7 @@ func TestGetUserStatisticsInvalidToken(t *testing.T) {
 }
 
 func TestGetUserStatisticsNoUser(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	req, err := http.NewRequest("GET", "/me/stats", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -652,7 +623,7 @@ func TestGetUserStatisticsNoUser(t *testing.T) {
 }
 
 func TestRemoveUserStatisticsMetadataBackendError(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	user := common.NewUser()
 	user.ID = "user1"

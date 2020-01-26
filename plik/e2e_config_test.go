@@ -1,31 +1,4 @@
-/**
 
-    Plik upload server
-
-The MIT License (MIT)
-
-Copyright (c) <2015> Copyright holders list can be found in AUTHORS file
-	- Mathieu Bodjikian <mathieu@bodjikian.fr>
-	- Charles-Antoine Mathieu <skatkatt@root.gg>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-**/
 
 package plik
 
@@ -40,7 +13,7 @@ import (
 
 func TestPath(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
-	defer ps.ShutdownNow()
+	defer shutdown(ps)
 
 	ps.GetConfig().Path = "/root"
 
@@ -59,7 +32,7 @@ func TestPath(t *testing.T) {
 
 func TestMaxFileSize(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
-	defer ps.ShutdownNow()
+	defer shutdown(ps)
 
 	ps.GetConfig().MaxFileSize = 10
 
@@ -77,7 +50,7 @@ func TestMaxFileSize(t *testing.T) {
 
 func TestMaxFilePerUploadCreate(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
-	defer ps.ShutdownNow()
+	defer shutdown(ps)
 
 	ps.GetConfig().MaxFilePerUpload = 1
 
@@ -94,7 +67,7 @@ func TestMaxFilePerUploadCreate(t *testing.T) {
 
 func TestMaxFilePerUploadAdd(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
-	defer ps.ShutdownNow()
+	defer shutdown(ps)
 
 	ps.GetConfig().MaxFilePerUpload = 1
 
@@ -114,7 +87,7 @@ func TestMaxFilePerUploadAdd(t *testing.T) {
 
 func TestAnonymousUploadDisabled(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
-	defer ps.ShutdownNow()
+	defer shutdown(ps)
 
 	ps.GetConfig().Authentication = true
 	ps.GetConfig().NoAnonymousUploads = true
@@ -125,7 +98,7 @@ func TestAnonymousUploadDisabled(t *testing.T) {
 	user := common.NewUser()
 	user.ID = "ovh:id"
 	token := user.NewToken()
-	err = ps.GetMetadataBackend().SaveUser(ps.NewContext(), user)
+	err = ps.GetMetadataBackend().CreateUser(user)
 	require.NoError(t, err, "unable to start plik server")
 
 	err = pc.NewUpload().Create()
@@ -144,7 +117,7 @@ func TestAnonymousUploadDisabled(t *testing.T) {
 
 func TestDefaultTTL(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
-	defer ps.ShutdownNow()
+	defer shutdown(ps)
 
 	ps.GetConfig().DefaultTTL = 26
 
@@ -161,7 +134,7 @@ func TestDefaultTTL(t *testing.T) {
 
 func TestTTLNoLimit(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
-	defer ps.ShutdownNow()
+	defer shutdown(ps)
 
 	ps.GetConfig().MaxTTL = -1
 
@@ -178,7 +151,7 @@ func TestTTLNoLimit(t *testing.T) {
 
 func TestTTLNoLimitDisabled(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
-	defer ps.ShutdownNow()
+	defer shutdown(ps)
 
 	ps.GetConfig().MaxTTL = 26
 
@@ -194,7 +167,7 @@ func TestTTLNoLimitDisabled(t *testing.T) {
 
 func TestPasswordDisabled(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
-	defer ps.ShutdownNow()
+	defer shutdown(ps)
 
 	ps.GetConfig().ProtectedByPassword = false
 
@@ -211,7 +184,7 @@ func TestPasswordDisabled(t *testing.T) {
 
 func TestOneShotDisabled(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
-	defer ps.ShutdownNow()
+	defer shutdown(ps)
 
 	ps.GetConfig().OneShot = false
 
@@ -227,7 +200,7 @@ func TestOneShotDisabled(t *testing.T) {
 
 func TestRemovableDisabled(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
-	defer ps.ShutdownNow()
+	defer shutdown(ps)
 
 	ps.GetConfig().Removable = false
 
@@ -243,7 +216,7 @@ func TestRemovableDisabled(t *testing.T) {
 
 func TestDownloadDomain(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
-	defer ps.ShutdownNow()
+	defer shutdown(ps)
 
 	ps.GetConfig().DownloadDomain = "http://127.0.0.1:13425"
 	err := ps.GetConfig().Initialize()
@@ -271,7 +244,7 @@ func TestDownloadDomain(t *testing.T) {
 
 func TestUploadWhitelistOK(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
-	defer ps.ShutdownNow()
+	defer shutdown(ps)
 
 	ps.GetConfig().UploadWhitelist = append(ps.GetConfig().UploadWhitelist, "127.0.0.1")
 	err := ps.GetConfig().Initialize()
@@ -288,7 +261,7 @@ func TestUploadWhitelistOK(t *testing.T) {
 
 func TestUploadWhitelistKO(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
-	defer ps.ShutdownNow()
+	defer shutdown(ps)
 
 	ps.GetConfig().UploadWhitelist = append(ps.GetConfig().UploadWhitelist, "1.1.1.1")
 	err := ps.GetConfig().Initialize()
@@ -305,7 +278,7 @@ func TestUploadWhitelistKO(t *testing.T) {
 
 func TestSourceIpHeader(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
-	defer ps.ShutdownNow()
+	defer shutdown(ps)
 
 	ps.GetConfig().SourceIPHeader = "X-Remote-Ip"
 	ps.GetConfig().UploadWhitelist = append(ps.GetConfig().UploadWhitelist, "1.1.1.1")

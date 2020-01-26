@@ -1,32 +1,3 @@
-/**
-
-    Plik upload server
-
-The MIT License (MIT)
-
-Copyright (c) <2015>
-	- Mathieu Bodjikian <mathieu@bodjikian.fr>
-	- Charles-Antoine Mathieu <skatkatt@root.gg>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-**/
-
 package middleware
 
 import (
@@ -51,15 +22,19 @@ func Upload(ctx *juliet.Context, next http.Handler) http.Handler {
 		uploadID := vars["uploadID"]
 		if uploadID == "" {
 			log.Warning("Missing upload id")
-			context.Fail(ctx, req, resp, "Missing upload id", 400)
+			context.Fail(ctx, req, resp, "Missing upload id", http.StatusBadRequest)
 			return
 		}
 
 		// Get upload metadata
-		upload, err := context.GetMetadataBackend(ctx).Get(ctx, uploadID)
+		upload, err := context.GetMetadataBackend(ctx).GetUpload(uploadID)
 		if err != nil {
-			log.Warningf("Upload not found : %s", err)
-			context.Fail(ctx, req, resp, fmt.Sprintf("Upload %s not found", uploadID), 404)
+			log.Warningf("Unable to get upload metadata : %s", err)
+			context.Fail(ctx, req, resp, fmt.Sprintf("Unable to get upload metadata : %s", err), http.StatusInternalServerError)
+			return
+		}
+		if upload == nil {
+			context.Fail(ctx, req, resp, fmt.Sprintf("Upload %s not found", uploadID), http.StatusNotFound)
 			return
 		}
 
@@ -70,40 +45,40 @@ func Upload(ctx *juliet.Context, next http.Handler) http.Handler {
 		// Test if upload is not expired
 		if upload.IsExpired() {
 			log.Warningf("Upload is expired since %s", time.Since(time.Unix(upload.Creation, int64(0)).Add(time.Duration(upload.TTL)*time.Second)).String())
-			context.Fail(ctx, req, resp, fmt.Sprintf("Upload %s has expired", uploadID), 404)
+			context.Fail(ctx, req, resp, fmt.Sprintf("Upload %s has expired", uploadID), http.StatusNotFound)
 			return
 		}
 
 		// Save upload in the request context
-		ctx.Set("upload", upload)
+		context.SetUpload(ctx, upload)
 
 		forbidden := func() {
 			resp.Header().Set("WWW-Authenticate", "Basic realm=\"plik\"")
 
 			// Shouldn't redirect here to let the browser ask for credentials and retry
-			ctx.Set("redirect", false)
+			context.SetRedirectOnFailure(ctx, false)
 
-			context.Fail(ctx, req, resp, "Please provide valid credentials to access this upload", 401)
+			context.Fail(ctx, req, resp, "Please provide valid credentials to access this upload", http.StatusUnauthorized)
 		}
 
 		// Check upload token
 		uploadToken := req.Header.Get("X-UploadToken")
 		if uploadToken != "" && uploadToken == upload.UploadToken {
-			ctx.Set("is_upload_admin", true)
+			context.SetUploadAdmin(ctx, true)
 		} else {
 			token := context.GetToken(ctx)
 			if token != nil {
 				// A user authenticated with a token can manage uploads created with such token
 				if upload.Token == token.Token {
-					ctx.Set("is_upload_admin", true)
+					context.SetUploadAdmin(ctx, true)
 				}
 			} else {
 				// Check if upload belongs to user or if user is admin
 				user := context.GetUser(ctx)
 				if context.IsAdmin(ctx) {
-					ctx.Set("is_upload_admin", true)
+					context.SetUploadAdmin(ctx, true)
 				} else if user != nil && upload.User == user.ID {
-					ctx.Set("is_upload_admin", true)
+					context.SetUploadAdmin(ctx, true)
 				}
 			}
 		}

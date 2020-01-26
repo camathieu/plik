@@ -85,9 +85,9 @@ func (b *Backend) CreateUpload(upload *common.Upload) (err error) {
 }
 
 // Get implementation for Bolt Metadata Backend
-func (b *Backend) GetUpload(id string) (upload *common.Upload, err error) {
-	if id == "" {
-		return nil, errors.New("Unable to get upload : Missing upload id")
+func (b *Backend) GetUpload(ID string) (upload *common.Upload, err error) {
+	if ID == "" {
+		return nil, errors.New("Unable to get upload : Missing upload ID")
 	}
 
 	// Get json metadata from Bolt database
@@ -97,7 +97,7 @@ func (b *Backend) GetUpload(id string) (upload *common.Upload, err error) {
 			return fmt.Errorf("Unable to get uploads Bolt bucket")
 		}
 
-		b := bucket.Get([]byte(id))
+		b := bucket.Get([]byte(ID))
 		if b == nil || len(b) == 0 {
 			return fmt.Errorf("Unable to get upload metadata from Bolt bucket")
 		}
@@ -115,13 +115,13 @@ func (b *Backend) GetUpload(id string) (upload *common.Upload, err error) {
 	return upload, nil
 }
 
-func (b *Backend) UpdateUpload(upload *common.Upload, uploadTx common.UploadTx)  (err error) {
+func (b *Backend) UpdateUpload(upload *common.Upload, uploadTx common.UploadTx) (u *common.Upload, err error) {
 	if upload == nil {
-		return errors.New("Unable to remove upload : Missing upload")
+		return nil, errors.New("Unable to remove upload : Missing upload")
 	}
 
 	// Remove upload from bolt database
-	return b.db.Update(func(tx *bolt.Tx) error {
+	err = b.db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte("uploads"))
 		if bucket == nil {
 			return fmt.Errorf("Unable to get uploads Bolt bucket")
@@ -133,25 +133,25 @@ func (b *Backend) UpdateUpload(upload *common.Upload, uploadTx common.UploadTx) 
 		}
 
 		// Deserialize metadata from json
-		upload = new(common.Upload)
-		err = json.Unmarshal(b, upload)
+		u = new(common.Upload)
+		err = json.Unmarshal(b, u)
 		if err != nil {
 			return fmt.Errorf("Unable to unserialize metadata from json \"%s\" : %s", string(b), err)
 		}
 
 		// Mutate upload object
-		err = uploadTx(upload)
+		err = uploadTx(u)
 		if err != nil {
 			return fmt.Errorf("Unable to execute upload tx : %s", err)
 		}
 
 		// Serialize metadata to json
-		j, err := json.Marshal(upload)
+		j, err := json.Marshal(u)
 		if err != nil {
 			return fmt.Errorf("Unable to serialize metadata to json : %s", err)
-
 		}
 
+		// Avoid the possibility to override an other upload by changing the upload.ID in the tx
 		err = bucket.Put([]byte(upload.ID), j)
 		if err != nil {
 			return fmt.Errorf("Unable save upload metadata : %s", err)
@@ -159,6 +159,12 @@ func (b *Backend) UpdateUpload(upload *common.Upload, uploadTx common.UploadTx) 
 
 		return nil
 	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return u, err
 }
 
 // Remove implementation for Bolt Metadata Backend

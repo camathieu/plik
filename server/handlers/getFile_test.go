@@ -1,32 +1,3 @@
-/**
-
-    Plik upload server
-
-The MIT License (MIT)
-
-Copyright (c) <2015>
-	- Mathieu Bodjikian <mathieu@bodjikian.fr>
-	- Charles-Antoine Mathieu <skatkatt@root.gg>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-**/
-
 package handlers
 
 import (
@@ -54,7 +25,7 @@ func createTestFile(ctx *juliet.Context, upload *common.Upload, file *common.Fil
 }
 
 func TestGetFile(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 	context.SetUploadAdmin(ctx, true)
 
 	data := "data"
@@ -91,9 +62,10 @@ func TestGetFile(t *testing.T) {
 }
 
 func TestGetOneShotFile(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	upload := common.NewUpload()
+	upload.Create()
 	upload.OneShot = true
 	file := upload.NewFile()
 	file.Name = "file"
@@ -119,44 +91,18 @@ func TestGetOneShotFile(t *testing.T) {
 	require.NoError(t, err, "unable to read response body")
 	require.Equal(t, data, string(respBody), "invalid file content")
 
-	rr = httptest.NewRecorder()
-	GetFile(ctx, rr, req)
-
-	context.TestFail(t, rr, http.StatusBadRequest, "status is not uploaded")
-}
-
-func TestGetDownloadedFile(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
-
-	upload := common.NewUpload()
-	upload.OneShot = true
-	file := upload.NewFile()
-	file.Name = "file"
-	file.Status = "downloaded"
-	createTestUpload(ctx, upload)
-
-	err := createTestFile(ctx, upload, file, bytes.NewBuffer([]byte("data")))
-	require.NoError(t, err, "unable to create test file")
-
-	context.SetUpload(ctx, upload)
-	context.SetFile(ctx, file)
-
-	req, err := http.NewRequest("GET", "/file/"+upload.ID+"/"+file.ID+"/"+file.Name, bytes.NewBuffer([]byte{}))
-	require.NoError(t, err, "unable to create new request")
-
-	rr := httptest.NewRecorder()
-	GetFile(ctx, rr, req)
-
-	context.TestFail(t, rr, http.StatusBadRequest, "status is not uploaded")
+	u, err := context.GetMetadataBackend(ctx).GetUpload(upload.ID)
+	require.NoError(t, err, "unexpected error getting upload")
+	require.Nil(t, u, "upload should have been deleted")
 }
 
 func TestGetRemovedFile(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	upload := common.NewUpload()
 	file := upload.NewFile()
 	file.Name = "file"
-	file.Status = "removed"
+	file.Status = common.FILE_REMOVED
 	createTestUpload(ctx, upload)
 
 	err := createTestFile(ctx, upload, file, bytes.NewBuffer([]byte("data")))
@@ -171,12 +117,36 @@ func TestGetRemovedFile(t *testing.T) {
 	rr := httptest.NewRecorder()
 	GetFile(ctx, rr, req)
 
-	context.TestFail(t, rr, http.StatusBadRequest, "status is not uploaded")
+	context.TestFail(t, rr, http.StatusNotFound, "status is not uploaded")
+}
+
+func TestGetDeletedFile(t *testing.T) {
+	ctx := newTestingContext(common.NewConfiguration())
+
+	upload := common.NewUpload()
+	file := upload.NewFile()
+	file.Name = "file"
+	file.Status = common.FILE_DELETED
+	createTestUpload(ctx, upload)
+
+	err := createTestFile(ctx, upload, file, bytes.NewBuffer([]byte("data")))
+	require.NoError(t, err, "unable to create test file")
+
+	context.SetUpload(ctx, upload)
+	context.SetFile(ctx, file)
+
+	req, err := http.NewRequest("GET", "/file/"+upload.ID+"/"+file.ID+"/"+file.Name, bytes.NewBuffer([]byte{}))
+	require.NoError(t, err, "unable to create new request")
+
+	rr := httptest.NewRecorder()
+	GetFile(ctx, rr, req)
+
+	context.TestFail(t, rr, http.StatusNotFound, "status is not uploaded")
 }
 
 func TestGetFileInvalidDownloadDomain(t *testing.T) {
 	config := common.NewConfiguration()
-	ctx := context.NewTestingContext(config)
+	ctx := newTestingContext(config)
 	config.DownloadDomain = "http://download.domain"
 
 	err := config.Initialize()
@@ -192,7 +162,7 @@ func TestGetFileInvalidDownloadDomain(t *testing.T) {
 
 func TestGetFileMissingUpload(t *testing.T) {
 	config := common.NewConfiguration()
-	ctx := context.NewTestingContext(config)
+	ctx := newTestingContext(config)
 
 	req, err := http.NewRequest("GET", "/file/", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -204,7 +174,7 @@ func TestGetFileMissingUpload(t *testing.T) {
 
 func TestGetFileMissingFile(t *testing.T) {
 	config := common.NewConfiguration()
-	ctx := context.NewTestingContext(config)
+	ctx := newTestingContext(config)
 	context.SetUpload(ctx, common.NewUpload())
 
 	req, err := http.NewRequest("GET", "/file/", bytes.NewBuffer([]byte{}))
@@ -217,7 +187,7 @@ func TestGetFileMissingFile(t *testing.T) {
 
 func TestGetHtmlFile(t *testing.T) {
 	config := common.NewConfiguration()
-	ctx := context.NewTestingContext(config)
+	ctx := newTestingContext(config)
 
 	upload := common.NewUpload()
 	upload.Create()
@@ -243,7 +213,7 @@ func TestGetHtmlFile(t *testing.T) {
 
 func TestGetFileNoType(t *testing.T) {
 	config := common.NewConfiguration()
-	ctx := context.NewTestingContext(config)
+	ctx := newTestingContext(config)
 
 	upload := common.NewUpload()
 	upload.Create()
@@ -268,7 +238,7 @@ func TestGetFileNoType(t *testing.T) {
 
 func TestGetFileDataBackendError(t *testing.T) {
 	config := common.NewConfiguration()
-	ctx := context.NewTestingContext(config)
+	ctx := newTestingContext(config)
 
 	upload := common.NewUpload()
 	upload.Create()
@@ -293,7 +263,7 @@ func TestGetFileDataBackendError(t *testing.T) {
 
 func TestGetFileMetadataBackendError(t *testing.T) {
 	config := common.NewConfiguration()
-	ctx := context.NewTestingContext(config)
+	ctx := newTestingContext(config)
 
 	upload := common.NewUpload()
 	upload.OneShot = true

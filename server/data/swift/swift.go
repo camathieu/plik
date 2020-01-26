@@ -1,43 +1,13 @@
-/**
-
-    Plik upload server
-
-The MIT License (MIT)
-
-Copyright (c) <2015>
-	- Mathieu Bodjikian <mathieu@bodjikian.fr>
-	- Charles-Antoine Mathieu <skatkatt@root.gg>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-**/
-
 package swift
 
 import (
-	"github.com/root-gg/utils"
+	"fmt"
 	"io"
 
 	"github.com/ncw/swift"
-	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/plik/server/context"
 	"github.com/root-gg/plik/server/data"
+	"github.com/root-gg/utils"
 )
 
 // Ensure Swift Data Backend implements data.Backend interface
@@ -72,35 +42,30 @@ func NewBackend(config *Config) (b *Backend) {
 }
 
 // GetFile implementation for Swift Data Backend
-func (b *Backend) GetFile(ctx *juliet.Context, upload *common.Upload, fileID string) (reader io.ReadCloser, err error) {
-	log := context.GetLogger(ctx)
-
-	err = b.auth(ctx)
+func (b *Backend) GetFile(upload *common.Upload, fileID string) (reader io.ReadCloser, err error) {
+	err = b.auth()
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	reader, pipeWriter := io.Pipe()
 	uuid := b.getFileID(upload, fileID)
 	go func() {
 		_, err = b.connection.ObjectGet(b.config.Container, uuid, pipeWriter, true, nil)
-		defer pipeWriter.Close()
+		defer func() { _ = pipeWriter.Close() }()
 		if err != nil {
-			err = log.EWarningf("Unable to get object %s : %s", uuid, err)
 			return
 		}
 	}()
 
-	return
+	return reader, nil
 }
 
 // AddFile implementation for Swift Data Backend
-func (b *Backend) AddFile(ctx *juliet.Context, upload *common.Upload, file *common.File, fileReader io.Reader) (backendDetails map[string]interface{}, err error) {
-	log := context.GetLogger(ctx)
-
-	err = b.auth(ctx)
+func (b *Backend) AddFile(upload *common.Upload, file *common.File, fileReader io.Reader) (backendDetails map[string]interface{}, err error) {
+	err = b.auth()
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	uuid := b.getFileID(upload, file.ID)
@@ -108,29 +73,27 @@ func (b *Backend) AddFile(ctx *juliet.Context, upload *common.Upload, file *comm
 
 	_, err = io.Copy(object, fileReader)
 	if err != nil {
-		err = log.EWarningf("Unable to save object %s : %s", uuid, err)
-		return
+		return nil, err
 	}
-	object.Close()
-	log.Infof("Object %s successfully saved", uuid)
+	err = object.Close()
+	if err != nil {
+		return nil, err
+	}
 
-	return
+	return backendDetails, nil
 }
 
 // RemoveFile implementation for Swift Data Backend
-func (b *Backend) RemoveFile(ctx *juliet.Context, upload *common.Upload, fileID string) (err error) {
-	log := context.GetLogger(ctx)
-
-	err = b.auth(ctx)
+func (b *Backend) RemoveFile(upload *common.Upload, fileID string) (err error) {
+	err = b.auth()
 	if err != nil {
-		return
+		return err
 	}
 
 	uuid := b.getFileID(upload, fileID)
 	err = b.connection.ObjectDelete(b.config.Container, uuid)
 	if err != nil {
-		err = log.EWarningf("Unable to remove object %s : %s", uuid, err)
-		return
+		return err
 	}
 
 	return
@@ -138,10 +101,8 @@ func (b *Backend) RemoveFile(ctx *juliet.Context, upload *common.Upload, fileID 
 
 // RemoveUpload implementation for Swift Data Backend
 // Iterates on each upload file and call removeFile
-func (b *Backend) RemoveUpload(ctx *juliet.Context, upload *common.Upload) (err error) {
-	log := context.GetLogger(ctx)
-
-	err = b.auth(ctx)
+func (b *Backend) RemoveUpload(upload *common.Upload) (err error) {
+	err = b.auth()
 	if err != nil {
 		return
 	}
@@ -150,20 +111,18 @@ func (b *Backend) RemoveUpload(ctx *juliet.Context, upload *common.Upload) (err 
 		uuid := b.getFileID(upload, fileID)
 		err = b.connection.ObjectDelete(b.config.Container, uuid)
 		if err != nil {
-			err = log.EWarningf("Unable to remove object %s : %s", uuid, err)
+			return err
 		}
 	}
 
-	return
+	return nil
 }
 
 func (b *Backend) getFileID(upload *common.Upload, fileID string) string {
 	return upload.ID + "." + fileID
 }
 
-func (b *Backend) auth(ctx *juliet.Context) (err error) {
-	log := context.GetLogger(ctx)
-
+func (b *Backend) auth() (err error) {
 	if b.connection != nil && b.connection.Authenticated() {
 		return
 	}
@@ -178,13 +137,15 @@ func (b *Backend) auth(ctx *juliet.Context) (err error) {
 	// Authenticate
 	err = connection.Authenticate()
 	if err != nil {
-		err = log.EWarningf("Unable to autenticate : %s", err)
-		return err
+		return fmt.Errorf("unable to autenticate : %s", err)
 	}
 	b.connection = connection
 
 	// Create container
-	b.connection.ContainerCreate(b.config.Container, nil)
+	err = b.connection.ContainerCreate(b.config.Container, nil)
+	if err != nil {
+		return err
+	}
 
-	return
+	return nil
 }

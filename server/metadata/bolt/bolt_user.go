@@ -1,32 +1,3 @@
-/**
-
-    Plik upload server
-
-The MIT License (MIT)
-
-Copyright (c) <2015>
-	- Mathieu Bodjikian <mathieu@bodjikian.fr>
-	- Charles-Antoine Mathieu <skatkatt@root.gg>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-**/
-
 package bolt
 
 import (
@@ -78,8 +49,8 @@ func (b *Backend) CreateUser(user *common.User) (err error) {
 }
 
 // GetUser implementation for Bolt Metadata Backend
-func (b *Backend) GetUser(id string, token string) (user *common.User, err error) {
-	if id == "" && token == "" {
+func (b *Backend) GetUser(userID string) (user *common.User, err error) {
+	if userID == "" {
 		return nil, errors.New("Unable to get user : Missing user id or token")
 	}
 
@@ -90,16 +61,50 @@ func (b *Backend) GetUser(id string, token string) (user *common.User, err error
 			return fmt.Errorf("Unable to get users Bolt bucket")
 		}
 
-		if id == "" && token != "" {
-			// token index lookup
-			idBytes := bucket.Get([]byte(token))
-			if idBytes == nil || len(idBytes) == 0 {
-				return nil
-			}
-			id = string(idBytes)
+		b := bucket.Get([]byte(userID))
+
+		// User not found but no error
+		if b == nil || len(b) == 0 {
+			return nil
 		}
 
-		b := bucket.Get([]byte(id))
+		// Unserialize user from json
+		user = common.NewUser()
+		err = json.Unmarshal(b, user)
+		if err != nil {
+			return fmt.Errorf("Unable to unserialize user from json \"%s\" : %s", string(b), err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("Unable to get user : %s", err)
+	}
+
+	return user, nil
+}
+
+// GetUserFromToken implementation for Bolt Metadata Backend
+func (b *Backend) GetUserFromToken(token string) (user *common.User, err error) {
+	if token == "" {
+		return nil, errors.New("Unable to get user : Missing user id or token")
+	}
+
+	// Get json user from Bolt database
+	err = b.db.View(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket([]byte("users"))
+		if bucket == nil {
+			return fmt.Errorf("Unable to get users Bolt bucket")
+		}
+
+		// token index lookup
+		idBytes := bucket.Get([]byte(token))
+		if idBytes == nil || len(idBytes) == 0 {
+			return nil
+		}
+		userID := string(idBytes)
+
+		b := bucket.Get([]byte(userID))
 
 		// User not found but no error
 		if b == nil || len(b) == 0 {
@@ -123,14 +128,13 @@ func (b *Backend) GetUser(id string, token string) (user *common.User, err error
 }
 
 // RemoveUser implementation for Bolt Metadata Backend
-func (b *Backend) UpdateUser(user *common.User, userTx common.UserTx) (err error) {
+func (b *Backend) UpdateUser(user *common.User, userTx common.UserTx) (u *common.User, err error) {
 	if user == nil {
-		return errors.New("Unable to remove user : Missing user")
+		return nil, errors.New("Unable to remove user : Missing user")
 	}
 
-
 	// Get json user from Bolt database
-	return b.db.View(func(tx *bolt.Tx) error {
+	err = b.db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte("users"))
 		if bucket == nil {
 			return fmt.Errorf("Unable to get users Bolt bucket")
@@ -144,25 +148,26 @@ func (b *Backend) UpdateUser(user *common.User, userTx common.UserTx) (err error
 		}
 
 		// Deserialize user from json
-		user = common.NewUser()
-		err = json.Unmarshal(b, user)
+		u = common.NewUser()
+		err = json.Unmarshal(b, u)
 		if err != nil {
 			return fmt.Errorf("Unable to unserialize user from json \"%s\" : %s", string(b), err)
 		}
 
 		// Apply UserTx
-		err = userTx(user)
+		err = userTx(u)
 		if err != nil {
 			return err
 		}
 
 		// Serialize user to json
-		j, err := json.Marshal(user)
+		j, err := json.Marshal(u)
 		if err != nil {
 			return fmt.Errorf("Unable to serialize user to json : %s", err)
 		}
 
 		// Save user
+		// Avoid the possibility to override an other upload by changing the upload.ID in the tx
 		err = bucket.Put([]byte(user.ID), j)
 		if err != nil {
 			return fmt.Errorf("Unable save user : %s", err)
@@ -170,6 +175,12 @@ func (b *Backend) UpdateUser(user *common.User, userTx common.UserTx) (err error
 
 		return nil
 	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return u, err
 }
 
 // RemoveUser implementation for Bolt Metadata Backend
@@ -200,7 +211,6 @@ func (b *Backend) RemoveUser(user *common.User) (err error) {
 		return nil
 	})
 }
-
 
 // GetUserUploads implementation for Bolt Metadata Backend
 func (b *Backend) GetUserUploads(user *common.User, token *common.Token) (ids []string, err error) {

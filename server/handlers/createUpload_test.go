@@ -1,32 +1,3 @@
-/**
-
-    Plik upload server
-
-The MIT License (MIT)
-
-Copyright (c) <2015>
-	- Mathieu Bodjikian <mathieu@bodjikian.fr>
-	- Charles-Antoine Mathieu <skatkatt@root.gg>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-**/
-
 package handlers
 
 import (
@@ -52,7 +23,7 @@ func createTestUpload(ctx *juliet.Context, uploadToCreate *common.Upload) {
 }
 
 func TestCreateUploadWithoutOptions(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	req, err := http.NewRequest("POST", "/upload", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -74,7 +45,7 @@ func TestCreateUploadWithoutOptions(t *testing.T) {
 }
 
 func TestCreateUploadWithOptions(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	uploadToCreate := &common.Upload{}
 	uploadToCreate.OneShot = true
@@ -132,7 +103,7 @@ func TestCreateUploadWithOptions(t *testing.T) {
 }
 
 func TestCreateWithForbiddenOptions(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	uploadToCreate := &common.Upload{}
 	uploadToCreate.ID = "custom"
@@ -166,7 +137,7 @@ func TestCreateWithForbiddenOptions(t *testing.T) {
 }
 
 func TestCreateWithoutAnonymousUpload(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 	context.GetConfig(ctx).NoAnonymousUploads = true
 
 	uploadToCreate := &common.Upload{}
@@ -183,7 +154,7 @@ func TestCreateWithoutAnonymousUpload(t *testing.T) {
 }
 
 func TestCreateNotWhitelisted(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 	context.SetWhitelisted(ctx, false)
 
 	uploadToCreate := &common.Upload{}
@@ -200,7 +171,7 @@ func TestCreateNotWhitelisted(t *testing.T) {
 }
 
 func TestCreateInvalidRequestBody(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	req, err := http.NewRequest("POST", "/upload", bytes.NewBuffer([]byte("invalid request body")))
 	require.NoError(t, err, "unable to create new request")
@@ -212,7 +183,7 @@ func TestCreateInvalidRequestBody(t *testing.T) {
 }
 
 func TestCreateTooManyFiles(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 	context.GetConfig(ctx).MaxFilePerUpload = 2
 
 	uploadToCreate := &common.Upload{}
@@ -237,7 +208,7 @@ func TestCreateTooManyFiles(t *testing.T) {
 }
 
 func TestCreateOneShotWhenOneShotIsDisabled(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 	context.GetConfig(ctx).OneShot = false
 
 	uploadToCreate := &common.Upload{}
@@ -255,7 +226,7 @@ func TestCreateOneShotWhenOneShotIsDisabled(t *testing.T) {
 }
 
 func TestCreateOneShotWhenRemovableIsDisabled(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 	context.GetConfig(ctx).Removable = false
 
 	uploadToCreate := &common.Upload{}
@@ -273,7 +244,7 @@ func TestCreateOneShotWhenRemovableIsDisabled(t *testing.T) {
 }
 
 func TestCreateStreamWhenStreamIsDisabled(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 	context.GetConfig(ctx).StreamMode = false
 
 	uploadToCreate := &common.Upload{}
@@ -291,7 +262,7 @@ func TestCreateStreamWhenStreamIsDisabled(t *testing.T) {
 }
 
 func TestCreateInvalidTTL(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 	context.GetConfig(ctx).MaxTTL = 30
 
 	uploadToCreate := &common.Upload{}
@@ -309,7 +280,7 @@ func TestCreateInvalidTTL(t *testing.T) {
 }
 
 func TestCreateInvalidNegativeTTL(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	uploadToCreate := &common.Upload{}
 	uploadToCreate.TTL = -365
@@ -326,7 +297,7 @@ func TestCreateInvalidNegativeTTL(t *testing.T) {
 }
 
 func TestCreateWithPasswordWhenPasswordIsNotEnabled(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 	context.GetConfig(ctx).ProtectedByPassword = false
 
 	uploadToCreate := &common.Upload{}
@@ -344,7 +315,7 @@ func TestCreateWithPasswordWhenPasswordIsNotEnabled(t *testing.T) {
 }
 
 func TestCreateWithPasswordAndDefaultLogin(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	uploadToCreate := &common.Upload{}
 	uploadToCreate.Password = "password"
@@ -369,7 +340,7 @@ func TestCreateWithPasswordAndDefaultLogin(t *testing.T) {
 }
 
 func TestCreateWithYubikeyWhenYubikeyIsNotEnabled(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	uploadToCreate := &common.Upload{}
 	uploadToCreate.Yubikey = "yubikey"
@@ -386,7 +357,7 @@ func TestCreateWithYubikeyWhenYubikeyIsNotEnabled(t *testing.T) {
 }
 
 func TestCreateWithFilenameTooLong(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 
 	uploadToCreate := common.NewUpload()
 	file := common.NewFile()
@@ -410,7 +381,7 @@ func TestCreateWithFilenameTooLong(t *testing.T) {
 }
 
 func TestCreateWithMetadataBackendError(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 	context.GetMetadataBackend(ctx).(*metadatadata_test.Backend).SetError(errors.New("metadata backend error"))
 
 	uploadToCreate := common.NewUpload()

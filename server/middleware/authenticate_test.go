@@ -1,31 +1,3 @@
-/**
-
-    Plik upload server
-
-The MIT License (MIT)
-
-Copyright (c) <2015>
-	- Mathieu Bodjikian <mathieu@bodjikian.fr>
-	- Charles-Antoine Mathieu <skatkatt@root.gg>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-**/
 package middleware
 
 import (
@@ -42,7 +14,7 @@ import (
 )
 
 func TestAuthenticateTokenNoUser(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 	context.GetConfig(ctx).Authentication = true
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
@@ -57,7 +29,7 @@ func TestAuthenticateTokenNoUser(t *testing.T) {
 }
 
 func TestAuthenticateTokenMetadataBackendError(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 	context.GetConfig(ctx).Authentication = true
 	context.GetMetadataBackend(ctx).(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
 
@@ -73,13 +45,13 @@ func TestAuthenticateTokenMetadataBackendError(t *testing.T) {
 }
 
 func TestAuthenticateToken(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 	context.GetConfig(ctx).Authentication = true
 
 	user := common.NewUser()
 	token := user.NewToken()
 
-	err := context.GetMetadataBackend(ctx).SaveUser(ctx, user)
+	err := context.GetMetadataBackend(ctx).CreateUser(user)
 	require.NoError(t, err, "unable to save user to impersonate")
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
@@ -99,7 +71,7 @@ func TestAuthenticateToken(t *testing.T) {
 }
 
 func TestAuthenticateInvalidSessionCookie(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 	context.GetConfig(ctx).Authentication = true
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
@@ -117,7 +89,7 @@ func TestAuthenticateInvalidSessionCookie(t *testing.T) {
 }
 
 func TestAuthenticateMissingXSRFHeader(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 	context.GetConfig(ctx).Authentication = true
 	context.GetConfig(ctx).OvhAuthentication = true
 
@@ -142,7 +114,7 @@ func TestAuthenticateMissingXSRFHeader(t *testing.T) {
 }
 
 func TestAuthenticateInvalidXSRFHeader(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 	context.GetConfig(ctx).Authentication = true
 	context.GetConfig(ctx).OvhAuthentication = true
 
@@ -169,7 +141,7 @@ func TestAuthenticateInvalidXSRFHeader(t *testing.T) {
 }
 
 func TestAuthenticateMetadataBackendError(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 	context.GetConfig(ctx).OvhAuthentication = true
 	context.GetConfig(ctx).Authentication = true
 
@@ -178,7 +150,7 @@ func TestAuthenticateMetadataBackendError(t *testing.T) {
 
 	user := common.NewUser()
 	user.ID = "ovh:user"
-	err := context.GetMetadataBackend(ctx).SaveUser(ctx, user)
+	err := context.GetMetadataBackend(ctx).CreateUser(user)
 	require.NoError(t, err, "unable to save user")
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
@@ -197,7 +169,7 @@ func TestAuthenticateMetadataBackendError(t *testing.T) {
 }
 
 func TestAuthenticateNoUser(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 	context.GetConfig(ctx).OvhAuthentication = true
 	context.GetConfig(ctx).Authentication = true
 
@@ -222,7 +194,7 @@ func TestAuthenticateNoUser(t *testing.T) {
 }
 
 func TestAuthenticate(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 	context.GetConfig(ctx).OvhAuthentication = true
 	context.GetConfig(ctx).Authentication = true
 
@@ -231,7 +203,7 @@ func TestAuthenticate(t *testing.T) {
 
 	user := common.NewUser()
 	user.ID = "ovh:user"
-	err := context.GetMetadataBackend(ctx).SaveUser(ctx, user)
+	err := context.GetMetadataBackend(ctx).CreateUser(user)
 	require.NoError(t, err, "unable to save user")
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
@@ -249,7 +221,7 @@ func TestAuthenticate(t *testing.T) {
 }
 
 func TestAuthenticateAdminUser(t *testing.T) {
-	ctx := context.NewTestingContext(common.NewConfiguration())
+	ctx := newTestingContext(common.NewConfiguration())
 	context.GetConfig(ctx).OvhAuthentication = true
 	context.GetConfig(ctx).Authentication = true
 
@@ -258,7 +230,7 @@ func TestAuthenticateAdminUser(t *testing.T) {
 
 	user := common.NewUser()
 	user.ID = "ovh:user"
-	err := context.GetMetadataBackend(ctx).SaveUser(ctx, user)
+	err := context.GetMetadataBackend(ctx).CreateUser(user)
 	require.NoError(t, err, "unable to save user")
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
