@@ -50,13 +50,13 @@ func GetFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 
 	// File status pre-check
 	if upload.Stream {
-		if file.Status != common.FILE_UPLOADING {
-			context.Fail(ctx, req, resp, fmt.Sprintf("file %s (%s) status is not %s", file.Name, file.ID, common.FILE_UPLOADING), http.StatusNotFound)
+		if file.Status != common.FileUploading {
+			context.Fail(ctx, req, resp, fmt.Sprintf("file %s (%s) status is not %s", file.Name, file.ID, common.FileUploading), http.StatusNotFound)
 			return
 		}
 	} else {
-		if file.Status != common.FILE_UPLOADED {
-			context.Fail(ctx, req, resp, fmt.Sprintf("file %s (%s) status is not %s", file.Name, file.ID, common.FILE_UPLOADED), http.StatusNotFound)
+		if file.Status != common.FileUploaded {
+			context.Fail(ctx, req, resp, fmt.Sprintf("file %s (%s) status is not %s", file.Name, file.ID, common.FileUploaded), http.StatusNotFound)
 			return
 		}
 	}
@@ -75,15 +75,15 @@ func GetFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 
 			// File status double-check
 			if upload.Stream {
-				if f.Status != common.FILE_UPLOADING {
-					return common.NewTxError(fmt.Sprintf("invalid file %s (%s) status %s, expected %s", file.Name, file.ID, file.Status, common.FILE_UPLOADING), http.StatusBadRequest)
+				if f.Status != common.FileUploading {
+					return common.NewTxError(fmt.Sprintf("invalid file %s (%s) status %s, expected %s", file.Name, file.ID, file.Status, common.FileUploading), http.StatusBadRequest)
 				}
-				f.Status = common.FILE_DELETED
+				f.Status = common.FileDeleted
 			} else if upload.OneShot {
-				if f.Status != common.FILE_UPLOADED {
-					return common.NewTxError(fmt.Sprintf("invalid file %s (%s) status %s, expected %s", file.Name, file.ID, file.Status, common.FILE_UPLOADED), http.StatusBadRequest)
+				if f.Status != common.FileUploaded {
+					return common.NewTxError(fmt.Sprintf("invalid file %s (%s) status %s, expected %s", file.Name, file.ID, file.Status, common.FileUploaded), http.StatusBadRequest)
 				}
-				f.Status = common.FILE_REMOVED
+				f.Status = common.FileRemoved
 			}
 
 			return nil
@@ -93,12 +93,11 @@ func GetFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 		if err != nil {
 			if txError, ok := err.(common.TxError); ok {
 				context.Fail(ctx, req, resp, txError.Error(), txError.GetStatusCode())
-				return
 			} else {
 				log.Warningf("Unable to update upload metadata : %s", err)
 				context.Fail(ctx, req, resp, "Unable to update upload metadata", http.StatusInternalServerError)
-				return
 			}
+			return
 		}
 
 		if !upload.Stream {

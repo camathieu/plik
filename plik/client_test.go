@@ -1,11 +1,11 @@
-
-
 package plik
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"os"
+	"sync"
 	"testing"
 
 	"github.com/root-gg/plik/server/common"
@@ -14,7 +14,7 @@ import (
 
 func TestGetServerVersion(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
-	defer ps.ShutdownNow()
+	defer shutdown(ps)
 
 	err := start(ps)
 	require.NoError(t, err, "unable to start plik server")
@@ -26,7 +26,7 @@ func TestGetServerVersion(t *testing.T) {
 
 func TestDefaultUploadParams(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
-	defer ps.ShutdownNow()
+	defer shutdown(ps)
 
 	pc.OneShot = true
 
@@ -49,7 +49,7 @@ func TestDefaultUploadParams(t *testing.T) {
 
 func TestUploadParamsOverride(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
-	defer ps.ShutdownNow()
+	defer shutdown(ps)
 
 	pc.OneShot = true
 
@@ -72,7 +72,7 @@ func TestUploadParamsOverride(t *testing.T) {
 
 func TestCreateAndGetUpload(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
-	defer ps.ShutdownNow()
+	defer shutdown(ps)
 
 	err := start(ps)
 	require.NoError(t, err, "unable to start plik server")
@@ -89,7 +89,7 @@ func TestCreateAndGetUpload(t *testing.T) {
 
 func TestAddFileToExistingUpload(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
-	defer ps.ShutdownNow()
+	defer shutdown(ps)
 
 	err := start(ps)
 	require.NoError(t, err, "unable to start plik server")
@@ -108,7 +108,7 @@ func TestAddFileToExistingUpload(t *testing.T) {
 
 func TestAddFileToExistingUpload2(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
-	defer ps.ShutdownNow()
+	defer shutdown(ps)
 
 	err := start(ps)
 	require.NoError(t, err, "unable to start plik server")
@@ -136,7 +136,7 @@ func TestAddFileToExistingUpload2(t *testing.T) {
 
 func TestUploadReader(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
-	defer ps.ShutdownNow()
+	defer shutdown(ps)
 
 	err := start(ps)
 	require.NoError(t, err, "unable to start plik server")
@@ -155,7 +155,7 @@ func TestUploadReader(t *testing.T) {
 
 func TestUploadReadCloser(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
-	defer ps.ShutdownNow()
+	defer shutdown(ps)
 
 	err := start(ps)
 	require.NoError(t, err, "unable to start plik server")
@@ -174,7 +174,7 @@ func TestUploadReadCloser(t *testing.T) {
 
 func TestUploadFiles(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
-	defer ps.ShutdownNow()
+	defer shutdown(ps)
 
 	err := start(ps)
 	require.NoError(t, err, "unable to start plik server")
@@ -219,9 +219,119 @@ func TestUploadFiles(t *testing.T) {
 	}
 }
 
+func TestUploadMultipleFiles(t *testing.T) {
+	ps, pc := newPlikServerAndClient()
+	defer shutdown(ps)
+
+	err := start(ps)
+	require.NoError(t, err, "unable to start plik server")
+
+	upload := pc.NewUpload()
+	for i := 1; i <= 30; i++ {
+		filename := fmt.Sprintf("file_%d", i)
+		data := fmt.Sprintf("data data data %s", filename)
+		upload.AddFileFromReader(filename, bytes.NewBufferString(data))
+	}
+
+	err = upload.Upload()
+	require.NoError(t, err, "unable to upload files")
+
+	for _, file := range upload.Files() {
+		require.True(t, file.HasBeenUploaded(), "file has not been uploaded")
+		require.NoError(t, file.Error(), "unexpected file error")
+
+		reader, err := pc.downloadFile(upload.Details(), file.Details())
+		require.NoError(t, err, "unable to download file")
+		content, err := ioutil.ReadAll(reader)
+		require.NoError(t, err, "unable to read file")
+		require.Equal(t, fmt.Sprintf("data data data %s", file.Name), string(content), "invalid file content")
+	}
+}
+
+func TestMultipleUploadsInParallel(t *testing.T) {
+	ps, pc := newPlikServerAndClient()
+	defer shutdown(ps)
+
+	err := start(ps)
+	require.NoError(t, err, "unable to start plik server")
+
+	var wg sync.WaitGroup
+	for i := 1; i <= 30; i++ {
+		wg.Add(1)
+		go func(i int) {
+			upload := pc.NewUpload()
+
+			filename := fmt.Sprintf("file_%d", i)
+			data := fmt.Sprintf("data data data %s", filename)
+			file := upload.AddFileFromReader(filename, bytes.NewBufferString(data))
+
+			err := upload.Upload()
+			require.NoError(t, err, "unable to upload file")
+
+			reader, err := file.Download()
+			require.NoError(t, err, "unable to download file")
+
+			content, err := ioutil.ReadAll(reader)
+			require.NoError(t, err, "unable to read file")
+			require.Equal(t, fmt.Sprintf("data data data %s", file.Name), string(content), "invalid file content")
+
+			err = file.Delete()
+			require.NoError(t, err, "unable to delete file")
+
+			_, err = file.Download()
+			require.Error(t, err, "missing expected error")
+
+			wg.Done()
+		}(i)
+	}
+
+	wg.Wait()
+}
+
+// TODO This is full of races !!!
+//func TestMultipleFilesInParallel(t *testing.T) {
+//	ps, pc := newPlikServerAndClient()
+//	defer shutdown(ps)
+//
+//	err := start(ps)
+//	require.NoError(t, err, "unable to start plik server")
+//
+//	upload := pc.NewUpload()
+//
+//	var wg sync.WaitGroup
+//	for i := 1; i <= 30; i++ {
+//		wg.Add(1)
+//		go func(i int) {
+//			filename := fmt.Sprintf("file_%d", i)
+//			data := fmt.Sprintf("data data data %s", filename)
+//			file := upload.AddFileFromReader(filename, bytes.NewBufferString(data))
+//
+//			err := upload.Upload()
+//			require.NoError(t, err, "unable to upload file")
+//
+//			reader, err := file.Download()
+//			require.NoError(t, err, "unable to download file")
+//
+//			content, err := ioutil.ReadAll(reader)
+//			require.NoError(t, err, "unable to read file")
+//			require.Equal(t, fmt.Sprintf("data data data %s", file.Name), string(content), "invalid file content")
+//
+//			err = file.Delete()
+//			require.NoError(t, err, "unable to delete file")
+//
+//			_, err = file.Download()
+//			require.Error(t, err, "missing expected error")
+//
+//			wg.Done()
+//		}(i)
+//	}
+//
+//	wg.Wait()
+//}
+
 func TestUploadFileNotFound(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
-	defer ps.ShutdownNow()
+	defer shutdown(ps)
 
 	err := start(ps)
 	require.NoError(t, err, "unable to start plik server")
@@ -237,7 +347,7 @@ func TestUploadFileNotFound(t *testing.T) {
 
 func TestRemoveFile(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
-	defer ps.ShutdownNow()
+	defer shutdown(ps)
 
 	err := start(ps)
 	require.NoError(t, err, "unable to start plik server")
@@ -259,7 +369,7 @@ func TestRemoveFile(t *testing.T) {
 
 func TestRemoveFileNotFound(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
-	defer ps.ShutdownNow()
+	defer shutdown(ps)
 
 	err := start(ps)
 	require.NoError(t, err, "unable to start plik server")
@@ -274,7 +384,7 @@ func TestRemoveFileNotFound(t *testing.T) {
 
 func TestRemoveFileNoServer(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
-	defer ps.ShutdownNow()
+	defer shutdown(ps)
 
 	upload := common.NewUpload()
 	upload.Create()
@@ -286,7 +396,7 @@ func TestRemoveFileNoServer(t *testing.T) {
 
 func TestDeleteUpload(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
-	defer ps.ShutdownNow()
+	defer shutdown(ps)
 
 	err := start(ps)
 	require.NoError(t, err, "unable to start plik server")
@@ -311,7 +421,7 @@ func TestDeleteUpload(t *testing.T) {
 
 func TestDeleteUploadNotFound(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
-	defer ps.ShutdownNow()
+	defer shutdown(ps)
 
 	err := start(ps)
 	require.NoError(t, err, "unable to start plik server")
@@ -328,7 +438,7 @@ func TestDeleteUploadNotFound(t *testing.T) {
 
 func TestDeleteUploadNoServer(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
-	defer ps.ShutdownNow()
+	defer shutdown(ps)
 
 	upload := common.NewUpload()
 	upload.Create()
@@ -338,7 +448,7 @@ func TestDeleteUploadNoServer(t *testing.T) {
 
 func TestDownloadArchive(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
-	defer ps.ShutdownNow()
+	defer shutdown(ps)
 
 	err := start(ps)
 	require.NoError(t, err, "unable to start plik server")
@@ -360,7 +470,7 @@ func TestDownloadArchive(t *testing.T) {
 
 func TestGetArchiveNotFound(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
-	defer ps.ShutdownNow()
+	defer shutdown(ps)
 
 	err := start(ps)
 	require.NoError(t, err, "unable to start plik server")
@@ -377,7 +487,7 @@ func TestGetArchiveNotFound(t *testing.T) {
 
 func TestGetArchiveNoServer(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
-	defer ps.ShutdownNow()
+	defer shutdown(ps)
 
 	upload := common.NewUpload()
 	upload.Create()

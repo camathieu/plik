@@ -60,7 +60,7 @@ func (b *Backend) GetUser(userID string) (user *common.User, err error) {
 	return user, nil
 }
 
-// GetUser retrieve user metadata
+// GetUserFromToken retrieve user metadata
 func (b *Backend) GetUserFromToken(token string) (user *common.User, err error) {
 	if token == "" {
 		return nil, fmt.Errorf("missing user token")
@@ -139,7 +139,7 @@ func (b *Backend) UpdateUser(user *common.User, tx common.UserTx) (u *common.Use
 	return u, nil
 }
 
-// Remove user metadata
+// RemoveUser remove user metadata
 func (b *Backend) RemoveUser(user *common.User) (err error) {
 	if user == nil {
 		return fmt.Errorf("missing user")

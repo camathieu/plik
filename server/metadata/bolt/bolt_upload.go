@@ -84,7 +84,7 @@ func (b *Backend) CreateUpload(upload *common.Upload) (err error) {
 	})
 }
 
-// Get implementation for Bolt Metadata Backend
+// GetUpload implementation for Bolt Metadata Backend
 func (b *Backend) GetUpload(ID string) (upload *common.Upload, err error) {
 	if ID == "" {
 		return nil, errors.New("Unable to get upload : Missing upload ID")
@@ -111,10 +111,14 @@ func (b *Backend) GetUpload(ID string) (upload *common.Upload, err error) {
 
 		return nil
 	})
+	if err != nil {
+		return nil, err
+	}
 
 	return upload, nil
 }
 
+// UpdateUpload implementation for Bolt Metadata Backend
 func (b *Backend) UpdateUpload(upload *common.Upload, uploadTx common.UploadTx) (u *common.Upload, err error) {
 	if upload == nil {
 		return nil, errors.New("Unable to remove upload : Missing upload")
@@ -167,7 +171,7 @@ func (b *Backend) UpdateUpload(upload *common.Upload, uploadTx common.UploadTx) 
 	return u, err
 }
 
-// Remove implementation for Bolt Metadata Backend
+// RemoveUpload implementation for Bolt Metadata Backend
 func (b *Backend) RemoveUpload(upload *common.Upload) (err error) {
 	if upload == nil {
 		return errors.New("Unable to remove upload : Missing upload")

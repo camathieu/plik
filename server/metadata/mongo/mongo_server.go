@@ -4,22 +4,19 @@ import (
 	"github.com/root-gg/plik/server/common"
 )
 
-// Get all users
+// GetUsers get all users
 func (b *Backend) GetUsers() (ids []string, err error) {
 	panic("Not Yet Implemented")
-	return
 }
 
-// Get server statistics
+// GetServerStatistics return server statistics
 func (b *Backend) GetServerStatistics() (stats *common.ServerStats, err error) {
 	panic("Not Yet Implemented")
-	return
 }
 
-// Return uploads that needs to be removed from the server
+// GetUploadsToRemove return upload ids that needs to be removed from the server
 func (b *Backend) GetUploadsToRemove() (ids []string, err error) {
 	panic("Not Yet Implemented")
-	return
 }
 
 //// GetUserUploads implementation from MongoDB Metadata Backend

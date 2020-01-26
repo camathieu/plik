@@ -10,7 +10,7 @@ import (
 	"github.com/root-gg/plik/server/common"
 )
 
-// Create upload
+// CreateUpload create upload metadata in mongodb
 func (b *Backend) CreateUpload(upload *common.Upload) (err error) {
 	if upload == nil {
 		return errors.New("missing upload")
@@ -24,7 +24,7 @@ func (b *Backend) CreateUpload(upload *common.Upload) (err error) {
 	return err
 }
 
-// Get implementation from MongoDB Metadata Backend
+// GetUpload upload metadata from mongodb
 func (b *Backend) GetUpload(ID string) (upload *common.Upload, err error) {
 	if ID == "" {
 		return nil, errors.New("missing upload id")
@@ -42,7 +42,7 @@ func (b *Backend) GetUpload(ID string) (upload *common.Upload, err error) {
 	return upload, nil
 }
 
-// UpdateUpload implementation from MongoDB Metadata Backend
+// UpdateUpload update upload metadata in mongodb
 func (b *Backend) UpdateUpload(upload *common.Upload, uploadTx common.UploadTx) (u *common.Upload, err error) {
 	if upload == nil {
 		return nil, errors.New("missing upload")
@@ -96,7 +96,7 @@ func (b *Backend) UpdateUpload(upload *common.Upload, uploadTx common.UploadTx) 
 	return u, nil
 }
 
-// Remove implementation from MongoDB Metadata Backend
+// RemoveUpload remove upload metadata in mongodb
 func (b *Backend) RemoveUpload(upload *common.Upload) (err error) {
 	if upload == nil {
 		return errors.New("missing upload")

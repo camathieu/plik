@@ -101,11 +101,11 @@ func GetArchive(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request
 
 				for _, f := range u.Files {
 					// Ignore uploading, missing, removed, one shot already downloaded,...
-					if f.Status != common.FILE_UPLOADED {
+					if f.Status != common.FileUploaded {
 						continue
 					}
 
-					f.Status = common.FILE_REMOVED
+					f.Status = common.FileRemoved
 					files = append(files, f)
 				}
 				return nil
@@ -131,7 +131,7 @@ func GetArchive(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request
 			// Without one shot mode we do not need as strong guaranties, no need to re-fetch upload metadata
 			for _, f := range upload.Files {
 				// Ignore uploading, missing, removed, one shot already downloaded,...
-				if f.Status != common.FILE_UPLOADED {
+				if f.Status != common.FileUploaded {
 					continue
 				}
 

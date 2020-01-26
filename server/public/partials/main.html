@@ -254,7 +254,7 @@
                             </div>
                         </div>
                         <!-- DOWNLOAD BUTTONS -->
-                        <div ng-show="isDownloadable(file)">
+                        <div ng-show="file.metadata.status == 'uploaded'">
                             <!-- DOWNLOAD WITHOUT YUBIKEY -->
                             <a href="{{getFileUrl(file,1)}}" ng-show="!upload.protectedByYubikey">
                                 <button data-action="share" title="Download" type="button"
@@ -290,7 +290,7 @@
             <div class="col-sm-12">
                 <div class="tile link-summary" style="text-align:center">
                     <div ng-repeat="file in files"
-                         ng-show="isDownloadable(file) || (upload.stream && file.metadata.status == 'uploading')">
+                         ng-show="isDownloadable(file)">
                         <a href="{{getFileUrl(file)}}"> {{getFileUrl(file)}}</a>
                     </div>
                 </div>

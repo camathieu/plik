@@ -32,12 +32,12 @@ func RemoveUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reque
 	tx := func(u *common.Upload) error {
 		files = []*common.File{}
 		for _, f := range u.Files {
-			if f.Status == common.FILE_UPLOADED {
+			if f.Status == common.FileUploaded {
 				files = append(files, f)
 			}
 
-			if f.Status != common.FILE_DELETED {
-				f.Status = common.FILE_REMOVED
+			if f.Status != common.FileDeleted {
+				f.Status = common.FileRemoved
 			}
 		}
 		return nil

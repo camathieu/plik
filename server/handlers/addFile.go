@@ -66,7 +66,7 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 		// Create a new file object
 		file = common.NewFile()
 		file.Type = "application/octet-stream"
-		file.Status = common.FILE_MISSING
+		file.Status = common.FileMissing
 	} else {
 		// Get file object from upload
 		var ok bool
@@ -78,7 +78,7 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	// Check file status and set to FILE_UPLOADING
+	// Check file status and set to FileUploading
 	// This avoids file overwriting
 	tx := func(u *common.Upload) (err error) {
 		if u == nil {
@@ -97,11 +97,11 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 			return common.NewTxError(fmt.Sprintf("Maximum number file per upload reached (%d)", config.MaxFilePerUpload), http.StatusBadRequest)
 		}
 
-		if !(f.Status == "" || f.Status == common.FILE_MISSING) {
+		if !(f.Status == "" || f.Status == common.FileMissing) {
 			return common.NewTxError(fmt.Sprintf("File %s (%s) has already been uploaded or removed", f.Name, f.ID), http.StatusBadRequest)
 		}
 
-		f.Status = common.FILE_UPLOADING
+		f.Status = common.FileUploading
 
 		return nil
 	}
@@ -111,12 +111,11 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		if txError, ok := err.(common.TxError); ok {
 			context.Fail(ctx, req, resp, txError.Error(), txError.GetStatusCode())
-			return
 		} else {
 			log.Warningf("Unable to update upload : %s", err)
 			context.Fail(ctx, req, resp, "Unable to add file", http.StatusInternalServerError)
-			return
 		}
+		return
 	}
 
 	// Update request logger prefix
@@ -216,27 +215,23 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	file.BackendDetails = backendDetails
 
 	if !upload.Stream {
-
-		// For steam upload the file will be removed by the getFile handler
-		// If there is only one file the upload could even not exist anymore
-
 		// Double check file status and update upload metadata
 		tx = func(u *common.Upload) (err error) {
 			if u == nil {
 				return fmt.Errorf("missing upload from upload transaction")
 			}
-
+http://127.0.0.1:8080/#/?id=FozSy6nwbKTt0RX8
 			// Just to check that the file has not been already removed
 			f, ok := u.Files[file.ID]
 			if !ok {
 				return fmt.Errorf("missing file %s from upload transaction", file.ID)
 			}
-			if f.Status != common.FILE_UPLOADING {
-				return common.NewTxError(fmt.Sprintf("invalid file status %s, expected %s", f.Status, common.FILE_UPLOADING), http.StatusInternalServerError)
+			if f.Status != common.FileUploading {
+				return common.NewTxError(fmt.Sprintf("invalid file status %s, expected %s", f.Status, common.FileUploading), http.StatusInternalServerError)
 			}
 
 			// Update file status
-			file.Status = common.FILE_UPLOADED
+			file.Status = common.FileUploaded
 
 			// Update file
 			u.Files[file.ID] = file
@@ -248,20 +243,24 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 		if err != nil {
 			if txError, ok := err.(common.TxError); ok {
 				context.Fail(ctx, req, resp, txError.Error(), txError.GetStatusCode())
-				return
 			} else {
 				log.Warningf("Unable to update upload metadata : %s", err)
 				context.Fail(ctx, req, resp, "Unable to update upload metadata", http.StatusInternalServerError)
-				return
 			}
+			return
 		}
-	}
 
-	file, ok := upload.Files[file.ID]
-	if !ok {
-		log.Warningf("Missing file from upload after metadata update, wtf ?!")
-		context.Fail(ctx, req, resp, "Missing file from upload after metadata update", http.StatusInternalServerError)
-		return
+		var ok bool
+		file, ok = upload.Files[file.ID]
+		if !ok {
+			log.Warningf("Missing file from upload after metadata update, wtf ?!")
+			context.Fail(ctx, req, resp, "Missing file from upload after metadata update", http.StatusInternalServerError)
+			return
+		}
+	} else {
+		// For steam upload the file will be removed by the getFile handler
+		// If there is only one file the upload will be removed too
+		file.Status = common.FileDeleted
 	}
 
 	// Remove all private information (ip, data backend details, ...) before

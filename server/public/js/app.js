@@ -549,6 +549,11 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                     $scope.files = _.map($scope.upload.files, function (file) {
                         return {metadata: file};
                     });
+
+                    // Redirect to home when all stream uploads are downloaded
+                    if (!$scope.somethingOk()) {
+                        $scope.mainpage();
+                    }
                 })
                 .then(null, function (error) {
                     $dialog.alert(error).result.then($scope.mainpage);
@@ -803,7 +808,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
         // Check if file is downloadable
         $scope.isDownloadable = function (file) {
             if ($scope.upload.stream) {
-                if (file.metadata.status === 'missing') return true;
+                if (file.metadata.status === 'uploading') return true;
             } else {
                 if (file.metadata.status === 'uploaded') return true;
             }
@@ -829,7 +834,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
         // Is there at least one file ready to be downloaded
         $scope.somethingToDownload = function () {
             return _.find($scope.files, function (file) {
-                if (file.metadata.status === "uploaded") return true;
+                return $scope.isDownloadable(file);
             });
         };
 

@@ -11,7 +11,7 @@ import (
 	"github.com/root-gg/plik/server/common"
 )
 
-// SaveUser implementation for Bolt Metadata Backend
+// CreateUser implementation for Bolt Metadata Backend
 func (b *Backend) CreateUser(user *common.User) (err error) {
 	if user == nil {
 		return errors.New("Unable to save user : Missing user")
@@ -127,7 +127,7 @@ func (b *Backend) GetUserFromToken(token string) (user *common.User, err error) 
 	return user, nil
 }
 
-// RemoveUser implementation for Bolt Metadata Backend
+// UpdateUser implementation for Bolt Metadata Backend
 func (b *Backend) UpdateUser(user *common.User, userTx common.UserTx) (u *common.User, err error) {
 	if user == nil {
 		return nil, errors.New("Unable to remove user : Missing user")

@@ -1,5 +1,3 @@
-
-
 package plik
 
 import (
@@ -159,7 +157,6 @@ func (c *Client) uploadFile(upload *common.Upload, fileParams *common.File, read
 
 // UploadRequest creates a new HTTP request with the header generated from the given upload params
 func (c *Client) UploadRequest(upload *common.Upload, method, URL string, body io.Reader) (req *http.Request, err error) {
-
 	req, err = http.NewRequest(method, URL, body)
 	if err != nil {
 		return nil, err
@@ -336,7 +333,7 @@ func (c *Client) MakeRequest(req *http.Request) (resp *http.Response, err error)
 }
 
 func parseErrorResponse(resp *http.Response) (err error) {
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Reade response body
 

@@ -10,7 +10,7 @@ import (
 	"github.com/root-gg/plik/server/common"
 )
 
-// Create user
+// CreateUser create user metadata in mongodb
 func (b *Backend) CreateUser(user *common.User) (err error) {
 	if user == nil {
 		return errors.New("missing user")
@@ -24,7 +24,7 @@ func (b *Backend) CreateUser(user *common.User) (err error) {
 	return err
 }
 
-// Get implementation from MongoDB Metadata Backend
+// GetUser get user metadata from mongodb
 func (b *Backend) GetUser(userID string) (user *common.User, err error) {
 	if userID == "" {
 		return nil, errors.New("missing user id")
@@ -42,7 +42,7 @@ func (b *Backend) GetUser(userID string) (user *common.User, err error) {
 	return user, nil
 }
 
-// Get implementation from MongoDB Metadata Backend
+// GetUserFromToken get user metadata from mongodb
 func (b *Backend) GetUserFromToken(token string) (user *common.User, err error) {
 	if token == "" {
 		return nil, errors.New("missing user token")
@@ -60,7 +60,7 @@ func (b *Backend) GetUserFromToken(token string) (user *common.User, err error) 
 	return user, nil
 }
 
-// UpdateUser implementation from MongoDB Metadata Backend
+// UpdateUser update user metadata in mongodb
 func (b *Backend) UpdateUser(user *common.User, userTx common.UserTx) (u *common.User, err error) {
 	if user == nil {
 		return nil, errors.New("missing user")
@@ -114,7 +114,7 @@ func (b *Backend) UpdateUser(user *common.User, userTx common.UserTx) (u *common
 	return u, nil
 }
 
-// Remove implementation from MongoDB Metadata Backend
+// RemoveUser remove user metadata from mongodb
 func (b *Backend) RemoveUser(user *common.User) (err error) {
 	if user == nil {
 		return errors.New("missing user")
@@ -130,12 +130,12 @@ func (b *Backend) RemoveUser(user *common.User) (err error) {
 	return err
 }
 
+// GetUserUploads remove user metadata from mongodb
 func (b *Backend) GetUserUploads(user *common.User, token *common.Token) (ids []string, err error) {
 	panic("Not Yet Implemented")
-	return
 }
 
+// GetUserStatistics get user/token statistics from mongodb
 func (b *Backend) GetUserStatistics(user *common.User, token *common.Token) (stats *common.UserStats, err error) {
 	panic("Not Yet Implemented")
-	return
 }

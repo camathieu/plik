@@ -1,5 +1,3 @@
-
-
 package plik
 
 import (

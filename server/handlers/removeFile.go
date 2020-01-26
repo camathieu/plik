@@ -56,13 +56,13 @@ func RemoveFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request
 			return fmt.Errorf("unable to find file %s (%s)", file.Name, file.ID)
 		}
 
-		if f.Status == common.FILE_REMOVED || f.Status == common.FILE_DELETED {
+		if f.Status == common.FileRemoved || f.Status == common.FileDeleted {
 			// Nothing to do
 			remove = false
 			return nil
 		}
 
-		f.Status = common.FILE_REMOVED
+		f.Status = common.FileRemoved
 		return nil
 	}
 

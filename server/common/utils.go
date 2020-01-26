@@ -5,21 +5,26 @@ import (
 	"strings"
 )
 
+// Ensure TxError implements error
 var _ error = (*TxError)(nil)
 
+// TxError allows to return an error and a HTTP status code
 type TxError struct {
 	error      string
 	statusCode int
 }
 
+// NewTxError return a new TxError
 func NewTxError(message string, code int) TxError {
 	return TxError{message, code}
 }
 
+// Error return the error
 func (txe TxError) Error() string {
 	return txe.error
 }
 
+// GetStatusCode return the http status code
 func (txe TxError) GetStatusCode() int {
 	return txe.statusCode
 }

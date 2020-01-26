@@ -117,12 +117,11 @@ func RevokeToken(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 	if err != nil {
 		if txError, ok := err.(common.TxError); ok {
 			context.Fail(ctx, req, resp, txError.Error(), txError.GetStatusCode())
-			return
 		} else {
 			log.Warningf("Unable to update upload metadata : %s", err)
 			context.Fail(ctx, req, resp, "Unable to update upload metadata", http.StatusInternalServerError)
-			return
 		}
+		return
 	}
 
 	_, _ = resp.Write([]byte("ok"))

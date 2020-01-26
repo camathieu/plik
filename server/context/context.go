@@ -51,6 +51,7 @@ func GetConfig(ctx *juliet.Context) (config *common.Configuration) {
 	return nil
 }
 
+// SetLogger sets the logger to the context
 func SetLogger(ctx *juliet.Context, log *logger.Logger) {
 	ctx.Set(loggerKey, log)
 }
@@ -63,6 +64,7 @@ func GetLogger(ctx *juliet.Context) *logger.Logger {
 	return nil
 }
 
+// SetMetadataBackend sets the metadata backend to the context
 func SetMetadataBackend(ctx *juliet.Context, backend metadata.Backend) {
 	ctx.Set(metadataBackendKey, backend)
 }
@@ -75,6 +77,7 @@ func GetMetadataBackend(ctx *juliet.Context) metadata.Backend {
 	return nil
 }
 
+// SetDataBackend sets the data backend to the context
 func SetDataBackend(ctx *juliet.Context, backend data.Backend) {
 	ctx.Set(dataBackendKey, backend)
 }
@@ -87,6 +90,7 @@ func GetDataBackend(ctx *juliet.Context) data.Backend {
 	return nil
 }
 
+// SetStreamBackend sets the stream backend to the context
 func SetStreamBackend(ctx *juliet.Context, backend data.Backend) {
 	ctx.Set(streamBackendKey, backend)
 }
@@ -99,6 +103,7 @@ func GetStreamBackend(ctx *juliet.Context) data.Backend {
 	return nil
 }
 
+// SetSourceIP sets the source ip to the context
 func SetSourceIP(ctx *juliet.Context, sourceIP net.IP) {
 	ctx.Set(sourceIPKey, sourceIP)
 }
@@ -111,6 +116,7 @@ func GetSourceIP(ctx *juliet.Context) net.IP {
 	return nil
 }
 
+// SetWhitelisted sets the whitelisted status to the context ( used in tests only )
 func SetWhitelisted(ctx *juliet.Context, value bool) {
 	ctx.Set(whitelistedKey, value)
 }
@@ -142,6 +148,7 @@ func IsWhitelisted(ctx *juliet.Context) bool {
 	return whitelisted
 }
 
+// SetUser sets the user to the context
 func SetUser(ctx *juliet.Context, user *common.User) {
 	ctx.Set(userKey, user)
 }
@@ -154,6 +161,7 @@ func GetUser(ctx *juliet.Context) *common.User {
 	return nil
 }
 
+// SetToken sets the token to the context
 func SetToken(ctx *juliet.Context, token *common.Token) {
 	ctx.Set(tokenKey, token)
 }
@@ -166,6 +174,7 @@ func GetToken(ctx *juliet.Context) *common.Token {
 	return nil
 }
 
+// SetFile sets the file to the context
 func SetFile(ctx *juliet.Context, file *common.File) {
 	ctx.Set(fileKey, file)
 }
@@ -178,6 +187,7 @@ func GetFile(ctx *juliet.Context) *common.File {
 	return nil
 }
 
+// SetUpload sets the upload to the context
 func SetUpload(ctx *juliet.Context, upload *common.Upload) {
 	ctx.Set(uploadKey, upload)
 }
@@ -190,6 +200,7 @@ func GetUpload(ctx *juliet.Context) *common.Upload {
 	return nil
 }
 
+// SetUploadAdmin sets the admin status to the context
 func SetUploadAdmin(ctx *juliet.Context, value bool) {
 	ctx.Set(uploadAdminKey, value)
 }
@@ -202,6 +213,7 @@ func IsUploadAdmin(ctx *juliet.Context) bool {
 	return false
 }
 
+// SetAdmin sets the upload admin status to the context
 func SetAdmin(ctx *juliet.Context, value bool) {
 	ctx.Set(adminKey, value)
 }
@@ -214,6 +226,7 @@ func IsAdmin(ctx *juliet.Context) bool {
 	return false
 }
 
+// SetRedirectOnFailure sets the redirect on failure status to the context
 func SetRedirectOnFailure(ctx *juliet.Context, value bool) {
 	ctx.Set(redirectOnFailureKey, value)
 }
@@ -227,6 +240,7 @@ func IsRedirectOnFailure(ctx *juliet.Context) bool {
 	return false
 }
 
+// SetQuick sets the quick status to the context
 func SetQuick(ctx *juliet.Context, value bool) {
 	ctx.Set(quickKey, value)
 }

@@ -1,10 +1,7 @@
-
-
 package plik
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"sync"
@@ -14,35 +11,6 @@ import (
 	"github.com/root-gg/plik/server/common"
 	"github.com/stretchr/testify/require"
 )
-
-func TestUploadMultipleFiles(t *testing.T) {
-	ps, pc := newPlikServerAndClient()
-	defer shutdown(ps)
-
-	err := start(ps)
-	require.NoError(t, err, "unable to start plik server")
-
-	upload := pc.NewUpload()
-	for i := 1; i <= 30; i++ {
-		filename := fmt.Sprintf("file_%d", i)
-		data := fmt.Sprintf("data data data %s", filename)
-		upload.AddFileFromReader(filename, bytes.NewBufferString(data))
-	}
-
-	err = upload.Upload()
-	require.NoError(t, err, "unable to upload files")
-
-	for _, file := range upload.Files() {
-		require.True(t, file.HasBeenUploaded(), "file has not been uploaded")
-		require.NoError(t, file.Error(), "unexpected file error")
-
-		reader, err := pc.downloadFile(upload.Details(), file.Details())
-		require.NoError(t, err, "unable to download file")
-		content, err := ioutil.ReadAll(reader)
-		require.NoError(t, err, "unable to read file")
-		require.Equal(t, fmt.Sprintf("data data data %s", file.Name), string(content), "invalid file content")
-	}
-}
 
 func TestUploadFileTwice(t *testing.T) {
 	ps, pc := newPlikServerAndClient()

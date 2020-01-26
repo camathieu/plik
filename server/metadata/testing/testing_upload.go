@@ -104,7 +104,7 @@ func (b *Backend) UpdateUpload(upload *common.Upload, tx common.UploadTx) (u *co
 	return u, nil
 }
 
-// Remove upload metadata
+// RemoveUpload remove upload metadata
 func (b *Backend) RemoveUpload(upload *common.Upload) (err error) {
 	if upload == nil {
 		return fmt.Errorf("missing upload")

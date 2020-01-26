@@ -57,7 +57,7 @@ func TestRemoveFile(t *testing.T) {
 	upload, err = context.GetMetadataBackend(ctx).GetUpload(upload.ID)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(upload.Files), "invalid upload files count")
-	require.Equal(t, common.FILE_DELETED, upload.Files[file1.ID].Status, "invalid removed file status")
+	require.Equal(t, common.FileDeleted, upload.Files[file1.ID].Status, "invalid removed file status")
 
 	_, err = context.GetDataBackend(ctx).GetFile(upload, file1.ID)
 	require.Error(t, err, "removed file still exists")

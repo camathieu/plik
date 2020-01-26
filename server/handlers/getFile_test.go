@@ -102,7 +102,7 @@ func TestGetRemovedFile(t *testing.T) {
 	upload := common.NewUpload()
 	file := upload.NewFile()
 	file.Name = "file"
-	file.Status = common.FILE_REMOVED
+	file.Status = common.FileRemoved
 	createTestUpload(ctx, upload)
 
 	err := createTestFile(ctx, upload, file, bytes.NewBuffer([]byte("data")))
@@ -126,7 +126,7 @@ func TestGetDeletedFile(t *testing.T) {
 	upload := common.NewUpload()
 	file := upload.NewFile()
 	file.Name = "file"
-	file.Status = common.FILE_DELETED
+	file.Status = common.FileDeleted
 	createTestUpload(ctx, upload)
 
 	err := createTestFile(ctx, upload, file, bytes.NewBuffer([]byte("data")))

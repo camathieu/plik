@@ -96,8 +96,11 @@ func GetQrCode(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request)
 	}
 }
 
-// File status MUST be removed before to call this
+// DeleteRemovedFile deletes a removed file
 func DeleteRemovedFile(ctx *juliet.Context, upload *common.Upload, file *common.File) (err error) {
+
+	// /!\ File status MUST be removed before to call this /!\
+
 	backend := context.GetDataBackend(ctx)
 	err = backend.RemoveFile(upload, file.ID)
 	if err != nil {
@@ -113,10 +116,10 @@ func DeleteRemovedFile(ctx *juliet.Context, upload *common.Upload, file *common.
 		if !ok {
 			return fmt.Errorf("unable to find file %s (%s)", file.Name, file.ID)
 		}
-		if f.Status != common.FILE_REMOVED {
-			return fmt.Errorf("invalid file %s (%s) status %s, expected %s", file.Name, file.ID, f.Status, common.FILE_REMOVED)
+		if f.Status != common.FileRemoved {
+			return fmt.Errorf("invalid file %s (%s) status %s, expected %s", file.Name, file.ID, f.Status, common.FileRemoved)
 		}
-		f.Status = common.FILE_DELETED
+		f.Status = common.FileDeleted
 
 		return nil
 	}
@@ -132,7 +135,7 @@ func DeleteRemovedFile(ctx *juliet.Context, upload *common.Upload, file *common.
 	return nil
 }
 
-// RemoveUploadIfNoFileAvailable iterates on upload files and remove upload files
+// RemoveEmptyUpload iterates on upload files and remove upload files
 // and metadata if all the files have been downloaded (useful for OneShot uploads)
 func RemoveEmptyUpload(ctx *juliet.Context, upload *common.Upload) {
 	log := context.GetLogger(ctx)
@@ -140,7 +143,7 @@ func RemoveEmptyUpload(ctx *juliet.Context, upload *common.Upload) {
 	// Test if there are remaining files
 	filesInUpload := len(upload.Files)
 	for _, f := range upload.Files {
-		if f.Status == common.FILE_DELETED {
+		if f.Status == common.FileDeleted {
 			filesInUpload--
 		}
 	}

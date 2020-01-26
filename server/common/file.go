@@ -1,10 +1,19 @@
 package common
 
-const FILE_MISSING = "missing"
-const FILE_UPLOADING = "uploading"
-const FILE_UPLOADED = "uploaded"
-const FILE_REMOVED = "removed"
-const FILE_DELETED = "deleted"
+// FileMissing when a file is waiting to be uploaded
+const FileMissing = "missing"
+
+// FileUploading when a file is being uploaded
+const FileUploading = "uploading"
+
+// FileUploaded when a file has been uploaded and is ready to be downloaded
+const FileUploaded = "uploaded"
+
+// FileRemoved when a file has been removed and can't be downloaded anymore but has not yet been deleted
+const FileRemoved = "removed"
+
+// FileDeleted when a file has been deleted from the data backend
+const FileDeleted = "deleted"
 
 // File object
 type File struct {
