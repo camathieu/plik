@@ -220,7 +220,6 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 			if u == nil {
 				return fmt.Errorf("missing upload from upload transaction")
 			}
-http://127.0.0.1:8080/#/?id=FozSy6nwbKTt0RX8
 			// Just to check that the file has not been already removed
 			f, ok := u.Files[file.ID]
 			if !ok {

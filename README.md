@@ -118,7 +118,7 @@ Options:
 ```
 
 For example to create directory tar.gz archive and encrypt it with openssl :
-```
+```bash
 $ plik -a -s mydirectory/
 Passphrase : 30ICoKdFeoKaKNdnFf36n0kMH
 Upload successfully created : 
@@ -131,6 +131,12 @@ curl -s 'https://127.0.0.1:8080/file/0KfNj6eMb93ilCrl/q73tEBEqM04b22GP/mydirecto
 ```
 
 Client configuration and preferences are stored at ~/.plikrc or /etc/plik/plikrc ( overridable with PLIKRC environement variable )
+
+### Quick upload using curl
+
+```bash
+curl --form 'file=@/path/to/file' http://127.0.0.1:8080
+```
 
 ### Available data backends
 

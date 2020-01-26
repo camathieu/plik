@@ -217,6 +217,7 @@ func (ps *PlikServer) getHTTPHandler() (handler http.Handler) {
 
 	// HTTP Api routes configuration
 	router := mux.NewRouter()
+	router.Handle("/", tokenChain.Append(middleware.CreateUpload).Then(handlers.AddFile)).Methods("POST")
 	router.Handle("/config", stdChain.Then(handlers.GetConfiguration)).Methods("GET")
 	router.Handle("/version", stdChain.Then(handlers.GetVersion)).Methods("GET")
 	router.Handle("/upload", tokenChain.Then(handlers.CreateUpload)).Methods("POST")

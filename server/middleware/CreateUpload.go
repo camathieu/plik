@@ -17,6 +17,14 @@ func CreateUpload(ctx *juliet.Context, next http.Handler) http.Handler {
 		// Set upload remote IP
 		upload.RemoteIP = context.GetSourceIP(ctx).String()
 
+		// Set upload one shot mode
+		if context.GetConfig(ctx).OneShot {
+			upload.OneShot = true
+		}
+
+		// Set upload TTL
+		upload.TTL = context.GetConfig(ctx).DefaultTTL
+
 		// Set upload user and token
 		user := context.GetUser(ctx)
 		if user != nil {
@@ -26,14 +34,6 @@ func CreateUpload(ctx *juliet.Context, next http.Handler) http.Handler {
 				upload.Token = token.Token
 			}
 		}
-
-		// Set upload one shot mode
-		if context.GetConfig(ctx).OneShot {
-			upload.OneShot = true
-		}
-
-		// Set upload TTL
-		upload.TTL = context.GetConfig(ctx).DefaultTTL
 
 		// Save the upload metadata
 		err := context.GetMetadataBackend(ctx).CreateUpload(upload)
@@ -45,6 +45,7 @@ func CreateUpload(ctx *juliet.Context, next http.Handler) http.Handler {
 
 		// Save upload in the request context
 		context.SetUpload(ctx, upload)
+		context.SetUploadAdmin(ctx, true)
 
 		// Change the output of the addFile handler
 		context.SetQuick(ctx, true)
