@@ -1,94 +1,114 @@
-/**
-
-    Plik upload server
-
-The MIT License (MIT)
-
-Copyright (c) <2015>
-	- Mathieu Bodjikian <mathieu@bodjikian.fr>
-	- Charles-Antoine Mathieu <skatkatt@root.gg>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-**/
-
 package handlers
 
 import (
 	"fmt"
+	"github.com/root-gg/juliet"
+	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/plik/server/context"
+	"github.com/root-gg/plik/server/data"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
-
-	"github.com/root-gg/juliet"
-	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/plik/server/data"
-	"github.com/root-gg/plik/server/metadata"
 )
 
 // GetFile download a file
 func GetFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
+	config := context.GetConfig(ctx)
 
 	// If a download domain is specified verify that the request comes from this specific domain
-	if common.Config.DownloadDomainURL != nil {
-		if req.Host != common.Config.DownloadDomainURL.Host {
+	if config.GetDownloadDomain() != nil {
+		if req.Host != config.GetDownloadDomain().Host {
 			downloadURL := fmt.Sprintf("%s://%s%s",
-				common.Config.DownloadDomainURL.Scheme,
-				common.Config.DownloadDomainURL.Host,
+				config.GetDownloadDomain().Scheme,
+				config.GetDownloadDomain().Host,
 				req.RequestURI)
-			log.Warningf("Invalid download domain %s, expected %s", req.Host, common.Config.DownloadDomainURL.Host)
-			http.Redirect(resp, req, downloadURL, 301)
+			log.Warningf("Invalid download domain %s, expected %s", req.Host, config.GetDownloadDomain().Host)
+			http.Redirect(resp, req, downloadURL, http.StatusMovedPermanently)
 			return
 		}
 	}
 
 	// Get upload from context
-	upload := common.GetUpload(ctx)
+	upload := context.GetUpload(ctx)
 	if upload == nil {
 		// This should never append
 		log.Critical("Missing upload in getFileHandler")
-		common.Fail(ctx, req, resp, "Internal error", 500)
+		context.Fail(ctx, req, resp, "Internal error", http.StatusInternalServerError)
 		return
 	}
 
 	// Get file from context
-	file := common.GetFile(ctx)
+	file := context.GetFile(ctx)
 	if file == nil {
 		// This should never append
 		log.Critical("Missing file in getFileHandler")
-		common.Fail(ctx, req, resp, "Internal error", 500)
+		context.Fail(ctx, req, resp, "Internal error", http.StatusInternalServerError)
 		return
 	}
 
-	// If upload has OneShot option, test if file has not been already downloaded once
-	if upload.OneShot && file.Status == "downloaded" {
-		log.Warningf("File %s has already been downloaded", file.Name)
-		common.Fail(ctx, req, resp, fmt.Sprintf("File %s has already been downloaded", file.Name), 404)
-		return
+	// File status pre-check
+	if upload.Stream {
+		if file.Status != common.FileUploading {
+			context.Fail(ctx, req, resp, fmt.Sprintf("file %s (%s) status is not %s", file.Name, file.ID, common.FileUploading), http.StatusNotFound)
+			return
+		}
+	} else {
+		if file.Status != common.FileUploaded {
+			context.Fail(ctx, req, resp, fmt.Sprintf("file %s (%s) status is not %s", file.Name, file.ID, common.FileUploaded), http.StatusNotFound)
+			return
+		}
 	}
 
-	// If the file is marked as deleted by a previous call, we abort request
-	if file.Status == "removed" {
-		log.Warningf("File %s has been removed", file.Name)
-		common.Fail(ctx, req, resp, "File %s has been removed", 404)
-		return
+	if req.Method == "GET" && (upload.Stream || upload.OneShot) {
+		// If this is a one shot or stream upload we have to ensure it's downloaded only once.
+		tx := func(u *common.Upload) error {
+			if u == nil {
+				return fmt.Errorf("missing upload from transaction")
+			}
+
+			f, ok := u.Files[file.ID]
+			if !ok {
+				return fmt.Errorf("unable to find file %s (%s)", file.Name, file.ID)
+			}
+
+			// File status double-check
+			if upload.Stream {
+				if f.Status != common.FileUploading {
+					return common.NewTxError(fmt.Sprintf("invalid file %s (%s) status %s, expected %s", file.Name, file.ID, file.Status, common.FileUploading), http.StatusBadRequest)
+				}
+				f.Status = common.FileDeleted
+			} else if upload.OneShot {
+				if f.Status != common.FileUploaded {
+					return common.NewTxError(fmt.Sprintf("invalid file %s (%s) status %s, expected %s", file.Name, file.ID, file.Status, common.FileUploaded), http.StatusBadRequest)
+				}
+				f.Status = common.FileRemoved
+			}
+
+			return nil
+		}
+
+		upload, err := context.GetMetadataBackend(ctx).UpdateUpload(upload, tx)
+		if err != nil {
+			if txError, ok := err.(common.TxError); ok {
+				context.Fail(ctx, req, resp, txError.Error(), txError.GetStatusCode())
+			} else {
+				log.Warningf("Unable to update upload metadata : %s", err)
+				context.Fail(ctx, req, resp, "Unable to update upload metadata", http.StatusInternalServerError)
+			}
+			return
+		}
+
+		if !upload.Stream {
+			// From now on we'll try to delete the file from the data backend whatever happens
+			defer func() {
+				err = DeleteRemovedFile(ctx, upload, file)
+				if err != nil {
+					log.Warningf("Unable to delete file %s (%s) : %s", file.Name, file.ID, err)
+				}
+			}()
+		}
 	}
 
 	// Avoid rendering HTML in browser
@@ -111,7 +131,7 @@ func GetFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	resp.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'none'; style-src 'none'; img-src 'none'; connect-src 'none'; font-src 'none'; object-src 'none'; media-src 'self'; child-src 'none'; form-action 'none'; frame-ancestors 'none'; plugin-types; sandbox")
 
 	/* Additional header for disabling cache if the upload is OneShot */
-	if upload.OneShot {
+	if upload.OneShot { // If this is a one shot or stream upload we have to ensure it's downloaded only once.
 		resp.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate") // HTTP 1.1
 		resp.Header().Set("Pragma", "no-cache")                                   // HTTP 1.0
 		resp.Header().Set("Expires", "0")                                         // Proxies
@@ -137,47 +157,23 @@ func GetFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 		// Get file in data backend
 		var backend data.Backend
 		if upload.Stream {
-			backend = data.GetStreamBackend()
+			backend = context.GetStreamBackend(ctx)
 		} else {
-			backend = data.GetDataBackend()
+			backend = context.GetDataBackend(ctx)
 		}
 
-		fileReader, err := backend.GetFile(ctx, upload, file.ID)
+		fileReader, err := backend.GetFile(upload, file.ID)
 		if err != nil {
 			log.Warningf("Failed to get file %s in upload %s : %s", file.Name, upload.ID, err)
-			common.Fail(ctx, req, resp, fmt.Sprintf("Failed to read file %s", file.Name), 404)
+			context.Fail(ctx, req, resp, fmt.Sprintf("Failed to read file %s", file.Name), http.StatusNotFound)
 			return
 		}
-		defer fileReader.Close()
-
-		// Update metadata if oneShot option is set
-		// There is a small possible race from upload.OneShot && file.Status == "downloaded" to here.
-		// To avoid the race completely AddOrUpdateFile should return the previous version of the metadata
-		// and ensure proper locking ( which is the case of bolt and looks doable with mongodb but would break the interface ).
-		if upload.OneShot {
-			file.Status = "downloaded"
-			err = metadata.GetMetaDataBackend().AddOrUpdateFile(ctx, upload, file)
-			if err != nil {
-				log.Warningf("Error while deleting file %s from upload %s metadata : %s", file.Name, upload.ID, err)
-			}
-		}
+		defer func() { _ = fileReader.Close() }()
 
 		// File is piped directly to http response body without buffering
 		_, err = io.Copy(resp, fileReader)
 		if err != nil {
 			log.Warningf("Error while copying file to response : %s", err)
 		}
-
-		// Remove file from data backend if oneShot option is set
-		if upload.OneShot {
-			err = backend.RemoveFile(ctx, upload, file.ID)
-			if err != nil {
-				log.Warningf("Error while deleting file %s from upload %s : %s", file.Name, upload.ID, err)
-				return
-			}
-		}
-
-		// Remove upload if no files anymore
-		RemoveUploadIfNoFileAvailable(ctx, upload)
 	}
 }

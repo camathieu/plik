@@ -118,7 +118,7 @@ Options:
 ```
 
 For example to create directory tar.gz archive and encrypt it with openssl :
-```
+```bash
 $ plik -a -s mydirectory/
 Passphrase : 30ICoKdFeoKaKNdnFf36n0kMH
 Upload successfully created : 
@@ -131,6 +131,12 @@ curl -s 'https://127.0.0.1:8080/file/0KfNj6eMb93ilCrl/q73tEBEqM04b22GP/mydirecto
 ```
 
 Client configuration and preferences are stored at ~/.plikrc or /etc/plik/plikrc ( overridable with PLIKRC environement variable )
+
+### Quick upload using curl
+
+```bash
+curl --form 'file=@/path/to/file' http://127.0.0.1:8080
+```
 
 ### Available data backends
 
@@ -150,23 +156,9 @@ SeaweedFS is a simple and highly scalable distributed file system.
 
 ### Available metadata backends
 
- - File metadata backend : (DEPRECATED)
-
-This backend has been deprecated in Plik 1.2 in favor of BoltDB backend.
-The authentication mechanisms ( User / Tokens ) are NOT implemented in this backend.
-Migration from file backend to BoltDB backend can be done using the migrate_from_file_to_bolt script.
-
-```
-server/utils/file2bolt --directory server/files --db server/plik.db
-```
-
-This backend save upload metadata as JSON in a .config file in the upload directory.
-This is only suitable for a single instance deployment as locking append at the process level. 
-Using multiple plik instance with this backend will result in corrupted metadata JSON files. Use mongodb backend instead.
-
  - Bolt metadata backend : https://github.com/boltdb/bolt
 
-This is the successor of the file metadata backend, it store all the metadata in a single bolt.db file. 
+This backend stores all the metadata in a single bolt.db file.
 Performance is improved by keeping all metadata in memory to avoid costly filesystem stat operations.  
 Boltdb also support of atomic transactions that ensure the metadata consistency over time.
 
@@ -174,7 +166,7 @@ Only suitable for a single instance deployment as the Bolt database can only be 
 
  - Mongodb metadata backend : https://www.mongodb.org
 
-Suitable for distributed / High Availability deployment. 
+Suitable for distributed / High Availability deployment.
 
 ### Authentication
 
@@ -221,6 +213,12 @@ See the [Plik Docker reference](documentation/docker.md)
 Plik also comes with some useful scripts to test backends in standalone docker instances :
 
 See the [Plik Docker backend testing](testing)
+
+### Go client
+
+Plik now comes with a golang library above which the cli client is built
+
+See the [Plik library reference](plik/README.md)
 
 ### FAQ
 
@@ -334,5 +332,10 @@ The screenshot is then removed of your home directory to avoid garbage.
 * How to contribute to the project ?
 
 Contributions are welcome, feel free to open issues and/or submit pull requests.
-Please run/update the test suite using the makefile test target.
+Please be sure to also run/update the test suite :
 
+```
+    make lint
+    make test
+    make test-backends
+```

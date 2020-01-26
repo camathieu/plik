@@ -1,32 +1,3 @@
-/**
-
-    Plik upload server
-
-The MIT License (MIT)
-
-Copyright (c) <2015>
-	- Mathieu Bodjikian <mathieu@bodjikian.fr>
-	- Charles-Antoine Mathieu <skatkatt@root.gg>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-**/
-
 package handlers
 
 import (
@@ -35,80 +6,80 @@ import (
 
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/plik/server/data"
-	"github.com/root-gg/plik/server/metadata"
-	"github.com/root-gg/utils"
+	"github.com/root-gg/plik/server/context"
 )
 
 // RemoveFile remove a file from an existing upload
 func RemoveFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
 
 	// Get upload from context
-	upload := common.GetUpload(ctx)
+	upload := context.GetUpload(ctx)
 	if upload == nil {
 		// This should never append
 		log.Critical("Missing upload in removeFileHandler")
-		common.Fail(ctx, req, resp, "Internal error", 500)
+		context.Fail(ctx, req, resp, "Internal error", http.StatusInternalServerError)
 		return
 	}
 
 	// Check authorization
-	if !upload.Removable && !upload.IsAdmin {
+	if !upload.Removable && !context.IsUploadAdmin(ctx) {
 		log.Warningf("Unable to remove file : unauthorized")
-		common.Fail(ctx, req, resp, "You are not allowed to remove file from this upload", 403)
+		context.Fail(ctx, req, resp, "You are not allowed to remove file from this upload", http.StatusForbidden)
 		return
 	}
 
 	// Get file from context
-	file := common.GetFile(ctx)
+	file := context.GetFile(ctx)
 	if file == nil {
 		// This should never append
 		log.Critical("Missing file in removeFileHandler")
-		common.Fail(ctx, req, resp, "Internal error", 500)
+		context.Fail(ctx, req, resp, "Internal error", http.StatusInternalServerError)
 		return
 	}
 
 	// Check if file is not already removed
 	if file.Status == "removed" {
 		log.Warning("Can't remove an already removed file")
-		common.Fail(ctx, req, resp, fmt.Sprintf("File %s has already been removed", file.Name), 404)
+		context.Fail(ctx, req, resp, fmt.Sprintf("File %s has already been removed", file.Name), http.StatusNotFound)
 		return
 	}
 
-	// Set status to removed, and save metadatas
-	file.Status = "removed"
-	if err := metadata.GetMetaDataBackend().AddOrUpdateFile(ctx, upload, file); err != nil {
-		log.Warningf("Unable to update metadata : %s", err)
-		common.Fail(ctx, req, resp, "Unable to update upload metadata", 500)
-		return
+	remove := true
+	tx := func(u *common.Upload) error {
+		if u == nil {
+			return fmt.Errorf("missing upload from transaction")
+		}
+
+		f, ok := u.Files[file.ID]
+		if !ok {
+			return fmt.Errorf("unable to find file %s (%s)", file.Name, file.ID)
+		}
+
+		if f.Status == common.FileRemoved || f.Status == common.FileDeleted {
+			// Nothing to do
+			remove = false
+			return nil
+		}
+
+		f.Status = common.FileRemoved
+		return nil
 	}
 
-	// Remove file from data backend
-	// Get file in data backend
-	var backend data.Backend
-	if upload.Stream {
-		backend = data.GetStreamBackend()
-	} else {
-		backend = data.GetDataBackend()
-	}
-
-	if err := backend.RemoveFile(ctx, upload, file.ID); err != nil {
-		log.Warningf("Unable to delete file : %s", err)
-		common.Fail(ctx, req, resp, "Unable to delete file", 500)
-		return
-	}
-
-	// Remove upload if no files anymore
-	RemoveUploadIfNoFileAvailable(ctx, upload)
-
-	// Print upload metadata in the json response.
-	json, err := utils.ToJson(upload)
+	upload, err := context.GetMetadataBackend(ctx).UpdateUpload(upload, tx)
 	if err != nil {
-		log.Warningf("Unable to serialize json response : %s", err)
-		common.Fail(ctx, req, resp, "Unable to serialize json response", 500)
+		log.Warningf("Unable to update upload metadata : %s", err)
+		context.Fail(ctx, req, resp, "Unable to update upload metadata", http.StatusInternalServerError)
 		return
 	}
 
-	resp.Write(json)
+	if remove {
+		err := DeleteRemovedFile(ctx, upload, file)
+		if err != nil {
+			log.Warningf("Unable to delete file %s (%s) : %s", file.Name, file.ID, err)
+			// Do not block here
+		}
+	}
+
+	_, _ = resp.Write([]byte("ok"))
 }

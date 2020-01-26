@@ -1,32 +1,3 @@
-/**
-
-    Plik upload server
-
-The MIT License (MIT)
-
-Copyright (c) <2015> Copyright holders list can be found in AUTHORS file
-	- Mathieu Bodjikian <mathieu@bodjikian.fr>
-	- Charles-Antoine Mathieu <skatkatt@root.gg>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-**/
-
 package handlers
 
 import (
@@ -36,41 +7,43 @@ import (
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
-	"github.com/nu7hatch/gouuid"
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/plik/server/metadata"
+	"github.com/root-gg/plik/server/context"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	api_oauth2 "google.golang.org/api/oauth2/v2"
 )
 
+var googeleEndpointContextKey = "google_endpoint"
+
 // GoogleLogin return google api user consent URL.
 func GoogleLogin(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
+	config := context.GetConfig(ctx)
 
-	if !common.Config.Authentication {
+	if !config.Authentication {
 		log.Warning("Authentication is disabled")
-		common.Fail(ctx, req, resp, "Authentication is disabled", 400)
+		context.Fail(ctx, req, resp, "Authentication is disabled", http.StatusBadRequest)
 		return
 	}
 
-	if !common.Config.GoogleAuthentication {
+	if !config.GoogleAuthentication {
 		log.Warning("Missing google api credentials")
-		common.Fail(ctx, req, resp, "Missing google API credentials", 500)
+		context.Fail(ctx, req, resp, "Missing google API credentials", http.StatusInternalServerError)
 		return
 	}
 
 	origin := req.Header.Get("referer")
 	if origin == "" {
 		log.Warning("Missing referer header")
-		common.Fail(ctx, req, resp, "Missing referer header", 400)
+		context.Fail(ctx, req, resp, "Missing referer header", http.StatusBadRequest)
 		return
 	}
 
 	conf := &oauth2.Config{
-		ClientID:     common.Config.GoogleAPIClientID,
-		ClientSecret: common.Config.GoogleAPISecret,
+		ClientID:     config.GoogleAPIClientID,
+		ClientSecret: config.GoogleAPISecret,
 		RedirectURL:  origin + "auth/google/callback",
 		Scopes: []string{
 			api_oauth2.UserinfoEmailScope,
@@ -81,14 +54,14 @@ func GoogleLogin(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 
 	/* Generate state */
 	state := jwt.New(jwt.SigningMethodHS256)
-	state.Claims["origin"] = origin
-	state.Claims["expire"] = time.Now().Add(time.Minute * 5).Unix()
+	state.Claims.(jwt.MapClaims)["origin"] = origin
+	state.Claims.(jwt.MapClaims)["expire"] = time.Now().Add(time.Minute * 5).Unix()
 
 	/* Sign state */
-	b64state, err := state.SignedString([]byte(common.Config.GoogleAPISecret))
+	b64state, err := state.SignedString([]byte(config.GoogleAPISecret))
 	if err != nil {
 		log.Warningf("Unable to sign state : %s", err)
-		common.Fail(ctx, req, resp, "Unable to sign state", 500)
+		context.Fail(ctx, req, resp, "Unable to sign state", http.StatusInternalServerError)
 		return
 	}
 
@@ -101,31 +74,32 @@ func GoogleLogin(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 
 // GoogleCallback authenticate google user.
 func GoogleCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
+	config := context.GetConfig(ctx)
 
-	if !common.Config.Authentication {
+	if !config.Authentication {
 		log.Warning("Authentication is disabled")
-		common.Fail(ctx, req, resp, "Authentication is disabled", 400)
+		context.Fail(ctx, req, resp, "Authentication is disabled", http.StatusBadRequest)
 		return
 	}
 
-	if common.Config.GoogleAPIClientID == "" || common.Config.GoogleAPISecret == "" {
+	if config.GoogleAPIClientID == "" || config.GoogleAPISecret == "" {
 		log.Warning("Missing google api credentials")
-		common.Fail(ctx, req, resp, "Missing google API credentials", 500)
+		context.Fail(ctx, req, resp, "Missing google API credentials", http.StatusInternalServerError)
 		return
 	}
 
 	code := req.URL.Query().Get("code")
 	if code == "" {
 		log.Warning("Missing oauth2 authorization code")
-		common.Fail(ctx, req, resp, "Missing oauth2 authorization code", 400)
+		context.Fail(ctx, req, resp, "Missing oauth2 authorization code", http.StatusBadRequest)
 		return
 	}
 
 	b64state := req.URL.Query().Get("state")
 	if b64state == "" {
 		log.Warning("Missing oauth2 state")
-		common.Fail(ctx, req, resp, "Missing oauth2 state", 400)
+		context.Fail(ctx, req, resp, "Missing oauth2 state", http.StatusBadRequest)
 		return
 	}
 
@@ -136,8 +110,8 @@ func GoogleCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 			return nil, fmt.Errorf("Unexpected siging method : %v", token.Header["alg"])
 		}
 
-		// Verify expiration date
-		if expire, ok := token.Claims["expire"]; ok {
+		// Verify expiration data
+		if expire, ok := token.Claims.(jwt.MapClaims)["expire"]; ok {
 			if _, ok = expire.(float64); ok {
 				if time.Now().Unix() > (int64)(expire.(float64)) {
 					return nil, fmt.Errorf("State has expired")
@@ -149,19 +123,31 @@ func GoogleCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 			return nil, fmt.Errorf("Missing expiration date")
 		}
 
-		return []byte(common.Config.GoogleAPISecret), nil
+		return []byte(config.GoogleAPISecret), nil
 	})
 	if err != nil {
-		log.Warning("Invalid oauth2 state : %s")
-		common.Fail(ctx, req, resp, "Invalid oauth2 state", 400)
+		log.Warningf("Invalid oauth2 state : %s", err)
+		context.Fail(ctx, req, resp, "Invalid oauth2 state", http.StatusBadRequest)
 		return
 	}
 
-	origin := state.Claims["origin"].(string)
+	if _, ok := state.Claims.(jwt.MapClaims)["origin"]; !ok {
+		log.Warning("Invalid oauth2 state : missing origin")
+		context.Fail(ctx, req, resp, "Invalid oauth2 state", http.StatusBadRequest)
+		return
+	}
+
+	if _, ok := state.Claims.(jwt.MapClaims)["origin"].(string); !ok {
+		log.Warning("Invalid oauth2 state : invalid origin")
+		context.Fail(ctx, req, resp, "Invalid oauth2 state", http.StatusBadRequest)
+		return
+	}
+
+	origin := state.Claims.(jwt.MapClaims)["origin"].(string)
 
 	conf := &oauth2.Config{
-		ClientID:     common.Config.GoogleAPIClientID,
-		ClientSecret: common.Config.GoogleAPISecret,
+		ClientID:     config.GoogleAPIClientID,
+		ClientSecret: config.GoogleAPISecret,
 		RedirectURL:  origin + "auth/google/callback",
 		Scopes: []string{
 			api_oauth2.UserinfoEmailScope,
@@ -170,38 +156,46 @@ func GoogleCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 		Endpoint: google.Endpoint,
 	}
 
+	if customEndpoint, ok := ctx.Get(googeleEndpointContextKey); ok {
+		conf.Endpoint = customEndpoint.(oauth2.Endpoint)
+	}
+
 	token, err := conf.Exchange(oauth2.NoContext, code)
 	if err != nil {
 		log.Warningf("Unable to create google API token : %s", err)
-		common.Fail(ctx, req, resp, "Unable to get user info from google API", 500)
+		context.Fail(ctx, req, resp, "Unable to get user info from google API", http.StatusInternalServerError)
 		return
 	}
 
 	client, err := api_oauth2.New(conf.Client(oauth2.NoContext, token))
 	if err != nil {
 		log.Warningf("Unable to create google API client : %s", err)
-		common.Fail(ctx, req, resp, "Unable to get user info from google API", 500)
+		context.Fail(ctx, req, resp, "Unable to get user info from google API", http.StatusInternalServerError)
 		return
+	}
+
+	if customEndpoint, ok := ctx.Get(googeleEndpointContextKey); ok {
+		client.BasePath = customEndpoint.(oauth2.Endpoint).AuthURL
 	}
 
 	userInfo, err := client.Userinfo.Get().Do()
 	if err != nil {
 		log.Warningf("Unable to get userinfo from google API : %s", err)
-		common.Fail(ctx, req, resp, "Unable to get user info from google API", 500)
+		context.Fail(ctx, req, resp, "Unable to get user info from google API", http.StatusInternalServerError)
 		return
 	}
 	userID := "google:" + userInfo.Id
 
 	// Get user from metadata backend
-	user, err := metadata.GetMetaDataBackend().GetUser(ctx, userID, "")
+	user, err := context.GetMetadataBackend(ctx).GetUser(userID)
 	if err != nil {
 		log.Warningf("Unable to get user : %s", err)
-		common.Fail(ctx, req, resp, "Unable to get user", 500)
+		context.Fail(ctx, req, resp, "Unable to get user", http.StatusInternalServerError)
 		return
 	}
 
 	if user == nil {
-		if common.IsWhitelisted(ctx) {
+		if context.IsWhitelisted(ctx) {
 			// Create new user
 			user = common.NewUser()
 			user.ID = userID
@@ -212,8 +206,8 @@ func GoogleCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 
 			// Accepted user domain checking
 			goodDomain := false
-			if len(common.Config.GoogleValidDomains) > 0 {
-				for _, validDomain := range common.Config.GoogleValidDomains {
+			if len(config.GoogleValidDomains) > 0 {
+				for _, validDomain := range config.GoogleValidDomains {
 					if strings.Compare(components[1], validDomain) == 0 {
 						goodDomain = true
 					}
@@ -225,64 +219,32 @@ func GoogleCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 			if !goodDomain {
 				// User not from accepted google domains list
 				log.Warningf("Unacceptable user domain : %s", components[1])
-				common.Fail(ctx, req, resp, fmt.Sprintf("Authentification error : Unauthorized domain %s", components[1]), 403)
+				context.Fail(ctx, req, resp, fmt.Sprintf("Authentication error : Unauthorized domain %s", components[1]), http.StatusForbidden)
 				return
 			}
 
 			// Save user to metadata backend
-			err = metadata.GetMetaDataBackend().SaveUser(ctx, user)
+			err = context.GetMetadataBackend(ctx).CreateUser(user)
 			if err != nil {
 				log.Warningf("Unable to save user to metadata backend : %s", err)
-				common.Fail(ctx, req, resp, "Authentification error", 403)
+				context.Fail(ctx, req, resp, "Authentication error", http.StatusForbidden)
 				return
 			}
 		} else {
 			log.Warning("Unable to create user from untrusted source IP address")
-			common.Fail(ctx, req, resp, "Unable to create user from untrusted source IP address", 403)
+			context.Fail(ctx, req, resp, "Unable to create user from untrusted source IP address", http.StatusForbidden)
 			return
 		}
 	}
 
-	// Generate session jwt
-	session := jwt.New(jwt.SigningMethodHS256)
-	session.Claims["uid"] = user.ID
-	session.Claims["provider"] = "google"
-
-	// Generate xsrf token
-	xsrfToken, err := uuid.NewV4()
+	// Set Plik session cookie and xsrf cookie
+	sessionCookie, xsrfCookie, err := common.GenAuthCookies(user, context.GetConfig(ctx))
 	if err != nil {
-		log.Warning("Unable to generate xsrf token")
-		common.Fail(ctx, req, resp, "Unable to generate xsrf token", 500)
-		return
+		log.Warningf("Unable to generate session cookies : %s", err)
+		context.Fail(ctx, req, resp, "Authentication error", http.StatusForbidden)
 	}
-	session.Claims["xsrf"] = xsrfToken.String()
-
-	sessionString, err := session.SignedString([]byte(common.Config.GoogleAPISecret))
-	if err != nil {
-		log.Warningf("Unable to sign session cookie : %s", err)
-		common.Fail(ctx, req, resp, "Authentification error", 403)
-		return
-	}
-
-	// Store session jwt in secure cookie
-	sessionCookie := &http.Cookie{}
-	sessionCookie.HttpOnly = true
-	sessionCookie.Secure = true
-	sessionCookie.Name = "plik-session"
-	sessionCookie.Value = sessionString
-	sessionCookie.MaxAge = int(time.Now().Add(10 * 365 * 24 * time.Hour).Unix())
-	sessionCookie.Path = "/"
 	http.SetCookie(resp, sessionCookie)
-
-	// Store xsrf token cookie
-	xsrfCookie := &http.Cookie{}
-	xsrfCookie.HttpOnly = false
-	xsrfCookie.Secure = true
-	xsrfCookie.Name = "plik-xsrf"
-	xsrfCookie.Value = xsrfToken.String()
-	xsrfCookie.MaxAge = int(time.Now().Add(10 * 365 * 24 * time.Hour).Unix())
-	xsrfCookie.Path = "/"
 	http.SetCookie(resp, xsrfCookie)
 
-	http.Redirect(resp, req, common.Config.Path+"/#/login", 301)
+	http.Redirect(resp, req, config.Path+"/#/login", http.StatusMovedPermanently)
 }

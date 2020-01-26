@@ -1,88 +1,54 @@
-/**
-
-    Plik upload server
-
-The MIT License (MIT)
-
-Copyright (c) <2015>
-	- Mathieu Bodjikian <mathieu@bodjikian.fr>
-	- Charles-Antoine Mathieu <skatkatt@root.gg>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-**/
-
 package metadata
 
 import (
-	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/plik/server/metadata/bolt"
-	"github.com/root-gg/plik/server/metadata/file"
-	"github.com/root-gg/plik/server/metadata/mongo"
 )
-
-var metadataBackend Backend
 
 // Backend interface describes methods that metadata backends
 // must implements to be compatible with plik.
 type Backend interface {
-	// Upload
-	Create(ctx *juliet.Context, upload *common.Upload) (err error)
-	Get(ctx *juliet.Context, id string) (upload *common.Upload, err error)
-	AddOrUpdateFile(ctx *juliet.Context, upload *common.Upload, file *common.File) (err error)
-	RemoveFile(ctx *juliet.Context, upload *common.Upload, file *common.File) (err error)
-	Remove(ctx *juliet.Context, upload *common.Upload) (err error)
+	// Create upload metadata
+	// TODO : Return nil but no error if upload not found
+	CreateUpload(upload *common.Upload) (err error)
 
-	// User
-	SaveUser(ctx *juliet.Context, user *common.User) (err error)
-	GetUser(ctx *juliet.Context, id string, token string) (user *common.User, err error)
-	RemoveUser(ctx *juliet.Context, user *common.User) (err error)
-	GetUserUploads(ctx *juliet.Context, user *common.User, token *common.Token) (ids []string, err error)
-	GetUserStatistics(ctx *juliet.Context, user *common.User, token *common.Token) (stats *common.UserStats, err error)
+	// Get upload metadata
+	GetUpload(uploadID string) (upload *common.Upload, err error)
 
-	// Server
-	GetUsers(ctx *juliet.Context) (ids []string, err error)
-	GetServerStatistics(ctx *juliet.Context) (stats *common.ServerStats, err error)
-	GetUploadsToRemove(ctx *juliet.Context) (ids []string, err error)
-}
+	// Update upload metadata
+	UpdateUpload(upload *common.Upload, tx common.UploadTx) (u *common.Upload, err error)
 
-// GetMetaDataBackend is a singleton pattern.
-// Init static backend if not already and return it
-func GetMetaDataBackend() Backend {
-	if metadataBackend == nil {
-		Initialize()
-	}
-	return metadataBackend
-}
+	// Remove upload metadata
+	RemoveUpload(upload *common.Upload) (err error)
 
-// Initialize backend from type found in configuration
-func Initialize() {
-	if metadataBackend == nil {
-		switch common.Config.MetadataBackend {
-		case "file":
-			metadataBackend = file.NewFileMetadataBackend(common.Config.MetadataBackendConfig)
-		case "mongo":
-			metadataBackend = mongo.NewMongoMetadataBackend(common.Config.MetadataBackendConfig)
-		case "bolt":
-			metadataBackend = bolt.NewBoltMetadataBackend(common.Config.MetadataBackendConfig)
-		default:
-			common.Logger().Fatalf("Invalid metadata backend %s", common.Config.DataBackend)
-		}
-	}
+	// Create user metadata
+	CreateUser(user *common.User) (err error)
+
+	// Get user metadata
+	// Return nil but no error if user not found
+	GetUser(userID string) (user *common.User, err error)
+
+	// Get user metadata from token
+	// Return nil but no error if user not found
+	GetUserFromToken(token string) (user *common.User, err error)
+
+	// Remove user metadata
+	UpdateUser(user *common.User, tx common.UserTx) (u *common.User, err error)
+
+	// Remove user metadata
+	RemoveUser(user *common.User) (err error)
+
+	// Get all upload for a given user
+	GetUserUploads(user *common.User, token *common.Token) (ids []string, err error)
+
+	// Get statistics for a given user
+	GetUserStatistics(user *common.User, token *common.Token) (stats *common.UserStats, err error)
+
+	// Get all users
+	GetUsers() (ids []string, err error)
+
+	// Get server statistics
+	GetServerStatistics() (stats *common.ServerStats, err error)
+
+	// Return uploads that needs to be removed from the server
+	GetUploadsToRemove() (ids []string, err error)
 }

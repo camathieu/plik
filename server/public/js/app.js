@@ -1,29 +1,3 @@
-/*
- The MIT License (MIT)
-
- Copyright (c) <2015>
- - Mathieu Bodjikian <mathieu@bodjikian.fr>
- - Charles-Antoine Mathieu <skatkatt@root.gg>
-
- Permission is hereby granted, free of charge, to any person obtaining a copy
- of this software and associated documentation files (the "Software"), to deal
- in the Software without restriction, including without limitation the rights
- to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- copies of the Software, and to permit persons to whom the Software is
- furnished to do so, subject to the following conditions:
-
- The above copyright notice and this permission notice shall be included in
- all copies or substantial portions of the Software.
-
- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- THE SOFTWARE.
- */
-
 // Editable file name directive
 angular.module('contentEditable', []).directive('contenteditable', [function () {
     return {
@@ -393,7 +367,7 @@ var plik = angular.module('plik', ['ngRoute', 'api', 'config', 'dialog', 'conten
     .config(['$httpProvider', function ($httpProvider) {
         $httpProvider.defaults.headers.common['X-ClientApp'] = 'web_client';
         $httpProvider.defaults.xsrfCookieName = 'plik-xsrf';
-        $httpProvider.defaults.xsrfHeaderName = 'X-XRSFToken';
+        $httpProvider.defaults.xsrfHeaderName = 'X-XSRFToken';
 
         // Mangle "Connection failed" result for alert modal
         $httpProvider.interceptors.push(function ($q) {
@@ -575,6 +549,11 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                     $scope.files = _.map($scope.upload.files, function (file) {
                         return {metadata: file};
                     });
+
+                    // Redirect to home when all stream uploads are downloaded
+                    if (!$scope.somethingOk()) {
+                        $scope.mainpage();
+                    }
                 })
                 .then(null, function (error) {
                     $dialog.alert(error).result.then($scope.mainpage);
@@ -829,7 +808,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
         // Check if file is downloadable
         $scope.isDownloadable = function (file) {
             if ($scope.upload.stream) {
-                if (file.metadata.status === 'missing') return true;
+                if (file.metadata.status === 'uploading') return true;
             } else {
                 if (file.metadata.status === 'uploaded') return true;
             }
@@ -855,7 +834,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
         // Is there at least one file ready to be downloaded
         $scope.somethingToDownload = function () {
             return _.find($scope.files, function (file) {
-                if (file.metadata.status === "uploaded") return true;
+                return $scope.isDownloadable(file);
             });
         };
 

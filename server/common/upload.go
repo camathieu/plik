@@ -1,32 +1,3 @@
-/**
-
-    Plik upload server
-
-The MIT License (MIT)
-
-Copyright (c) <2015>
-	- Mathieu Bodjikian <mathieu@bodjikian.fr>
-	- Charles-Antoine Mathieu <skatkatt@root.gg>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-**/
-
 package common
 
 import (
@@ -38,6 +9,10 @@ import (
 var (
 	randRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
 )
+
+// UploadTx is used to mutate upload metadata
+// This must be without side effects as it can be called multiple times to resolve conflicts
+type UploadTx func(*Upload) error
 
 // Upload object
 type Upload struct {
@@ -54,7 +29,7 @@ type Upload struct {
 	UploadToken string `json:"uploadToken,omitempty" bson:"uploadToken"`
 	User        string `json:"user,omitempty" bson:"user"`
 	Token       string `json:"token,omitempty" bson:"token"`
-	IsAdmin     bool   `json:"admin"`
+	Admin       bool   `json:"admin"`
 
 	Stream    bool `json:"stream" bson:"stream"`
 	OneShot   bool `json:"oneShot" bson:"oneShot"`
@@ -66,8 +41,6 @@ type Upload struct {
 
 	ProtectedByYubikey bool   `json:"protectedByYubikey" bson:"protectedByYubikey"`
 	Yubikey            string `json:"yubikey,omitempty" bson:"yubikey"`
-
-	//ShortURL       string `json:"shortUrl" bson:"shortUrl"` removed v1.2.1
 }
 
 // NewUpload instantiate a new upload object
@@ -89,19 +62,26 @@ func (upload *Upload) Create() {
 	upload.UploadToken = GenerateRandomID(32)
 }
 
+// NewFile creates a new file and add it to the current upload
+func (upload *Upload) NewFile() (file *File) {
+	file = NewFile()
+	upload.Files[file.ID] = file
+	return file
+}
+
 // Sanitize removes sensible information from
 // object. Used to hide information in API.
 func (upload *Upload) Sanitize() {
 	upload.RemoteIP = ""
+	upload.Login = ""
 	upload.Password = ""
-	upload.Yubikey = ""
 	upload.UploadToken = ""
 	upload.User = ""
 	upload.Token = ""
+	upload.Yubikey = ""
 	for _, file := range upload.Files {
 		file.Sanitize()
 	}
-	upload.DownloadDomain = Config.DownloadDomain
 }
 
 // GenerateRandomID generates a random string with specified length.

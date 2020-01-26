@@ -1,91 +1,93 @@
-/**
-
-    Plik upload server
-
-The MIT License (MIT)
-
-Copyright (c) <2015>
-	- Mathieu Bodjikian <mathieu@bodjikian.fr>
-	- Charles-Antoine Mathieu <skatkatt@root.gg>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-**/
-
 package stream
 
 import (
+	"errors"
+	"fmt"
 	"io"
+	"sync"
 
-	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/plik/server/data"
+	"github.com/root-gg/utils"
 )
+
+// Ensure Stream Data Backend implements data.Backend interface
+var _ data.Backend = (*Backend)(nil)
+
+// Config describes configuration for stream data backend
+type Config struct {
+}
+
+// NewConfig instantiate a new default configuration
+// and override it with configuration passed as argument
+func NewConfig(params map[string]interface{}) (config *Config) {
+	config = new(Config)
+	utils.Assign(config, params)
+	return
+}
 
 // Backend object
 type Backend struct {
-	Config *BackendConfig
-	Store  map[string]io.ReadCloser
+	Config *Config
+	store  map[string]io.ReadCloser
+	mu     sync.Mutex
 }
 
-// NewStreamBackend instantiate a new Stream Data Backend
+// NewBackend instantiate a new Stream Data Backend
 // from configuration passed as argument
-func NewStreamBackend(config map[string]interface{}) (sb *Backend) {
-	sb = new(Backend)
-	sb.Config = NewStreamBackendConfig(config)
-	sb.Store = make(map[string]io.ReadCloser)
+func NewBackend(config *Config) (b *Backend) {
+	b = new(Backend)
+	b.Config = config
+	b.store = make(map[string]io.ReadCloser)
 	return
 }
 
 // GetFile implementation for steam data backend will search
 // on filesystem the requested steam and return its reading filehandle
-func (sb *Backend) GetFile(ctx *juliet.Context, upload *common.Upload, id string) (stream io.ReadCloser, err error) {
-	log := common.GetLogger(ctx)
-	storeID := upload.ID + "/" + id
-	stream, ok := sb.Store[storeID]
+func (b *Backend) GetFile(upload *common.Upload, fileID string) (stream io.ReadCloser, err error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	storeID := upload.ID + "/" + fileID
+	stream, ok := b.store[storeID]
 	if !ok {
-		err = log.EWarningf("Missing reader")
+		return nil, fmt.Errorf("missing reader")
 	}
-	delete(sb.Store, id)
-	return
+
+	delete(b.store, fileID)
+
+	return stream, err
 }
 
 // AddFile implementation for steam data backend will creates a new steam for the given upload
 // and save it on filesystem with the given steam reader
-func (sb *Backend) AddFile(ctx *juliet.Context, upload *common.Upload, file *common.File, stream io.Reader) (backendDetails map[string]interface{}, err error) {
-	log := common.GetLogger(ctx)
+func (b *Backend) AddFile(upload *common.Upload, file *common.File, stream io.Reader) (backendDetails map[string]interface{}, err error) {
 	backendDetails = make(map[string]interface{})
+
 	id := upload.ID + "/" + file.ID
+
 	pipeReader, pipeWriter := io.Pipe()
-	sb.Store[id] = pipeReader
-	defer delete(sb.Store, id)
-	log.Info("Stream data backend waiting for download")
+
+	b.mu.Lock()
+
+	b.store[id] = pipeReader
+	defer delete(b.store, id)
+
+	b.mu.Unlock()
+
 	// This will block until download begins
 	_, err = io.Copy(pipeWriter, stream)
 	pipeWriter.Close()
-	return
+
+	return backendDetails, nil
 }
 
 // RemoveFile is not implemented
-func (sb *Backend) RemoveFile(ctx *juliet.Context, upload *common.Upload, id string) (err error) {
-	return
+func (b *Backend) RemoveFile(upload *common.Upload, id string) (err error) {
+	return errors.New("can't remove stream file")
 }
 
 // RemoveUpload is not implemented
-func (sb *Backend) RemoveUpload(ctx *juliet.Context, upload *common.Upload) (err error) {
-	return
+func (b *Backend) RemoveUpload(upload *common.Upload) (err error) {
+	return errors.New("can't remove stream upload")
 }

@@ -1,32 +1,3 @@
-/**
-
-    Plik upload server
-
-The MIT License (MIT)
-
-Copyright (c) <2015>
-	- Mathieu Bodjikian <mathieu@bodjikian.fr>
-	- Charles-Antoine Mathieu <skatkatt@root.gg>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-**/
-
 package handlers
 
 import (
@@ -38,30 +9,31 @@ import (
 
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/plik/server/metadata"
+	"github.com/root-gg/plik/server/context"
 	"github.com/root-gg/utils"
 )
 
 // CreateUpload create a new upload
 func CreateUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
+	config := context.GetConfig(ctx)
 
-	user := common.GetUser(ctx)
+	user := context.GetUser(ctx)
 	if user == nil {
-		if common.Config.NoAnonymousUploads {
+		if config.NoAnonymousUploads {
 			log.Warning("Unable to create upload from anonymous user")
-			common.Fail(ctx, req, resp, "Unable to create upload from anonymous user. Please login or use a cli token.", 403)
+			context.Fail(ctx, req, resp, "Unable to create upload from anonymous user. Please login or use a cli token.", http.StatusForbidden)
 			return
-		} else if !common.IsWhitelisted(ctx) {
+		} else if !context.IsWhitelisted(ctx) {
 			log.Warning("Unable to create upload from untrusted source IP address")
-			common.Fail(ctx, req, resp, "Unable to create upload from untrusted source IP address. Please login or use a cli token.", 403)
+			context.Fail(ctx, req, resp, "Unable to create upload from untrusted source IP address. Please login or use a cli token.", http.StatusForbidden)
 			return
 		}
 	}
 
 	upload := common.NewUpload()
 	// Save upload in the request context
-	ctx.Set("upload", upload)
+	context.SetUpload(ctx, upload)
 
 	// Read request body
 	defer req.Body.Close()
@@ -69,7 +41,7 @@ func CreateUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reque
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
 		log.Warningf("Unable to read request body : %s", err)
-		common.Fail(ctx, req, resp, "Unable to read request body", 500)
+		context.Fail(ctx, req, resp, "Unable to read request body", http.StatusInternalServerError)
 		return
 	}
 
@@ -78,16 +50,24 @@ func CreateUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reque
 		err = json.Unmarshal(body, upload)
 		if err != nil {
 			log.Warningf("Unable to deserialize request body : %s", err)
-			common.Fail(ctx, req, resp, "Unable to deserialize json request bodyy", 500)
+			context.Fail(ctx, req, resp, "Unable to deserialize json request body", http.StatusBadRequest)
 			return
 		}
 	}
 
 	// Limit number of files per upload
-	if len(upload.Files) > common.Config.MaxFilePerUpload {
-		err := log.EWarningf("Unable to create upload : Maximum number file per upload reached (%d)", common.Config.MaxFilePerUpload)
-		common.Fail(ctx, req, resp, err.Error(), 403)
+	if len(upload.Files) > config.MaxFilePerUpload {
+		err := log.EWarningf("Unable to create upload : Maximum number file per upload reached (%d)", config.MaxFilePerUpload)
+		context.Fail(ctx, req, resp, err.Error(), http.StatusForbidden)
 		return
+	}
+
+	// Check files name length
+	for _, file := range upload.Files {
+		if len(file.Name) > 1024 {
+			context.Fail(ctx, req, resp, "File name is too long. Maximum length is 1024 characters", http.StatusBadRequest)
+			return
+		}
 	}
 
 	// Set upload id, creation date, upload token, ...
@@ -96,30 +76,36 @@ func CreateUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reque
 	// Update request logger prefix
 	prefix := fmt.Sprintf("%s[%s]", log.Prefix, upload.ID)
 	log.SetPrefix(prefix)
-	ctx.Set("upload", upload)
+	context.SetUpload(ctx, upload)
 
 	// Set upload remote IP
-	upload.RemoteIP = common.GetSourceIP(ctx).String()
+	upload.RemoteIP = context.GetSourceIP(ctx).String()
 
 	// Set upload user and token
 	if user != nil {
 		upload.User = user.ID
-		token := common.GetToken(ctx)
+		token := context.GetToken(ctx)
 		if token != nil {
 			upload.Token = token.Token
 		}
 	}
 
-	if upload.OneShot && !common.Config.OneShot {
+	if upload.OneShot && !config.OneShot {
 		log.Warning("One shot downloads are not enabled.")
-		common.Fail(ctx, req, resp, "One shot downloads are not enabled.", 403)
+		context.Fail(ctx, req, resp, "One shot downloads are not enabled.", http.StatusForbidden)
+		return
+	}
+
+	if upload.Removable && !config.Removable {
+		log.Warning("Removable uploads are not enabled.")
+		context.Fail(ctx, req, resp, "Removable uploads are not enabled.", http.StatusForbidden)
 		return
 	}
 
 	if upload.Stream {
-		if !common.Config.StreamMode {
+		if !config.StreamMode {
 			log.Warning("Stream mode is not enabled")
-			common.Fail(ctx, req, resp, "Stream mode is not enabled", 403)
+			context.Fail(ctx, req, resp, "Stream mode is not enabled", http.StatusForbidden)
 			return
 		}
 		upload.OneShot = true
@@ -130,22 +116,22 @@ func CreateUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reque
 	// -1	-> No expiration : checking with configuration if that's ok
 	switch upload.TTL {
 	case 0:
-		upload.TTL = common.Config.DefaultTTL
+		upload.TTL = config.DefaultTTL
 	case -1:
-		if common.Config.MaxTTL != -1 {
-			log.Warningf("Cannot set infinite ttl (maximum allowed is : %d)", common.Config.MaxTTL)
-			common.Fail(ctx, req, resp, fmt.Sprintf("Cannot set infinite ttl (maximum allowed is : %d)", common.Config.MaxTTL), 400)
+		if config.MaxTTL != -1 {
+			log.Warningf("Cannot set infinite ttl (maximum allowed is : %d)", config.MaxTTL)
+			context.Fail(ctx, req, resp, fmt.Sprintf("Cannot set infinite ttl (maximum allowed is : %d)", config.MaxTTL), http.StatusBadRequest)
 			return
 		}
 	default:
 		if upload.TTL <= 0 {
 			log.Warningf("Invalid value for ttl : %d", upload.TTL)
-			common.Fail(ctx, req, resp, fmt.Sprintf("Invalid value for ttl : %d", upload.TTL), 400)
+			context.Fail(ctx, req, resp, fmt.Sprintf("Invalid value for ttl : %d", upload.TTL), http.StatusBadRequest)
 			return
 		}
-		if common.Config.MaxTTL > 0 && upload.TTL > common.Config.MaxTTL {
-			log.Warningf("Cannot set ttl to %d (maximum allowed is : %d)", upload.TTL, common.Config.MaxTTL)
-			common.Fail(ctx, req, resp, fmt.Sprintf("Cannot set ttl to %d (maximum allowed is : %d)", upload.TTL, common.Config.MaxTTL), 400)
+		if config.MaxTTL > 0 && upload.TTL > config.MaxTTL {
+			log.Warningf("Cannot set ttl to %d (maximum allowed is : %d)", upload.TTL, config.MaxTTL)
+			context.Fail(ctx, req, resp, fmt.Sprintf("Cannot set ttl to %d (maximum allowed is : %d)", upload.TTL, config.MaxTTL), http.StatusBadRequest)
 			return
 		}
 	}
@@ -154,9 +140,9 @@ func CreateUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reque
 	// Add Authorization header to the response for convenience
 	// So clients can just copy this header into the next request
 	if upload.Password != "" {
-		if !common.Config.ProtectedByPassword {
+		if !config.ProtectedByPassword {
 			log.Warning("Password protection is not enabled")
-			common.Fail(ctx, req, resp, "Password protection is not enabled", 403)
+			context.Fail(ctx, req, resp, "Password protection is not enabled", http.StatusForbidden)
 			return
 		}
 
@@ -171,7 +157,7 @@ func CreateUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reque
 		upload.Password, err = utils.Md5sum(b64str)
 		if err != nil {
 			log.Warningf("Unable to generate password hash : %s", err)
-			common.Fail(ctx, req, resp, common.NewResult("Unable to generate password hash", nil).ToJSONString(), 500)
+			context.Fail(ctx, req, resp, common.NewResult("Unable to generate password hash", nil).ToJSONString(), http.StatusInternalServerError)
 			return
 		}
 		resp.Header().Add("Authorization", "Basic "+b64str)
@@ -184,22 +170,22 @@ func CreateUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reque
 	if upload.Yubikey != "" {
 		upload.ProtectedByYubikey = true
 
-		if !common.Config.YubikeyEnabled {
+		if !config.YubikeyEnabled {
 			log.Warningf("Got a Yubikey upload but Yubikey backend is disabled")
-			common.Fail(ctx, req, resp, "Yubikey are disabled on this server", 403)
+			context.Fail(ctx, req, resp, "Yubikey are disabled on this server", http.StatusForbidden)
 			return
 		}
 
-		_, ok, err := common.Config.YubiAuth.Verify(upload.Yubikey)
+		_, ok, err := config.GetYubiAuth().Verify(upload.Yubikey)
 		if err != nil {
 			log.Warningf("Unable to validate yubikey token : %s", err)
-			common.Fail(ctx, req, resp, "Unable to validate yubikey token", 500)
+			context.Fail(ctx, req, resp, "Unable to validate yubikey token", http.StatusInternalServerError)
 			return
 		}
 
 		if !ok {
 			log.Warningf("Invalid yubikey token")
-			common.Fail(ctx, req, resp, "Invalid yubikey token", 400)
+			context.Fail(ctx, req, resp, "Invalid yubikey token", http.StatusBadRequest)
 			return
 		}
 
@@ -212,7 +198,7 @@ func CreateUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reque
 		// Check file name length
 		if len(file.Name) > 1024 {
 			log.Warning("File name is too long")
-			common.Fail(ctx, req, resp, "File name is too long. Maximum length is 1024 characters", 400)
+			context.Fail(ctx, req, resp, "File name is too long. Maximum length is 1024 characters", http.StatusBadRequest)
 			return
 		}
 
@@ -223,10 +209,10 @@ func CreateUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reque
 	}
 
 	// Save the metadata
-	err = metadata.GetMetaDataBackend().Create(ctx, upload)
+	err = context.GetMetadataBackend(ctx).CreateUpload(upload)
 	if err != nil {
 		log.Warningf("Create new upload error : %s", err)
-		common.Fail(ctx, req, resp, "Unable to create new upload", 500)
+		context.Fail(ctx, req, resp, "Unable to create new upload", http.StatusInternalServerError)
 		return
 	}
 
@@ -234,16 +220,17 @@ func CreateUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reque
 	// sending metadata back to the client
 	uploadToken := upload.UploadToken
 	upload.Sanitize()
+	upload.DownloadDomain = config.DownloadDomain
 
 	// Show upload token since its an upload creation
 	upload.UploadToken = uploadToken
-	upload.IsAdmin = true
+	upload.Admin = true
 
 	// Print upload metadata in the json response.
 	var json []byte
 	if json, err = utils.ToJson(upload); err != nil {
 		log.Warningf("Unable to serialize json response : %s", err)
-		common.Fail(ctx, req, resp, "Unable to serialize json response", 500)
+		context.Fail(ctx, req, resp, "Unable to serialize json response", http.StatusInternalServerError)
 		return
 	}
 
