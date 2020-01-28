@@ -1,0 +1,45 @@
+version: "3.5"
+services:
+  mongo1:
+    hostname: mongo1
+    container_name: plik.mongodb.rs0.1
+    image: mongo:latest
+    volumes:
+      - ${PWD}/create_mongo_users.js/:/scripts/create_mongo_users.js:ro
+      - ${PWD}/create_mongo_replica_set.js/:/scripts/create_mongo_replica_set.js:ro
+    networks:
+      - plik-dev
+    expose:
+      - 27017
+    restart: always
+    entrypoint: [ "/usr/bin/mongod", "--bind_ip_all", "--replSet", "rs0" ]
+  mongo2:
+    hostname: mongo2
+    container_name: plik.mongodb.rs0.2
+    image: mongo:latest
+    volumes:
+      - ${PWD}/create_mongo_users.js/:/scripts/create_mongo_users.js:ro
+      - ${PWD}/create_mongo_replica_set.js/:/scripts/create_mongo_replica_set.js:ro
+    networks:
+      - plik-dev
+    expose:
+      - 27017
+    restart: always
+    entrypoint: [ "/usr/bin/mongod", "--bind_ip_all", "--replSet", "rs0" ]
+  mongo3:
+    hostname: mongo3
+    container_name: plik.mongodb.rs0.3
+    image: mongo:latest
+    volumes:
+      - ${PWD}/create_mongo_users.js/:/scripts/create_mongo_users.js:ro
+      - ${PWD}/create_mongo_replica_set.js/:/scripts/create_mongo_replica_set.js:ro
+    networks:
+      - plik-dev
+    expose:
+      - 27017
+    restart: always
+    entrypoint: [ "/usr/bin/mongod", "--bind_ip_all", "--replSet", "rs0" ]
+
+networks:
+  plik-dev:
+    name: plik-dev

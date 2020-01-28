@@ -6,8 +6,10 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"log"
 	"math/big"
 	"net/http"
+	"os"
 	"strconv"
 	"sync"
 	"time"
@@ -248,9 +250,17 @@ func (ps *PlikServer) getHTTPHandler() (handler http.Handler) {
 	router.Handle("/stats", authChain.Then(handlers.GetServerStatistics)).Methods("GET")
 	router.Handle("/users", authChain.Then(handlers.GetUsers)).Methods("GET")
 	router.Handle("/qrcode", stdChain.Then(handlers.GetQrCode)).Methods("GET")
-	router.PathPrefix("/clients/").Handler(http.StripPrefix("/clients/", http.FileServer(http.Dir("../clients"))))
-	router.PathPrefix("/changelog/").Handler(http.StripPrefix("/changelog/", http.FileServer(http.Dir("../changelog"))))
-	router.PathPrefix("/").Handler(http.FileServer(http.Dir("./public/")))
+
+	if !ps.config.NoWebInterface {
+		_, err := os.Stat("./public")
+		if err != nil {
+			log.Fatal("Public directory not found. Please set NoWebInterface to true in config file")
+		}
+
+		router.PathPrefix("/clients/").Handler(http.StripPrefix("/clients/", http.FileServer(http.Dir("../clients"))))
+		router.PathPrefix("/changelog/").Handler(http.StripPrefix("/changelog/", http.FileServer(http.Dir("../changelog"))))
+		router.PathPrefix("/").Handler(http.FileServer(http.Dir("./public/")))
+	}
 
 	handler = common.StripPrefix(ps.config.Path, router)
 	return handler

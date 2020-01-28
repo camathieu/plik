@@ -1,6 +1,5 @@
 package bolt
 
-
 import (
 	"encoding/json"
 	"errors"
@@ -102,7 +101,7 @@ func TestBackend_GetUpload_MissingBucket(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = backend.GetUpload("id")
- 	require.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestBackend_GetUpload_NotFound(t *testing.T) {

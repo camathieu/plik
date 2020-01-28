@@ -84,13 +84,6 @@ clients:
 	@mkdir -p clients/bash && cp client/plik.sh clients/bash
 
 ###
-# Build docker
-###
-docker: release
-	@cp Dockerfile $(RELEASE_DIR)
-	@cd $(RELEASE_DIR) && docker build -t rootgg/plik .
-
-###
 # Make server and clients Debian packages
 ###
 debs: debs-client debs-server
@@ -226,6 +219,30 @@ test:
 ###
 test-backends:
 	@testing/test_backends.sh
+
+###
+# Docker related stuff
+###
+
+# Build docker builder
+docker-builder:
+	@cd docker/plik-builder && docker build -t plik-builder .
+
+# Start docker builder
+docker-builder-start:
+	@docker run --rm -it --name plik-dev --network plik-dev -p 8080:8080 -v $(shell pwd):/go/src/github.com/root-gg/plik -w /go/src/github.com/root-gg/plik plik-builder /bin/bash
+
+# Docker builder make
+docker-make:
+	@docker run --rm -v "$PWD":/go/src/github.com/root-gg/plik -w /go/src/github.com/root-gg/plik plik-builder make
+
+# Docker builder make tests
+docker-make-tests:
+	@docker run --rm -v "$PWD":/go/src/github.com/root-gg/plik -w /go/src/github.com/root-gg/plik plik-builder make test
+
+# Docker builder make releases
+docker-make-releases:
+	@docker run --rm -v "$PWD":/go/src/github.com/root-gg/plik -w /go/src/github.com/root-gg/plik plik-builder make releases
 
 ###
 # Remove server build files

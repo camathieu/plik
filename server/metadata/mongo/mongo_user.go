@@ -16,7 +16,7 @@ func (b *Backend) CreateUser(user *common.User) (err error) {
 		return errors.New("missing user")
 	}
 
-	ctx, cancel := newContext()
+	ctx, cancel := b.newContext()
 	defer cancel()
 
 	_, err = b.userCollection.InsertOne(ctx, user)
@@ -30,7 +30,7 @@ func (b *Backend) GetUser(userID string) (user *common.User, err error) {
 		return nil, errors.New("missing user id")
 	}
 
-	ctx, cancel := newContext()
+	ctx, cancel := b.newContext()
 	defer cancel()
 
 	user = &common.User{}
@@ -48,7 +48,7 @@ func (b *Backend) GetUserFromToken(token string) (user *common.User, err error) 
 		return nil, errors.New("missing user token")
 	}
 
-	ctx, cancel := newContext()
+	ctx, cancel := b.newContext()
 	defer cancel()
 
 	user = &common.User{}
@@ -66,7 +66,7 @@ func (b *Backend) UpdateUser(user *common.User, userTx common.UserTx) (u *common
 		return nil, errors.New("missing user")
 	}
 
-	ctx, cancel := newContext()
+	ctx, cancel := b.newContext()
 	defer cancel()
 
 	err = b.client.UseSession(ctx, func(sessionContext mongo.SessionContext) error {
@@ -120,7 +120,7 @@ func (b *Backend) RemoveUser(user *common.User) (err error) {
 		return errors.New("missing user")
 	}
 
-	ctx, cancel := newContext()
+	ctx, cancel := b.newContext()
 	defer cancel()
 
 	user = &common.User{}

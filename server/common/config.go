@@ -28,6 +28,7 @@ type Configuration struct {
 	SslCert    string `json:"-"`
 	SslKey     string `json:"-"`
 
+	NoWebInterface bool
 	DownloadDomain string `json:"downloadDomain"`
 
 	YubikeyEnabled   bool   `json:"yubikeyEnabled"`
@@ -61,10 +62,11 @@ type Configuration struct {
 	StreamMode          bool                   `json:"streamMode"`
 	StreamBackendConfig map[string]interface{} `json:"-"`
 
-	clean             bool
 	yubiAuth          *yubigo.YubiAuth
 	downloadDomainURL *url.URL
 	uploadWhitelist   []*net.IPNet
+
+	clean             bool `json:"-"`
 }
 
 // NewConfiguration creates a new configuration

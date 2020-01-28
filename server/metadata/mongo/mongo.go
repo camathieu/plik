@@ -3,13 +3,12 @@ package mongo
 import (
 	"context"
 	"fmt"
-	"go.mongodb.org/mongo-driver/mongo/readpref"
-	"go.mongodb.org/mongo-driver/mongo/writeconcern"
 	"time"
 
 	"github.com/root-gg/plik/server/metadata"
 	"github.com/root-gg/utils"
 
+	"go.mongodb.org/mongo-driver/mongo/readpref"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -28,6 +27,7 @@ type Config struct {
 	Database         string
 	UploadCollection string
 	UserCollection   string
+	TimeoutInSeconds int
 }
 
 // NewConfig configures the backend
@@ -38,6 +38,7 @@ func NewConfig(params map[string]interface{}) (c *Config) {
 	c.Database = "plik"
 	c.UploadCollection = "uploads"
 	c.UserCollection = "tokens"
+	c.TimeoutInSeconds = 5
 	utils.Assign(c, params)
 	return
 }
@@ -58,24 +59,35 @@ func NewBackend(config *Config) (b *Backend, err error) {
 	b.config = config
 
 	// TODO use logger or remove
-	fmt.Printf("connecting to mongodb %s", b.config.ConnectionString)
+	fmt.Printf("connecting to %s\n", b.config.ConnectionString)
 
-	opts := options.Client().ApplyURI(b.config.ConnectionString).SetWriteConcern(writeconcern.New(writeconcern.WMajority()))
+	// Create client
+	opts := options.Client().ApplyURI(b.config.ConnectionString)
 	b.client, err = mongo.NewClient(opts)
 	if err != nil {
 		return nil, err
 	}
 
-	ctx, cancel := newContext()
+	// Connect to mongodb replica set cluster
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	err = b.client.Ping(ctx, readpref.Primary())
+	err = b.client.Connect(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	err = b.client.Ping(context.TODO(), readpref.Primary())
 	if err != nil {
 		return nil, err
 	}
 
 	// TODO use logger or remove
-	fmt.Printf("connected to mongodb %s", b.config.ConnectionString)
+	fmt.Printf("connected to %s\n", b.config.ConnectionString)
 
 	b.database = b.client.Database(b.config.Database)
 	b.uploadCollection = b.database.Collection(b.config.UploadCollection)
@@ -84,6 +96,39 @@ func NewBackend(config *Config) (b *Backend, err error) {
 	return b, nil
 }
 
-func newContext() (context.Context, func()) {
-	return context.WithTimeout(context.Background(), 5*time.Second)
+func (b *Backend) newContext() (context.Context, func()) {
+	return context.WithTimeout(context.Background(), time.Duration(b.config.TimeoutInSeconds) * time.Second)
+}
+
+func runTransactionWithRetry(sctx mongo.SessionContext, txnFn func(mongo.SessionContext) error) error {
+	for {
+		err := txnFn(sctx) // Performs transaction.
+		if err == nil {
+			return nil
+		}
+
+		// If transient error, retry the whole transaction
+		if cmdErr, ok := err.(mongo.CommandError); ok && cmdErr.HasErrorLabel("TransientTransactionError") {
+			continue
+		}
+		return err
+	}
+}
+
+func commitWithRetry (sctx mongo.SessionContext) error {
+	for {
+		err := sctx.CommitTransaction(sctx)
+		switch e := err.(type) {
+		case nil:
+			return nil
+		case mongo.CommandError:
+			// Can retry commit
+			if e.HasErrorLabel("UnknownTransactionCommitResult") {
+				continue
+			}
+			return e
+		default:
+			return e
+		}
+	}
 }

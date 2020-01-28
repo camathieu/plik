@@ -1,6 +1,5 @@
 package bolt
 
-
 import (
 	"errors"
 	"testing"

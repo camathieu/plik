@@ -1,7 +1,5 @@
 #! /bin/bash
 
-
-
 set -e
 
 function check_docker_connectivity {

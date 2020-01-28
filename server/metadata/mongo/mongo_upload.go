@@ -3,8 +3,11 @@ package mongo
 import (
 	"errors"
 	"fmt"
-
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo/readconcern"
+	"go.mongodb.org/mongo-driver/mongo/readpref"
+	"go.mongodb.org/mongo-driver/mongo/writeconcern"
 	"gopkg.in/mgo.v2/bson"
 
 	"github.com/root-gg/plik/server/common"
@@ -16,7 +19,7 @@ func (b *Backend) CreateUpload(upload *common.Upload) (err error) {
 		return errors.New("missing upload")
 	}
 
-	ctx, cancel := newContext()
+	ctx, cancel := b.newContext()
 	defer cancel()
 
 	_, err = b.uploadCollection.InsertOne(ctx, upload)
@@ -30,7 +33,7 @@ func (b *Backend) GetUpload(ID string) (upload *common.Upload, err error) {
 		return nil, errors.New("missing upload id")
 	}
 
-	ctx, cancel := newContext()
+	ctx, cancel := b.newContext()
 	defer cancel()
 
 	upload = &common.Upload{}
@@ -44,32 +47,34 @@ func (b *Backend) GetUpload(ID string) (upload *common.Upload, err error) {
 
 // UpdateUpload update upload metadata in mongodb
 func (b *Backend) UpdateUpload(upload *common.Upload, uploadTx common.UploadTx) (u *common.Upload, err error) {
-	if upload == nil {
-		return nil, errors.New("missing upload")
-	}
-
-	ctx, cancel := newContext()
+	ctx, cancel := b.newContext()
 	defer cancel()
-
-	err = b.client.UseSession(ctx, func(sessionContext mongo.SessionContext) error {
-		err = sessionContext.StartTransaction()
+	
+	// Prepare upload update transaction
+	updateUploadTx := func(sctx mongo.SessionContext) error {
+		err := sctx.StartTransaction(options.Transaction().
+			SetReadConcern(readconcern.Snapshot()).
+			SetWriteConcern(writeconcern.New(writeconcern.WMajority())),
+		)
 		if err != nil {
 			return err
 		}
 
+		// Get upload
 		u = &common.Upload{}
-		err := b.uploadCollection.FindOne(sessionContext, bson.M{"id": upload.ID}).Decode(&u)
+		err = b.uploadCollection.FindOne(sctx, bson.M{"id": upload.ID}).Decode(&u)
 		if err != nil {
-			err2 := sessionContext.AbortTransaction(sessionContext)
+			err2 := sctx.AbortTransaction(sctx)
 			if err2 != nil {
 				return fmt.Errorf("%s : %s", err, err2)
 			}
 			return err
 		}
 
+		// Apply transaction ( mutate )
 		err = uploadTx(u)
 		if err != nil {
-			err2 := sessionContext.AbortTransaction(sessionContext)
+			err2 := sctx.AbortTransaction(sctx)
 			if err2 != nil {
 				return fmt.Errorf("%s : %s", err, err2)
 			}
@@ -77,22 +82,28 @@ func (b *Backend) UpdateUpload(upload *common.Upload, uploadTx common.UploadTx) 
 		}
 
 		// Avoid the possibility to override an other upload by changing the upload.ID in the tx
-		_, err = b.uploadCollection.ReplaceOne(sessionContext, bson.M{"id": upload.ID}, u)
+		_, err = b.uploadCollection.ReplaceOne(sctx, bson.M{"id": upload.ID}, u)
 		if err != nil {
-			err2 := sessionContext.AbortTransaction(sessionContext)
+			err2 := sctx.AbortTransaction(sctx)
 			if err2 != nil {
 				return fmt.Errorf("%s : %s", err, err2)
 			}
 			return err
 		}
+		
+		return commitWithRetry(sctx)
+	}
 
-		return sessionContext.CommitTransaction(sessionContext)
-	})
-
+	// Execute transaction with automatic retries and timeout
+	err = b.client.UseSessionWithOptions(
+		ctx, options.Session().SetDefaultReadPreference(readpref.Primary()),
+		func(sctx mongo.SessionContext) error {
+			return runTransactionWithRetry(sctx, updateUploadTx)
+		},
+	)
 	if err != nil {
 		return nil, err
 	}
-
 	return u, nil
 }
 
@@ -102,7 +113,7 @@ func (b *Backend) RemoveUpload(upload *common.Upload) (err error) {
 		return errors.New("missing upload")
 	}
 
-	ctx, cancel := newContext()
+	ctx, cancel := b.newContext()
 	defer cancel()
 
 	upload = &common.Upload{}
