@@ -31,7 +31,6 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	upload := context.GetUpload(ctx)
 	if upload == nil {
 		// This should never append
-		log.Critical("Missing upload in AddFileHandler")
 		context.Fail(ctx, req, resp, "Internal error", http.StatusInternalServerError)
 		return
 	}
@@ -40,7 +39,6 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	if config.NoAnonymousUploads {
 		user := context.GetUser(ctx)
 		if user == nil {
-			log.Warning("Unable to add file from anonymous user")
 			context.Fail(ctx, req, resp, "Unable to add file from anonymous user. Please login or use a cli token.", http.StatusForbidden)
 			return
 		}
@@ -48,7 +46,6 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 
 	// Check authorization
 	if !context.IsUploadAdmin(ctx) {
-		log.Warningf("Unable to add file : unauthorized")
 		context.Fail(ctx, req, resp, "You are not allowed to add file to this upload", http.StatusForbidden)
 		return
 	}
@@ -72,8 +69,7 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 		var ok bool
 		file, ok = upload.Files[fileID]
 		if !ok {
-			log.Warningf("Missing file with id %s", fileID)
-			context.Fail(ctx, req, resp, "Invalid file id", http.StatusNotFound)
+			context.Fail(ctx, req, resp, fmt.Sprintf("File %s (%s) not found", file.Name, file.ID), http.StatusNotFound)
 			return
 		}
 	}

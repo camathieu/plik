@@ -53,7 +53,7 @@ func RemoveFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request
 
 		f, ok := u.Files[file.ID]
 		if !ok {
-			return fmt.Errorf("unable to find file %s (%s)", file.Name, file.ID)
+			return common.NewTxError(fmt.Sprintf("File %s (%s) not found", file.Name, file.ID), http.StatusNotFound)
 		}
 
 		if f.Status == common.FileRemoved || f.Status == common.FileDeleted {
@@ -68,8 +68,12 @@ func RemoveFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request
 
 	upload, err := context.GetMetadataBackend(ctx).UpdateUpload(upload, tx)
 	if err != nil {
-		log.Warningf("Unable to update upload metadata : %s", err)
-		context.Fail(ctx, req, resp, "Unable to update upload metadata", http.StatusInternalServerError)
+		if txError, ok := err.(common.TxError); ok {
+			context.Fail(ctx, req, resp, txError.Error(), txError.GetStatusCode())
+		} else {
+			log.Warningf("Unable to update upload : %s", err)
+			context.Fail(ctx, req, resp, "Unable to remove file", http.StatusInternalServerError)
+		}
 		return
 	}
 

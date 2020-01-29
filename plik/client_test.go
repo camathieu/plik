@@ -363,6 +363,7 @@ func TestRemoveFile(t *testing.T) {
 	err = pc.removeFile(upload.Details(), file.Details())
 	require.NoError(t, err, "unable to remove file")
 
+	pc.Debug = true
 	_, err = pc.downloadFile(upload.getParams(), file.getParams())
 	common.RequireError(t, err, "not found")
 }

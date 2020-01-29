@@ -253,30 +253,31 @@ func IsQuick(ctx *juliet.Context) bool {
 	return false
 }
 
-var userAgents = []string{"wget", "curl", "python-urllib", "libwwww-perl", "php", "pycurl", "Go-http-client"}
+var userAgents = []string{"wget", "curl", "python-urllib", "libwwww-perl", "php", "pycurl", "go-http-client"}
 
 // Fail return write an error to the http response body.
 // If IsRedirectOnFailure is true it write a http redirect that can be handled by the web client instead.
 func Fail(ctx *juliet.Context, req *http.Request, resp http.ResponseWriter, message string, status int) {
-	if IsRedirectOnFailure(ctx) {
-		// The web client uses http redirect to get errors
-		// from http redirect and display a nice HTML error message
-		// But cli clients needs a clean string response
-		userAgent := strings.ToLower(req.UserAgent())
-		redirect := true
-		for _, ua := range userAgents {
-			if strings.HasPrefix(userAgent, ua) {
-				redirect = false
-			}
-		}
-		if redirect {
-			config := GetConfig(ctx)
-			http.Redirect(resp, req, fmt.Sprintf("%s/#/?err=%s&errcode=%d&uri=%s", config.Path, message, status, req.RequestURI), http.StatusMovedPermanently)
-			return
-		}
+	if ! IsRedirectOnFailure(ctx) || GetConfig(ctx).NoWebInterface {
+		http.Error(resp, common.NewResult(message, nil).ToJSONString(), status)
+		return
 	}
 
-	http.Error(resp, common.NewResult(message, nil).ToJSONString(), status)
+	// The web client uses http redirect to get errors
+	// from http redirect and display a nice HTML error message
+	// But cli clients needs a clean string response
+	userAgent := strings.ToLower(req.UserAgent())
+	redirect := true
+	for _, ua := range userAgents {
+		if strings.HasPrefix(userAgent, ua) {
+			redirect = false
+		}
+	}
+	if redirect {
+		config := GetConfig(ctx)
+		http.Redirect(resp, req, fmt.Sprintf("%s/#/?err=%s&errcode=%d&uri=%s", config.Path, message, status, req.RequestURI), http.StatusMovedPermanently)
+		return
+	}
 }
 
 // TestFail is a helper to test a httptest.ResponseRecoreder status

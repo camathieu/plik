@@ -234,15 +234,16 @@ docker-builder-start:
 
 # Docker builder make
 docker-make:
-	@docker run --rm -v "$PWD":/go/src/github.com/root-gg/plik -w /go/src/github.com/root-gg/plik plik-builder make
+	@docker run --rm -v $(shell pwd):/go/src/github.com/root-gg/plik -w /go/src/github.com/root-gg/plik plik-builder make
 
 # Docker builder make tests
-docker-make-tests:
-	@docker run --rm -v "$PWD":/go/src/github.com/root-gg/plik -w /go/src/github.com/root-gg/plik plik-builder make test
+docker-make-test:
+	@docker run --rm --name plik-test --network plik-dev -v $(shell pwd):/go/src/github.com/root-gg/plik -w /go/src/github.com/root-gg/plik plik-builder sh -c 'make test'
 
 # Docker builder make releases
 docker-make-releases:
-	@docker run --rm -v "$PWD":/go/src/github.com/root-gg/plik -w /go/src/github.com/root-gg/plik plik-builder make releases
+	@docker run --rm -v $(shell pwd):/go/src/github.com/root-gg/plik -w /go/src/github.com/root-gg/plik plik-builder make releases
+
 
 ###
 # Remove server build files

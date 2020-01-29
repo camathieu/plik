@@ -14,6 +14,7 @@ import (
 func File(ctx *juliet.Context, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
 		log := context.GetLogger(ctx)
+		log.Warningf("get file defuk")
 
 		// Get upload from context
 		upload := context.GetUpload(ctx)

@@ -16,6 +16,7 @@ import (
 func Upload(ctx *juliet.Context, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
 		log := context.GetLogger(ctx)
+		log.Warningf("get upload defuk")
 
 		// Get the upload id from the url params
 		vars := mux.Vars(req)
