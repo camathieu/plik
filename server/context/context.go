@@ -1,67 +1,126 @@
 package context
 
 import (
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/http"
-	"net/http/httptest"
-	"strings"
-	"testing"
+	"sync"
 
+	gocontext "context"
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/logger"
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/data"
 	"github.com/root-gg/plik/server/metadata"
-	"github.com/stretchr/testify/require"
 )
 
-// declare context keys
-type key string
+type Context struct {
+	config *common.Configuration
+	logger *logger.Logger
 
-var configKey = "config"
-var loggerKey = "logger"
-var metadataBackendKey = "metadata_backend"
-var dataBackendKey = "data_backend"
-var streamBackendKey = "stream_backend"
-var sourceIPKey = "source_ip"
-var whitelistedKey = "is_whitelisted"
-var userKey = "user"
-var tokenKey = "token"
-var uploadKey = "upload"
-var fileKey = "file"
-var adminKey = "is_admin"
-var uploadAdminKey = "is_upload_admin"
-var redirectOnFailureKey = "is_redirect_on_failure"
-var quickKey = "is_quick"
+	metadataBackend metadata.Backend
+	dataBackend data.Backend
+	streamBackend data.Backend
 
-// SetConfig set config for the context
-func SetConfig(ctx *juliet.Context, config *common.Configuration) {
-	ctx.Set(configKey, config)
+	sourceIp net.IP
 
+	upload *common.Upload
+	file *common.File
+	user *common.User
+	token *common.Token
+
+	isWhitelisted bool
+	isAdmin bool
+	isUploadAdmin bool
+	isRedirectOnFailure bool
+	isQuick bool
+	isPanic bool
+
+	req *http.Request
+	resp http.ResponseWriter
+
+	goctx gocontext.Context
+	mu sync.RWMutex
+}
+
+func (ctx *Context) HasConfig() bool {
+	ctx.mu.RLock()
+	ctx.mu.RUnlock()
+
+	if ctx.config != nil {
+		return true
+	}
+	return false
+}
+
+func (ctx *Context) HasLogger() bool {
+	ctx.mu.RLock()
+	ctx.mu.RUnlock()
+
+	if ctx.logger != nil {
+		return true
+	}
+	return false
+}
+
+func (ctx *Context) HasRequest() bool {
+	ctx.mu.RLock()
+	ctx.mu.RUnlock()
+
+	if ctx.req != nil && ctx.resp != nil {
+		return true
+	}
+	return false
+}
+
+// WithConfig set config for the context
+func (ctx *Context) WithConfig(config *common.Configuration) *Context {
+	ctx.mu.Lock()
+	ctx.mu.Unlock()
+
+	if ctx.config == nil {
+		ctx.config = config
+	} else {
+		ctx.isPanic = true
+		ctx.InternalServerError(internalServerError, fmt.Errorf("context configuration overwrite"))
+	}
+	return ctx
 }
 
 // GetConfig from the request context.
-func GetConfig(ctx *juliet.Context) (config *common.Configuration) {
-	if config, ok := ctx.Get(configKey); ok {
-		return config.(*common.Configuration)
+func (ctx *Context) GetConfig() (config *common.Configuration) {
+	ctx.mu.RLock()
+	ctx.mu.RUnlock()
+
+	if ctx.config == nil {
+		ctx.InternalServerError(internalServerError, fmt.Errorf("missing context configuration"))
 	}
-	return nil
+	return ctx.config
 }
 
-// SetLogger sets the logger to the context
-func SetLogger(ctx *juliet.Context, log *logger.Logger) {
-	ctx.Set(loggerKey, log)
+// WithLogger set config for the context
+func (ctx *Context) WithLogger(logger *logger.Logger) *Context {
+	ctx.mu.Lock()
+	ctx.mu.Unlock()
+
+	if ctx.logger == nil {
+		ctx.logger = logger
+	} else {
+		ctx.isPanic = true
+		ctx.InternalServerError(internalServerError, fmt.Errorf("context logger overwrite"))
+	}
+	return ctx
 }
 
 // GetLogger from the request context.
-func GetLogger(ctx *juliet.Context) *logger.Logger {
-	if log, ok := ctx.Get(loggerKey); ok {
-		return log.(*logger.Logger)
+func (ctx *Context) GetLogger() *logger.Logger {
+	ctx.mu.RLock()
+	ctx.mu.RUnlock()
+
+	if ctx.logger == nil {
+		ctx.InternalServerError(internalServerError, fmt.Errorf("missing context logger"))
 	}
-	return nil
+	return ctx.logger
 }
 
 // SetMetadataBackend sets the metadata backend to the context
@@ -251,48 +310,4 @@ func IsQuick(ctx *juliet.Context) bool {
 		return quick.(bool)
 	}
 	return false
-}
-
-var userAgents = []string{"wget", "curl", "python-urllib", "libwwww-perl", "php", "pycurl", "go-http-client"}
-
-// Fail return write an error to the http response body.
-// If IsRedirectOnFailure is true it write a http redirect that can be handled by the web client instead.
-func Fail(ctx *juliet.Context, req *http.Request, resp http.ResponseWriter, message string, status int) {
-	if ! IsRedirectOnFailure(ctx) || GetConfig(ctx).NoWebInterface {
-		http.Error(resp, common.NewResult(message, nil).ToJSONString(), status)
-		return
-	}
-
-	// The web client uses http redirect to get errors
-	// from http redirect and display a nice HTML error message
-	// But cli clients needs a clean string response
-	userAgent := strings.ToLower(req.UserAgent())
-	redirect := true
-	for _, ua := range userAgents {
-		if strings.HasPrefix(userAgent, ua) {
-			redirect = false
-		}
-	}
-	if redirect {
-		config := GetConfig(ctx)
-		http.Redirect(resp, req, fmt.Sprintf("%s/#/?err=%s&errcode=%d&uri=%s", config.Path, message, status, req.RequestURI), http.StatusMovedPermanently)
-		return
-	}
-}
-
-// TestFail is a helper to test a httptest.ResponseRecoreder status
-func TestFail(t *testing.T, resp *httptest.ResponseRecorder, status int, message string) {
-	require.Equal(t, status, resp.Code, "handler returned wrong status code")
-
-	respBody, err := ioutil.ReadAll(resp.Body)
-	require.NoError(t, err, "unable to read response body")
-	require.NotEqual(t, err, 0, len(respBody), "empty response body")
-
-	var result = &common.Result{}
-	err = json.Unmarshal(respBody, result)
-	require.NoError(t, err, "unable to unmarshal error")
-
-	if message != "" {
-		require.Contains(t, result.Message, message, "invalid response error message")
-	}
 }

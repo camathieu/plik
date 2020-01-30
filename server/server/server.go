@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"github.com/root-gg/juliet"
 	"log"
 	"math/big"
 	"net/http"
@@ -16,7 +17,6 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/root-gg/juliet"
 	"github.com/root-gg/logger"
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
@@ -203,7 +203,7 @@ func (ps *PlikServer) shutdown(timeout time.Duration) (err error) {
 
 func (ps *PlikServer) getHTTPHandler() (handler http.Handler) {
 	// Initialize middleware chain
-	stdChain := juliet.NewChainWithContextBuilder(ps.NewContext, middleware.SourceIP, middleware.Log)
+	stdChain := context.NewChainWithContextBuilder(ps.NewContext, middleware.SourceIP, middleware.Log)
 
 	// Get user from session cookie
 	authChain := stdChain.Append(middleware.Authenticate(false), middleware.Impersonate)
