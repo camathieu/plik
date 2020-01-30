@@ -2,40 +2,35 @@ package middleware
 
 import (
 	"fmt"
+	"github.com/gorilla/mux"
 	"net/http"
 	"strings"
-	"time"
 
-	"github.com/gorilla/mux"
-	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/context"
 	"github.com/root-gg/utils"
 )
 
 // Upload retrieve the requested upload metadata from the metadataBackend and save it to the request context.
-func Upload(ctx *juliet.Context, next http.Handler) http.Handler {
+func Upload(ctx *context.Context, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
-		log := context.GetLogger(ctx)
-		log.Warningf("get upload defuk")
+		log := ctx.GetLogger()
 
 		// Get the upload id from the url params
 		vars := mux.Vars(req)
 		uploadID := vars["uploadID"]
 		if uploadID == "" {
-			log.Warning("Missing upload id")
-			context.Fail(ctx, req, resp, "Missing upload id", http.StatusBadRequest)
+			ctx.MissingParameter("upload id")
 			return
 		}
 
 		// Get upload metadata
-		upload, err := context.GetMetadataBackend(ctx).GetUpload(uploadID)
+		upload, err := ctx.GetMetadataBackend().GetUpload(uploadID)
 		if err != nil {
-			log.Warningf("Unable to get upload metadata : %s", err)
-			context.Fail(ctx, req, resp, fmt.Sprintf("Unable to get upload metadata : %s", err), http.StatusInternalServerError)
+			ctx.InternalServerError(fmt.Errorf("unable to get upload metadata : %s", err))
 			return
 		}
 		if upload == nil {
-			context.Fail(ctx, req, resp, fmt.Sprintf("Upload %s not found", uploadID), http.StatusNotFound)
+			ctx.NotFound(fmt.Sprintf("upload %s not found", uploadID))
 			return
 		}
 
@@ -45,50 +40,48 @@ func Upload(ctx *juliet.Context, next http.Handler) http.Handler {
 
 		// Test if upload is not expired
 		if upload.IsExpired() {
-			log.Warningf("Upload is expired since %s", time.Since(time.Unix(upload.Creation, int64(0)).Add(time.Duration(upload.TTL)*time.Second)).String())
-			context.Fail(ctx, req, resp, fmt.Sprintf("Upload %s has expired", uploadID), http.StatusNotFound)
+			ctx.NotFound(fmt.Sprintf("upload %s has expired", uploadID))
 			return
 		}
 
 		// Save upload in the request context
-		context.SetUpload(ctx, upload)
+		ctx.SetUpload(upload)
 
-		forbidden := func() {
+		forbidden := func(message string) {
 			resp.Header().Set("WWW-Authenticate", "Basic realm=\"plik\"")
 
-			// Shouldn't redirect here to let the browser ask for credentials and retry
-			context.SetRedirectOnFailure(ctx, false)
+			message = fmt.Sprintf("please provide valid credentials to access this upload : %s", message)
 
-			context.Fail(ctx, req, resp, "Please provide valid credentials to access this upload", http.StatusUnauthorized)
+			// Shouldn't redirect here to let the browser ask for credentials and retry
+			ctx.SetRedirectOnFailure(false)
+			ctx.Fail(message, nil, http.StatusUnauthorized)
 		}
 
 		// Check upload token
 		uploadToken := req.Header.Get("X-UploadToken")
 		if uploadToken != "" && uploadToken == upload.UploadToken {
-			context.SetUploadAdmin(ctx, true)
+			ctx.SetUploadAdmin(true)
 		} else {
-			token := context.GetToken(ctx)
-			if token != nil {
+			if ctx.HasToken() {
 				// A user authenticated with a token can manage uploads created with such token
+				token := ctx.GetToken()
 				if upload.Token == token.Token {
-					context.SetUploadAdmin(ctx, true)
+					ctx.SetUploadAdmin(true)
 				}
 			} else {
 				// Check if upload belongs to user or if user is admin
-				user := context.GetUser(ctx)
-				if context.IsAdmin(ctx) {
-					context.SetUploadAdmin(ctx, true)
-				} else if user != nil && upload.User == user.ID {
-					context.SetUploadAdmin(ctx, true)
+				if ctx.IsAdmin() {
+					ctx.SetUploadAdmin(true)
+				} else if ctx.HasUser() && upload.User == ctx.GetUser().ID {
+					ctx.SetUploadAdmin(true)
 				}
 			}
 		}
 
 		// Handle basic auth if upload is password protected
-		if upload.ProtectedByPassword && !context.IsUploadAdmin(ctx) {
+		if upload.ProtectedByPassword && !ctx.IsUploadAdmin() {
 			if req.Header.Get("Authorization") == "" {
-				log.Warning("Missing Authorization header")
-				forbidden()
+				forbidden("missing Authorization header")
 				return
 			}
 
@@ -97,25 +90,21 @@ func Upload(ctx *juliet.Context, next http.Handler) http.Handler {
 			// of the base64 string is saved in the upload metadata
 			auth := strings.Split(req.Header.Get("Authorization"), " ")
 			if len(auth) != 2 {
-				log.Warningf("Inavlid Authorization header %s", req.Header.Get("Authorization"))
-				forbidden()
+				forbidden("invalid Authorization header")
 				return
 			}
 			if auth[0] != "Basic" {
-				log.Warningf("Inavlid http authorization scheme : %s", auth[0])
-				forbidden()
+				forbidden("invalid http authorization scheme")
 				return
 			}
 			var md5sum string
 			md5sum, err = utils.Md5sum(auth[1])
 			if err != nil {
-				log.Warningf("Unable to hash credentials : %s", err)
-				forbidden()
+				forbidden("unable to hash credentials")
 				return
 			}
 			if md5sum != upload.Password {
-				log.Warning("Invalid credentials")
-				forbidden()
+				forbidden("invalid credentials")
 				return
 			}
 		}

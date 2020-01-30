@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
-	"github.com/root-gg/juliet"
+
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
 )
@@ -56,9 +56,9 @@ func decodeOVHResponse(resp *http.Response) ([]byte, error) {
 }
 
 // OvhLogin return ovh api user consent URL.
-func OvhLogin(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := context.GetLogger(ctx)
-	config := context.GetConfig(ctx)
+func OvhLogin(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
+	log := ctx.GetLogger()
+	config := ctx.GetConfig()
 
 	if !config.Authentication {
 		log.Warning("Authentication is disabled")
@@ -151,9 +151,9 @@ func cleanOvhAuthSessionCookie(resp http.ResponseWriter) {
 }
 
 // OvhCallback authenticate ovh user.
-func OvhCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := context.GetLogger(ctx)
-	config := context.GetConfig(ctx)
+func OvhCallback(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
+	log := ctx.GetLogger()
+	config := ctx.GetConfig()
 
 	// Remove temporary ovh auth session cookie
 	cleanOvhAuthSessionCookie(resp)
@@ -263,7 +263,7 @@ func OvhCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 	userID := "ovh:" + userInfo.Nichandle
 
 	// Get user from metadata backend
-	user, err := context.GetMetadataBackend(ctx).GetUser(userID)
+	user, err := ctx.GetMetadataBackend().GetUser(userID)
 	if err != nil {
 		log.Warningf("Unable to get user from metadata backend : %s", err)
 		context.Fail(ctx, req, resp, "Unable to get user from metadata backend", http.StatusInternalServerError)
@@ -271,7 +271,7 @@ func OvhCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 	}
 
 	if user == nil {
-		if context.IsWhitelisted(ctx) {
+		if ctx.IsWhitelisted() {
 			// Create new user
 			user = common.NewUser()
 			user.ID = userID
@@ -280,7 +280,7 @@ func OvhCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 			user.Email = userInfo.Email
 
 			// Save user to metadata backend
-			err = context.GetMetadataBackend(ctx).CreateUser(user)
+			err = ctx.GetMetadataBackend().CreateUser(user)
 			if err != nil {
 				log.Warningf("Unable to save user to metadata backend : %s", err)
 				context.Fail(ctx, req, resp, "Authentication error", http.StatusForbidden)
@@ -294,7 +294,7 @@ func OvhCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 	}
 
 	// Set Plik session cookie and xsrf cookie
-	sessionCookie, xsrfCookie, err := common.GenAuthCookies(user, context.GetConfig(ctx))
+	sessionCookie, xsrfCookie, err := common.GenAuthCookies(user, ctx.GetConfig())
 	if err != nil {
 		log.Warningf("Unable to generate session cookies : %s", err)
 		context.Fail(ctx, req, resp, "Authentication error", http.StatusForbidden)

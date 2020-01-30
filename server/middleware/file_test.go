@@ -3,7 +3,6 @@ package middleware
 import (
 	"bytes"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/gorilla/mux"
@@ -18,28 +17,29 @@ func TestFileNoUpload(t *testing.T) {
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
-	File(ctx, common.DummyHandler).ServeHTTP(rr, req)
+	rr := ctx.NewRecorder(req)
 
-	context.TestFail(t, rr, http.StatusInternalServerError, "Internal error")
+	context.TestPanic(t, rr, func() {
+		File(ctx, common.DummyHandler).ServeHTTP(rr, req)
+	})
 }
 
 func TestFileNoFileID(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	context.SetUpload(ctx, common.NewUpload())
+	ctx.SetUpload(common.NewUpload())
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	File(ctx, common.DummyHandler).ServeHTTP(rr, req)
 
-	context.TestFail(t, rr, http.StatusBadRequest, "Missing file id")
+	context.TestMissingParameter(t, rr, "file id")
 }
 
 func TestFileNoFileName(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	context.SetUpload(ctx, common.NewUpload())
+	ctx.SetUpload(common.NewUpload())
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
 	require.NoError(t, err, "unable to create new request")
@@ -50,15 +50,15 @@ func TestFileNoFileName(t *testing.T) {
 	}
 	req = mux.SetURLVars(req, vars)
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	File(ctx, common.DummyHandler).ServeHTTP(rr, req)
 
-	context.TestFail(t, rr, http.StatusBadRequest, "Missing file name")
+	context.TestMissingParameter(t, rr, "file name")
 }
 
 func TestFileNotFound(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	context.SetUpload(ctx, common.NewUpload())
+	ctx.SetUpload(common.NewUpload())
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
 	require.NoError(t, err, "unable to create new request")
@@ -70,10 +70,10 @@ func TestFileNotFound(t *testing.T) {
 	}
 	req = mux.SetURLVars(req, vars)
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	File(ctx, common.DummyHandler).ServeHTTP(rr, req)
 
-	context.TestFail(t, rr, http.StatusNotFound, "File fileID not found")
+	context.TestNotFound(t, rr, "file fileID not found")
 }
 
 func TestFileInvalidFileName(t *testing.T) {
@@ -83,7 +83,7 @@ func TestFileInvalidFileName(t *testing.T) {
 	file := upload.NewFile()
 	file.Name = "filename"
 
-	context.SetUpload(ctx, upload)
+	ctx.SetUpload(upload)
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
 	require.NoError(t, err, "unable to create new request")
@@ -95,10 +95,10 @@ func TestFileInvalidFileName(t *testing.T) {
 	}
 	req = mux.SetURLVars(req, vars)
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	File(ctx, common.DummyHandler).ServeHTTP(rr, req)
 
-	context.TestFail(t, rr, http.StatusNotFound, "File invalid_file_name not found")
+	context.TestInvalidParameter(t, rr, "file name")
 }
 
 func TestFile(t *testing.T) {
@@ -108,7 +108,7 @@ func TestFile(t *testing.T) {
 	file := upload.NewFile()
 	file.Name = "filename"
 
-	context.SetUpload(ctx, upload)
+	ctx.SetUpload(upload)
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
 	require.NoError(t, err, "unable to create new request")
@@ -120,12 +120,12 @@ func TestFile(t *testing.T) {
 	}
 	req = mux.SetURLVars(req, vars)
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	File(ctx, common.DummyHandler).ServeHTTP(rr, req)
 
 	require.Equal(t, http.StatusOK, rr.Code, "invalid handler response status code")
 
-	f := context.GetFile(ctx)
+	f := ctx.GetFile()
 	require.NotNil(t, f, "missing file from context")
 	require.Equal(t, file, f, "invalid file from context")
 }

@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/root-gg/juliet"
+
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
 	"github.com/root-gg/plik/server/data"
@@ -23,12 +23,12 @@ type preprocessOutputReturn struct {
 }
 
 // AddFile add a file to an existing upload.
-func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := context.GetLogger(ctx)
-	config := context.GetConfig(ctx)
+func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
+	log := ctx.GetLogger()
+	config := ctx.GetConfig()
 
 	// Get upload from context
-	upload := context.GetUpload(ctx)
+	upload := ctx.GetUpload()
 	if upload == nil {
 		// This should never append
 		context.Fail(ctx, req, resp, "Internal error", http.StatusInternalServerError)
@@ -37,7 +37,7 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 
 	// Check anonymous user uploads
 	if config.NoAnonymousUploads {
-		user := context.GetUser(ctx)
+		user := ctx.GetUser()
 		if user == nil {
 			context.Fail(ctx, req, resp, "Unable to add file from anonymous user. Please login or use a cli token.", http.StatusForbidden)
 			return
@@ -45,7 +45,7 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	}
 
 	// Check authorization
-	if !context.IsUploadAdmin(ctx) {
+	if !ctx.IsUploadAdmin() {
 		context.Fail(ctx, req, resp, "You are not allowed to add file to this upload", http.StatusForbidden)
 		return
 	}
@@ -103,7 +103,7 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	}
 
 	// Update upload metadata
-	upload, err := context.GetMetadataBackend(ctx).UpdateUpload(upload, tx)
+	upload, err := ctx.GetMetadataBackend().UpdateUpload(upload, tx)
 	if err != nil {
 		if txError, ok := err.(common.TxError); ok {
 			context.Fail(ctx, req, resp, txError.Error(), txError.GetStatusCode())
@@ -183,9 +183,9 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	// Save file in the data backend
 	var backend data.Backend
 	if upload.Stream {
-		backend = context.GetStreamBackend(ctx)
+		backend = ctx.GetStreamBackend()
 	} else {
-		backend = context.GetDataBackend(ctx)
+		backend = ctx.GetDataBackend()
 	}
 
 	backendDetails, err := backend.AddFile(upload, file, preprocessReader)
@@ -234,7 +234,7 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 			return nil
 		}
 
-		upload, err = context.GetMetadataBackend(ctx).UpdateUpload(upload, tx)
+		upload, err = ctx.GetMetadataBackend().UpdateUpload(upload, tx)
 		if err != nil {
 			if txError, ok := err.(common.TxError); ok {
 				context.Fail(ctx, req, resp, txError.Error(), txError.GetStatusCode())
@@ -262,11 +262,11 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	// sending metadata back to the client
 	file.Sanitize()
 
-	if context.IsQuick(ctx) {
+	if ctx.IsQuick() {
 		// Print the file url in the response.
 		var url string
-		if context.GetConfig(ctx).GetDownloadDomain() != nil {
-			url = context.GetConfig(ctx).GetDownloadDomain().String()
+		if ctx.GetConfig().GetDownloadDomain() != nil {
+			url = ctx.GetConfig().GetDownloadDomain().String()
 		} else {
 			// This will break behind any non transparent reverse proxy
 			proto := "http"
@@ -295,9 +295,9 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 //  - Guess content type
 //  - Compute/Limit upload size
 //  - Compute md5sum
-func preprocessor(ctx *juliet.Context, file io.Reader, preprocessWriter io.WriteCloser, outputCh chan preprocessOutputReturn) {
-	log := context.GetLogger(ctx)
-	config := context.GetConfig(ctx)
+func preprocessor(ctx *context.Context, file io.Reader, preprocessWriter io.WriteCloser, outputCh chan preprocessOutputReturn) {
+	log := ctx.GetLogger()
+	config := ctx.GetConfig()
 
 	var err error
 	var totalBytes int64

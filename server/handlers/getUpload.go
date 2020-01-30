@@ -3,18 +3,18 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/root-gg/juliet"
+
 	"github.com/root-gg/plik/server/context"
 	"github.com/root-gg/utils"
 )
 
 // GetUpload return upload metadata
-func GetUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := context.GetLogger(ctx)
-	config := context.GetConfig(ctx)
+func GetUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
+	log := ctx.GetLogger()
+	config := ctx.GetConfig()
 
 	// Get upload from context
-	upload := context.GetUpload(ctx)
+	upload := ctx.GetUpload()
 	if upload == nil {
 		// This should never append
 		log.Critical("Missing upload in getUploadHandler")
@@ -27,7 +27,7 @@ func GetUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request)
 	upload.Sanitize()
 	upload.DownloadDomain = config.DownloadDomain
 
-	if context.IsUploadAdmin(ctx) {
+	if ctx.IsUploadAdmin() {
 		upload.Admin = true
 	}
 

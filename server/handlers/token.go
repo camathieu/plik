@@ -7,18 +7,18 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/root-gg/juliet"
+
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
 	"github.com/root-gg/utils"
 )
 
 // CreateToken create a new token
-func CreateToken(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := context.GetLogger(ctx)
+func CreateToken(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
+	log := ctx.GetLogger()
 
 	// Get user from context
-	user := context.GetUser(ctx)
+	user := ctx.GetUser()
 	if user == nil {
 		context.Fail(ctx, req, resp, "Missing user, Please login first", http.StatusUnauthorized)
 		return
@@ -57,7 +57,7 @@ func CreateToken(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 	}
 
 	// Save user
-	user, err = context.GetMetadataBackend(ctx).UpdateUser(user, tx)
+	user, err = ctx.GetMetadataBackend().UpdateUser(user, tx)
 	if err != nil {
 		log.Warningf("Unable update user metadata : %s", err)
 		context.Fail(ctx, req, resp, "Unable to update user metadata", http.StatusInternalServerError)
@@ -75,11 +75,11 @@ func CreateToken(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 }
 
 // RevokeToken remove a token
-func RevokeToken(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := context.GetLogger(ctx)
+func RevokeToken(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
+	log := ctx.GetLogger()
 
 	// Get user from context
-	user := context.GetUser(ctx)
+	user := ctx.GetUser()
 	if user == nil {
 		context.Fail(ctx, req, resp, "Missing user, Please login first", http.StatusUnauthorized)
 		return
@@ -113,7 +113,7 @@ func RevokeToken(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 	}
 
 	// Save user
-	user, err := context.GetMetadataBackend(ctx).UpdateUser(user, tx)
+	user, err := ctx.GetMetadataBackend().UpdateUser(user, tx)
 	if err != nil {
 		if txError, ok := err.(common.TxError); ok {
 			context.Fail(ctx, req, resp, txError.Error(), txError.GetStatusCode())

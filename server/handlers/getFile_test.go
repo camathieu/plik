@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/root-gg/juliet"
+
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
 	data_test "github.com/root-gg/plik/server/data/testing"
@@ -18,15 +18,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func createTestFile(ctx *juliet.Context, upload *common.Upload, file *common.File, reader io.Reader) (err error) {
-	dataBackend := context.GetDataBackend(ctx)
+func createTestFile(ctx *context.Context, upload *common.Upload, file *common.File, reader io.Reader) (err error) {
+	dataBackend := ctx.GetDataBackend()
 	_, err = dataBackend.AddFile(upload, file, reader)
 	return err
 }
 
 func TestGetFile(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	context.SetUploadAdmin(ctx, true)
+	ctx.SetUploadAdmin(true)
 
 	data := "data"
 
@@ -42,8 +42,8 @@ func TestGetFile(t *testing.T) {
 	err := createTestFile(ctx, upload, file, bytes.NewBuffer([]byte(data)))
 	require.NoError(t, err, "unable to create test file")
 
-	context.SetUpload(ctx, upload)
-	context.SetFile(ctx, file)
+	ctx.SetUpload(upload)
+	ctx.SetFile(file)
 
 	req, err := http.NewRequest("GET", "/file/"+upload.ID+"/"+file.ID+"/"+file.Name, bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -76,8 +76,8 @@ func TestGetOneShotFile(t *testing.T) {
 	err := createTestFile(ctx, upload, file, bytes.NewBuffer([]byte(data)))
 	require.NoError(t, err, "unable to create test file")
 
-	context.SetUpload(ctx, upload)
-	context.SetFile(ctx, file)
+	ctx.SetUpload(upload)
+	ctx.SetFile(file)
 
 	req, err := http.NewRequest("GET", "/file/"+upload.ID+"/"+file.ID+"/"+file.Name, bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -91,7 +91,7 @@ func TestGetOneShotFile(t *testing.T) {
 	require.NoError(t, err, "unable to read response body")
 	require.Equal(t, data, string(respBody), "invalid file content")
 
-	u, err := context.GetMetadataBackend(ctx).GetUpload(upload.ID)
+	u, err := ctx.GetMetadataBackend().GetUpload(upload.ID)
 	require.NoError(t, err, "unexpected error getting upload")
 	require.Nil(t, u, "upload should have been deleted")
 }
@@ -108,8 +108,8 @@ func TestGetRemovedFile(t *testing.T) {
 	err := createTestFile(ctx, upload, file, bytes.NewBuffer([]byte("data")))
 	require.NoError(t, err, "unable to create test file")
 
-	context.SetUpload(ctx, upload)
-	context.SetFile(ctx, file)
+	ctx.SetUpload(upload)
+	ctx.SetFile(file)
 
 	req, err := http.NewRequest("GET", "/file/"+upload.ID+"/"+file.ID+"/"+file.Name, bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -132,8 +132,8 @@ func TestGetDeletedFile(t *testing.T) {
 	err := createTestFile(ctx, upload, file, bytes.NewBuffer([]byte("data")))
 	require.NoError(t, err, "unable to create test file")
 
-	context.SetUpload(ctx, upload)
-	context.SetFile(ctx, file)
+	ctx.SetUpload(upload)
+	ctx.SetFile(file)
 
 	req, err := http.NewRequest("GET", "/file/"+upload.ID+"/"+file.ID+"/"+file.Name, bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -175,7 +175,7 @@ func TestGetFileMissingUpload(t *testing.T) {
 func TestGetFileMissingFile(t *testing.T) {
 	config := common.NewConfiguration()
 	ctx := newTestingContext(config)
-	context.SetUpload(ctx, common.NewUpload())
+	ctx.SetUpload(common.NewUpload())
 
 	req, err := http.NewRequest("GET", "/file/", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -198,8 +198,8 @@ func TestGetHtmlFile(t *testing.T) {
 	err := createTestFile(ctx, upload, file, bytes.NewBuffer([]byte("data")))
 	require.NoError(t, err, "unable to create test file")
 
-	context.SetUpload(ctx, upload)
-	context.SetFile(ctx, file)
+	ctx.SetUpload(upload)
+	ctx.SetFile(file)
 
 	req, err := http.NewRequest("GET", "/file/", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -223,8 +223,8 @@ func TestGetFileNoType(t *testing.T) {
 	err := createTestFile(ctx, upload, file, bytes.NewBuffer([]byte("data")))
 	require.NoError(t, err, "unable to create test file")
 
-	context.SetUpload(ctx, upload)
-	context.SetFile(ctx, file)
+	ctx.SetUpload(upload)
+	ctx.SetFile(file)
 
 	req, err := http.NewRequest("GET", "/file/", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -249,10 +249,10 @@ func TestGetFileDataBackendError(t *testing.T) {
 	err := createTestFile(ctx, upload, file, bytes.NewBuffer([]byte("data")))
 	require.NoError(t, err, "unable to create test file")
 
-	context.SetUpload(ctx, upload)
-	context.SetFile(ctx, file)
+	ctx.SetUpload(upload)
+	ctx.SetFile(file)
 
-	context.GetDataBackend(ctx).(*data_test.Backend).SetError(errors.New("data backend error"))
+	ctx.GetDataBackend().(*data_test.Backend).SetError(errors.New("data backend error"))
 	req, err := http.NewRequest("GET", "/file/", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
@@ -274,10 +274,10 @@ func TestGetFileMetadataBackendError(t *testing.T) {
 	err := createTestFile(ctx, upload, file, bytes.NewBuffer([]byte("data")))
 	require.NoError(t, err, "unable to create test file")
 
-	context.SetUpload(ctx, upload)
-	context.SetFile(ctx, file)
+	ctx.SetUpload(upload)
+	ctx.SetFile(file)
 
-	context.GetMetadataBackend(ctx).(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
+	ctx.GetMetadataBackend().(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
 	req, err := http.NewRequest("GET", "/file/", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 

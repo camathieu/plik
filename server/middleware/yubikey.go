@@ -1,25 +1,23 @@
 package middleware
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/root-gg/juliet"
+
 	"github.com/root-gg/plik/server/context"
 )
 
 // Yubikey verify that a valid OTP token has been provided
-func Yubikey(ctx *juliet.Context, next http.Handler) http.Handler {
+func Yubikey(ctx *context.Context, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
-		log := context.GetLogger(ctx)
-		config := context.GetConfig(ctx)
+		config := ctx.GetConfig()
 
 		// Get upload from context
-		upload := context.GetUpload(ctx)
+		upload := ctx.GetUpload()
 		if upload == nil {
-			// This should never append
-			log.Critical("Missing upload in yubikey middleware")
-			context.Fail(ctx, req, resp, "Internal error", http.StatusInternalServerError)
+			ctx.InternalServerError(fmt.Errorf("missing upload in yubikey middleware"))
 			return
 		}
 
@@ -28,38 +26,32 @@ func Yubikey(ctx *juliet.Context, next http.Handler) http.Handler {
 
 			// Error if yubikey is disabled on server, and enabled on upload
 			if !config.YubikeyEnabled {
-				log.Warningf("Got a Yubikey upload but Yubikey backend is disabled")
-				context.Fail(ctx, req, resp, "Yubikey are disabled on this server", http.StatusForbidden)
+				ctx.BadRequest("yubikey are disabled on this server")
 				return
 			}
 
 			vars := mux.Vars(req)
 			token := vars["yubikey"]
 			if token == "" {
-				log.Warningf("Missing yubikey token")
-				context.Fail(ctx, req, resp, "Invalid yubikey token", http.StatusUnauthorized)
+				ctx.Unauthorized("missing yubikey token")
 				return
 			}
 			if len(token) != 44 {
-				log.Warningf("Invalid yubikey token : %s", token)
-				context.Fail(ctx, req, resp, "Invalid yubikey token", http.StatusUnauthorized)
+				ctx.Unauthorized("invalid yubikey token")
 				return
 			}
 			if token[:12] != upload.Yubikey {
-				log.Warningf("Invalid yubikey device : %s", token)
-				context.Fail(ctx, req, resp, "Invalid yubikey token", http.StatusUnauthorized)
+				ctx.Unauthorized("invalid yubikey token")
 				return
 			}
 
 			_, isValid, err := config.GetYubiAuth().Verify(token)
 			if err != nil {
-				log.Warningf("Failed to validate yubikey token : %s", err)
-				context.Fail(ctx, req, resp, "Invalid yubikey token", http.StatusInternalServerError)
+				ctx.InternalServerError(fmt.Errorf("unable to validate yubikey token : %s", err))
 				return
 			}
 			if !isValid {
-				log.Warningf("Invalid yubikey token : %s", token)
-				context.Fail(ctx, req, resp, "Invalid yubikey token", http.StatusUnauthorized)
+				ctx.Unauthorized("invalid yubikey token")
 				return
 			}
 		}

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/gorilla/mux"
@@ -20,53 +19,54 @@ func TestYubikeyNoUpload(t *testing.T) {
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
-	Yubikey(ctx, common.DummyHandler).ServeHTTP(rr, req)
+	rr := ctx.NewRecorder(req)
 
-	context.TestFail(t, rr, http.StatusInternalServerError, "Internal error")
+	context.TestPanic(t, rr, func() {
+		Yubikey(ctx, common.DummyHandler).ServeHTTP(rr, req)
+	})
 }
 
 func TestYubikeyNotEnabled(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	context.GetMetadataBackend(ctx).(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
+	ctx.GetMetadataBackend().(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
 
 	upload := common.NewUpload()
 	upload.Yubikey = "token"
-	context.SetUpload(ctx, upload)
+	ctx.SetUpload(upload)
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	Yubikey(ctx, common.DummyHandler).ServeHTTP(rr, req)
 
-	context.TestFail(t, rr, http.StatusForbidden, "Yubikey are disabled on this server")
+	context.TestBadRequest(t, rr, "yubikey are disabled on this server")
 }
 
 func TestYubikeyMissingToken(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	context.GetConfig(ctx).YubikeyEnabled = true
+	ctx.GetConfig().YubikeyEnabled = true
 
 	upload := common.NewUpload()
 	upload.Yubikey = "token"
-	context.SetUpload(ctx, upload)
+	ctx.SetUpload(upload)
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	Yubikey(ctx, common.DummyHandler).ServeHTTP(rr, req)
 
-	context.TestFail(t, rr, http.StatusUnauthorized, "Invalid yubikey token")
+	context.TestUnauthorized(t, rr, "missing yubikey token")
 }
 
 func TestYubikeyInvalidToken(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	context.GetConfig(ctx).YubikeyEnabled = true
+	ctx.GetConfig().YubikeyEnabled = true
 
 	upload := common.NewUpload()
 	upload.Yubikey = "token"
-	context.SetUpload(ctx, upload)
+	ctx.SetUpload(upload)
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
 	require.NoError(t, err, "unable to create new request")
@@ -77,19 +77,19 @@ func TestYubikeyInvalidToken(t *testing.T) {
 	}
 	req = mux.SetURLVars(req, vars)
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	Yubikey(ctx, common.DummyHandler).ServeHTTP(rr, req)
 
-	context.TestFail(t, rr, http.StatusUnauthorized, "Invalid yubikey token")
+	context.TestUnauthorized(t, rr, "invalid yubikey token")
 }
 
 func TestYubikeyInvalidDevice(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	context.GetConfig(ctx).YubikeyEnabled = true
+	ctx.GetConfig().YubikeyEnabled = true
 
 	upload := common.NewUpload()
 	upload.Yubikey = "token"
-	context.SetUpload(ctx, upload)
+	ctx.SetUpload(upload)
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
 	require.NoError(t, err, "unable to create new request")
@@ -100,8 +100,8 @@ func TestYubikeyInvalidDevice(t *testing.T) {
 	}
 	req = mux.SetURLVars(req, vars)
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	Yubikey(ctx, common.DummyHandler).ServeHTTP(rr, req)
 
-	context.TestFail(t, rr, http.StatusUnauthorized, "Invalid yubikey token")
+	context.TestUnauthorized(t, rr, "invalid yubikey token")
 }

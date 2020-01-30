@@ -6,7 +6,6 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"github.com/root-gg/juliet"
 	"log"
 	"math/big"
 	"net/http"
@@ -212,10 +211,10 @@ func (ps *PlikServer) getHTTPHandler() (handler http.Handler) {
 	tokenChain := stdChain.Append(middleware.Authenticate(true), middleware.Impersonate)
 
 	// Redirect on error for webapp
-	stdChainWithRedirect := juliet.NewChain(middleware.RedirectOnFailure).AppendChain(stdChain)
-	authChainWithRedirect := juliet.NewChain(middleware.RedirectOnFailure).AppendChain(tokenChain)
+	stdChainWithRedirect := context.NewChain(middleware.RedirectOnFailure).AppendChain(stdChain)
+	authChainWithRedirect := context.NewChain(middleware.RedirectOnFailure).AppendChain(tokenChain)
 
-	getFileChain := juliet.NewChain(middleware.Upload, middleware.Yubikey, middleware.File)
+	getFileChain := context.NewChain(middleware.Upload, middleware.Yubikey, middleware.File)
 
 	// HTTP Api routes configuration
 	router := mux.NewRouter()
@@ -424,12 +423,12 @@ func (ps *PlikServer) GetStreamBackend() data.Backend {
 }
 
 // NewContext return a new scoped httpContext to pass along
-func (ps *PlikServer) NewContext() *juliet.Context {
-	ctx := juliet.NewContext()
-	context.SetConfig(ctx, ps.config)
-	context.SetLogger(ctx, ps.logger.Copy())
-	context.SetMetadataBackend(ctx, ps.metadataBackend)
-	context.SetDataBackend(ctx, ps.dataBackend)
-	context.SetStreamBackend(ctx, ps.streamBackend)
+func (ps *PlikServer) NewContext() *context.Context {
+	ctx := &context.Context{}
+	ctx.SetConfig(ps.config)
+	ctx.SetLogger(ps.logger.Copy())
+	ctx.SetMetadataBackend(ps.metadataBackend)
+	ctx.SetDataBackend(ps.dataBackend)
+	ctx.SetStreamBackend(ps.streamBackend)
 	return ctx
 }

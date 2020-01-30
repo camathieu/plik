@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
-	"github.com/root-gg/juliet"
+
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
 	"golang.org/x/oauth2"
@@ -18,9 +18,9 @@ import (
 var googeleEndpointContextKey = "google_endpoint"
 
 // GoogleLogin return google api user consent URL.
-func GoogleLogin(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := context.GetLogger(ctx)
-	config := context.GetConfig(ctx)
+func GoogleLogin(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
+	log := ctx.GetLogger()
+	config := ctx.GetConfig()
 
 	if !config.Authentication {
 		log.Warning("Authentication is disabled")
@@ -73,9 +73,9 @@ func GoogleLogin(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 }
 
 // GoogleCallback authenticate google user.
-func GoogleCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := context.GetLogger(ctx)
-	config := context.GetConfig(ctx)
+func GoogleCallback(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
+	log := ctx.GetLogger()
+	config := ctx.GetConfig()
 
 	if !config.Authentication {
 		log.Warning("Authentication is disabled")
@@ -187,7 +187,7 @@ func GoogleCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 	userID := "google:" + userInfo.Id
 
 	// Get user from metadata backend
-	user, err := context.GetMetadataBackend(ctx).GetUser(userID)
+	user, err := ctx.GetMetadataBackend().GetUser(userID)
 	if err != nil {
 		log.Warningf("Unable to get user : %s", err)
 		context.Fail(ctx, req, resp, "Unable to get user", http.StatusInternalServerError)
@@ -195,7 +195,7 @@ func GoogleCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 	}
 
 	if user == nil {
-		if context.IsWhitelisted(ctx) {
+		if ctx.IsWhitelisted() {
 			// Create new user
 			user = common.NewUser()
 			user.ID = userID
@@ -224,7 +224,7 @@ func GoogleCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 			}
 
 			// Save user to metadata backend
-			err = context.GetMetadataBackend(ctx).CreateUser(user)
+			err = ctx.GetMetadataBackend().CreateUser(user)
 			if err != nil {
 				log.Warningf("Unable to save user to metadata backend : %s", err)
 				context.Fail(ctx, req, resp, "Authentication error", http.StatusForbidden)
@@ -238,7 +238,7 @@ func GoogleCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 	}
 
 	// Set Plik session cookie and xsrf cookie
-	sessionCookie, xsrfCookie, err := common.GenAuthCookies(user, context.GetConfig(ctx))
+	sessionCookie, xsrfCookie, err := common.GenAuthCookies(user, ctx.GetConfig())
 	if err != nil {
 		log.Warningf("Unable to generate session cookies : %s", err)
 		context.Fail(ctx, req, resp, "Authentication error", http.StatusForbidden)

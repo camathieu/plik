@@ -3,7 +3,6 @@ package middleware
 import (
 	"bytes"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/root-gg/plik/server/common"
@@ -18,24 +17,25 @@ func TestSourceIPInvalid(t *testing.T) {
 	require.NoError(t, err, "unable to create new request")
 
 	req.RemoteAddr = "invalid_ip_address"
-	rr := httptest.NewRecorder()
-	SourceIP(ctx, common.DummyHandler).ServeHTTP(rr, req)
+	rr := ctx.NewRecorder(req)
 
-	context.TestFail(t, rr, http.StatusInternalServerError, "Unable to parse source IP address")
+	context.TestPanic(t, rr, func() {
+		SourceIP(ctx, common.DummyHandler).ServeHTTP(rr, req)
+	})
 }
 
 func TestSourceIPInvalidFromHeader(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	context.GetConfig(ctx).SourceIPHeader = "IP"
+	ctx.GetConfig().SourceIPHeader = "IP"
 
 	req, err := http.NewRequest("GET", "url", &bytes.Buffer{})
 	require.NoError(t, err, "unable to create new request")
 	req.Header.Set("IP", "invalid_ip_address")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	SourceIP(ctx, common.DummyHandler).ServeHTTP(rr, req)
 
-	context.TestFail(t, rr, http.StatusInternalServerError, "Unable to parse source IP address")
+	context.TestBadRequest(t, rr, "invalid IP address")
 }
 
 func TestSourceIP(t *testing.T) {
@@ -45,28 +45,28 @@ func TestSourceIP(t *testing.T) {
 	require.NoError(t, err, "unable to create new request")
 	req.RemoteAddr = "1.1.1.1:1111"
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	SourceIP(ctx, common.DummyHandler).ServeHTTP(rr, req)
 
 	require.Equal(t, http.StatusOK, rr.Code, "invalid handler response status code")
 
-	ip := context.GetSourceIP(ctx)
+	ip := ctx.GetSourceIP()
 	require.Equal(t, "1.1.1.1", ip.String(), "invalid source ip from context")
 }
 
 func TestSourceIPFromHeader(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	context.GetConfig(ctx).SourceIPHeader = "IP"
+	ctx.GetConfig().SourceIPHeader = "IP"
 
 	req, err := http.NewRequest("GET", "url", &bytes.Buffer{})
 	require.NoError(t, err, "unable to create new request")
 	req.Header.Set("IP", "1.1.1.1")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	SourceIP(ctx, common.DummyHandler).ServeHTTP(rr, req)
 
 	require.Equal(t, http.StatusOK, rr.Code, "invalid handler response status code")
 
-	ip := context.GetSourceIP(ctx)
+	ip := ctx.GetSourceIP()
 	require.Equal(t, "1.1.1.1", ip.String(), "invalid source ip from context")
 }

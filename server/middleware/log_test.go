@@ -3,18 +3,16 @@ package middleware
 import (
 	"bytes"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/root-gg/logger"
 	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/plik/server/context"
 	"github.com/stretchr/testify/require"
 )
 
 func TestLogInfo(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	log := context.GetLogger(ctx)
+	log := ctx.GetLogger()
 	log.SetMinLevel(logger.INFO)
 
 	buffer := &bytes.Buffer{}
@@ -25,7 +23,7 @@ func TestLogInfo(t *testing.T) {
 
 	req.RequestURI = "path"
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	Log(ctx, common.DummyHandler).ServeHTTP(rr, req)
 
 	require.Equal(t, http.StatusOK, rr.Code, "invalid handler response status code")
@@ -34,7 +32,7 @@ func TestLogInfo(t *testing.T) {
 
 func TestLogDebug(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	log := context.GetLogger(ctx)
+	log := ctx.GetLogger()
 	log.SetMinLevel(logger.DEBUG)
 
 	buffer := &bytes.Buffer{}
@@ -43,7 +41,7 @@ func TestLogDebug(t *testing.T) {
 	req, err := http.NewRequest("GET", "/version", bytes.NewBuffer([]byte("request body")))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	Log(ctx, common.DummyHandler).ServeHTTP(rr, req)
 
 	require.Equal(t, http.StatusOK, rr.Code, "invalid handler response status code")
@@ -53,7 +51,7 @@ func TestLogDebug(t *testing.T) {
 
 func TestLogDebugNoBody(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	log := context.GetLogger(ctx)
+	log := ctx.GetLogger()
 	log.SetMinLevel(logger.DEBUG)
 
 	buffer := &bytes.Buffer{}
@@ -62,7 +60,7 @@ func TestLogDebugNoBody(t *testing.T) {
 	req, err := http.NewRequest("POST", "/file", bytes.NewBuffer([]byte("request body")))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	Log(ctx, common.DummyHandler).ServeHTTP(rr, req)
 
 	require.Equal(t, http.StatusOK, rr.Code, "invalid handler response status code")

@@ -27,10 +27,10 @@ var oauth2TestEndpoint = oauth2.Endpoint{
 func TestGoogleLogin(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	context.GetConfig(ctx).Authentication = true
-	context.GetConfig(ctx).GoogleAuthentication = true
-	context.GetConfig(ctx).GoogleAPIClientID = "google_app_id"
-	context.GetConfig(ctx).GoogleAPISecret = "google_app_secret"
+	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().GoogleAuthentication = true
+	ctx.GetConfig().GoogleAPIClientID = "google_app_id"
+	ctx.GetConfig().GoogleAPISecret = "google_app_secret"
 
 	req, err := http.NewRequest("GET", "/auth/google/login", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -69,7 +69,7 @@ func TestGoogleLogin(t *testing.T) {
 			t.Fatal("Missing state expiration date")
 		}
 
-		return []byte(context.GetConfig(ctx).GoogleAPISecret), nil
+		return []byte(ctx.GetConfig().GoogleAPISecret), nil
 	})
 	require.NoError(t, err, "invalid oauth2 state")
 
@@ -80,8 +80,8 @@ func TestGoogleLogin(t *testing.T) {
 func TestGoogleLoginAuthDisabled(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	context.GetConfig(ctx).Authentication = false
-	context.GetConfig(ctx).GoogleAuthentication = false
+	ctx.GetConfig().Authentication = false
+	ctx.GetConfig().GoogleAuthentication = false
 
 	req, err := http.NewRequest("GET", "/auth/google/login", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -95,8 +95,8 @@ func TestGoogleLoginAuthDisabled(t *testing.T) {
 func TestGoogleLoginGoogleAuthDisabled(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	context.GetConfig(ctx).Authentication = true
-	context.GetConfig(ctx).GoogleAuthentication = false
+	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().GoogleAuthentication = false
 
 	req, err := http.NewRequest("GET", "/auth/google/login", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -112,8 +112,8 @@ func TestGoogleLoginGoogleAuthDisabled(t *testing.T) {
 func TestGoogleLoginMissingReferer(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	context.GetConfig(ctx).Authentication = true
-	context.GetConfig(ctx).GoogleAuthentication = true
+	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().GoogleAuthentication = true
 
 	req, err := http.NewRequest("GET", "/auth/google/login", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -127,10 +127,10 @@ func TestGoogleLoginMissingReferer(t *testing.T) {
 func TestGoogleCallback(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	context.GetConfig(ctx).Authentication = true
-	context.GetConfig(ctx).GoogleAuthentication = true
-	context.GetConfig(ctx).GoogleAPIClientID = "google_api_client_id"
-	context.GetConfig(ctx).GoogleAPISecret = "google_api_secret"
+	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().GoogleAuthentication = true
+	ctx.GetConfig().GoogleAPIClientID = "google_api_client_id"
+	ctx.GetConfig().GoogleAPISecret = "google_api_secret"
 
 	/* Generate state */
 	state := jwt.New(jwt.SigningMethodHS256)
@@ -188,7 +188,7 @@ func TestGoogleCallback(t *testing.T) {
 	require.NoError(t, err, "unable to start ovh api mock server")
 
 	/* Sign state */
-	b64state, err := state.SignedString([]byte(context.GetConfig(ctx).GoogleAPISecret))
+	b64state, err := state.SignedString([]byte(ctx.GetConfig().GoogleAPISecret))
 	require.NoError(t, err, "unable to sign state")
 
 	req, err := http.NewRequest("GET", "/auth/google/login?code=code&state="+url.QueryEscape(b64state), bytes.NewBuffer([]byte{}))
@@ -224,7 +224,7 @@ func TestGoogleCallback(t *testing.T) {
 func TestGoogleCallbackAuthDisabled(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	context.GetConfig(ctx).Authentication = false
+	ctx.GetConfig().Authentication = false
 
 	req, err := http.NewRequest("GET", "/auth/google/callback", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -240,7 +240,7 @@ func TestGoogleCallbackAuthDisabled(t *testing.T) {
 func TestGoogleCallbackMissingGoogleAuthParams(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	context.GetConfig(ctx).Authentication = true
+	ctx.GetConfig().Authentication = true
 
 	req, err := http.NewRequest("GET", "/auth/google/login", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -256,10 +256,10 @@ func TestGoogleCallbackMissingGoogleAuthParams(t *testing.T) {
 func TestGoogleCallbackMissingCode(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	context.GetConfig(ctx).Authentication = true
-	context.GetConfig(ctx).GoogleAuthentication = true
-	context.GetConfig(ctx).GoogleAPIClientID = "google_api_client_id"
-	context.GetConfig(ctx).GoogleAPISecret = "google_api_secret"
+	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().GoogleAuthentication = true
+	ctx.GetConfig().GoogleAPIClientID = "google_api_client_id"
+	ctx.GetConfig().GoogleAPISecret = "google_api_secret"
 
 	req, err := http.NewRequest("GET", "/auth/google/login", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -273,10 +273,10 @@ func TestGoogleCallbackMissingCode(t *testing.T) {
 func TestGoogleCallbackMissingState(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	context.GetConfig(ctx).Authentication = true
-	context.GetConfig(ctx).GoogleAuthentication = true
-	context.GetConfig(ctx).GoogleAPIClientID = "google_api_client_id"
-	context.GetConfig(ctx).GoogleAPISecret = "google_api_secret"
+	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().GoogleAuthentication = true
+	ctx.GetConfig().GoogleAPIClientID = "google_api_client_id"
+	ctx.GetConfig().GoogleAPISecret = "google_api_secret"
 
 	req, err := http.NewRequest("GET", "/auth/google/login?code=code", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -290,10 +290,10 @@ func TestGoogleCallbackMissingState(t *testing.T) {
 func TestGoogleCallbackInvalidState(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	context.GetConfig(ctx).Authentication = true
-	context.GetConfig(ctx).GoogleAuthentication = true
-	context.GetConfig(ctx).GoogleAPIClientID = "google_api_client_id"
-	context.GetConfig(ctx).GoogleAPISecret = "google_api_secret"
+	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().GoogleAuthentication = true
+	ctx.GetConfig().GoogleAPIClientID = "google_api_client_id"
+	ctx.GetConfig().GoogleAPISecret = "google_api_secret"
 
 	req, err := http.NewRequest("GET", "/auth/google/login?code=code&state=state", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -307,17 +307,17 @@ func TestGoogleCallbackInvalidState(t *testing.T) {
 func TestGoogleCallbackExpiredState(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	context.GetConfig(ctx).Authentication = true
-	context.GetConfig(ctx).GoogleAuthentication = true
-	context.GetConfig(ctx).GoogleAPIClientID = "google_api_client_id"
-	context.GetConfig(ctx).GoogleAPISecret = "google_api_secret"
+	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().GoogleAuthentication = true
+	ctx.GetConfig().GoogleAPIClientID = "google_api_client_id"
+	ctx.GetConfig().GoogleAPISecret = "google_api_secret"
 
 	/* Generate state */
 	state := jwt.New(jwt.SigningMethodHS256)
 	state.Claims.(jwt.MapClaims)["expire"] = time.Now().Add(-time.Minute * 5).Unix()
 
 	/* Sign state */
-	b64state, err := state.SignedString([]byte(context.GetConfig(ctx).GoogleAPISecret))
+	b64state, err := state.SignedString([]byte(ctx.GetConfig().GoogleAPISecret))
 	require.NoError(t, err, "unable to sign state")
 
 	req, err := http.NewRequest("GET", "/auth/google/login?code=code&state="+url.QueryEscape(b64state), bytes.NewBuffer([]byte{}))
@@ -332,17 +332,17 @@ func TestGoogleCallbackExpiredState(t *testing.T) {
 func TestGoogleCallbackInvalidStateExpirationDate(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	context.GetConfig(ctx).Authentication = true
-	context.GetConfig(ctx).GoogleAuthentication = true
-	context.GetConfig(ctx).GoogleAPIClientID = "google_api_client_id"
-	context.GetConfig(ctx).GoogleAPISecret = "google_api_secret"
+	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().GoogleAuthentication = true
+	ctx.GetConfig().GoogleAPIClientID = "google_api_client_id"
+	ctx.GetConfig().GoogleAPISecret = "google_api_secret"
 
 	/* Generate state */
 	state := jwt.New(jwt.SigningMethodHS256)
 	state.Claims.(jwt.MapClaims)["expire"] = "invalid expiration date"
 
 	/* Sign state */
-	b64state, err := state.SignedString([]byte(context.GetConfig(ctx).GoogleAPISecret))
+	b64state, err := state.SignedString([]byte(ctx.GetConfig().GoogleAPISecret))
 	require.NoError(t, err, "unable to sign state")
 
 	req, err := http.NewRequest("GET", "/auth/google/login?code=code&state="+url.QueryEscape(b64state), bytes.NewBuffer([]byte{}))
@@ -357,16 +357,16 @@ func TestGoogleCallbackInvalidStateExpirationDate(t *testing.T) {
 func TestGoogleCallbackMissingStateExpirationDate(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	context.GetConfig(ctx).Authentication = true
-	context.GetConfig(ctx).GoogleAuthentication = true
-	context.GetConfig(ctx).GoogleAPIClientID = "google_api_client_id"
-	context.GetConfig(ctx).GoogleAPISecret = "google_api_secret"
+	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().GoogleAuthentication = true
+	ctx.GetConfig().GoogleAPIClientID = "google_api_client_id"
+	ctx.GetConfig().GoogleAPISecret = "google_api_secret"
 
 	/* Generate state */
 	state := jwt.New(jwt.SigningMethodHS256)
 
 	/* Sign state */
-	b64state, err := state.SignedString([]byte(context.GetConfig(ctx).GoogleAPISecret))
+	b64state, err := state.SignedString([]byte(ctx.GetConfig().GoogleAPISecret))
 	require.NoError(t, err, "unable to sign state")
 
 	req, err := http.NewRequest("GET", "/auth/google/login?code=code&state="+url.QueryEscape(b64state), bytes.NewBuffer([]byte{}))
@@ -381,17 +381,17 @@ func TestGoogleCallbackMissingStateExpirationDate(t *testing.T) {
 func TestGoogleCallbackMissingOrigin(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	context.GetConfig(ctx).Authentication = true
-	context.GetConfig(ctx).GoogleAuthentication = true
-	context.GetConfig(ctx).GoogleAPIClientID = "google_api_client_id"
-	context.GetConfig(ctx).GoogleAPISecret = "google_api_secret"
+	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().GoogleAuthentication = true
+	ctx.GetConfig().GoogleAPIClientID = "google_api_client_id"
+	ctx.GetConfig().GoogleAPISecret = "google_api_secret"
 
 	/* Generate state */
 	state := jwt.New(jwt.SigningMethodHS256)
 	state.Claims.(jwt.MapClaims)["expire"] = time.Now().Add(time.Minute * 5).Unix()
 
 	/* Sign state */
-	b64state, err := state.SignedString([]byte(context.GetConfig(ctx).GoogleAPISecret))
+	b64state, err := state.SignedString([]byte(ctx.GetConfig().GoogleAPISecret))
 	require.NoError(t, err, "unable to sign state")
 
 	req, err := http.NewRequest("GET", "/auth/google/login?code=code&state="+url.QueryEscape(b64state), bytes.NewBuffer([]byte{}))
@@ -406,10 +406,10 @@ func TestGoogleCallbackMissingOrigin(t *testing.T) {
 func TestGoogleCallbackInvalidOrigin(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	context.GetConfig(ctx).Authentication = true
-	context.GetConfig(ctx).GoogleAuthentication = true
-	context.GetConfig(ctx).GoogleAPIClientID = "google_api_client_id"
-	context.GetConfig(ctx).GoogleAPISecret = "google_api_secret"
+	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().GoogleAuthentication = true
+	ctx.GetConfig().GoogleAPIClientID = "google_api_client_id"
+	ctx.GetConfig().GoogleAPISecret = "google_api_secret"
 
 	/* Generate state */
 	state := jwt.New(jwt.SigningMethodHS256)
@@ -417,7 +417,7 @@ func TestGoogleCallbackInvalidOrigin(t *testing.T) {
 	state.Claims.(jwt.MapClaims)["expire"] = time.Now().Add(time.Minute * 5).Unix()
 
 	/* Sign state */
-	b64state, err := state.SignedString([]byte(context.GetConfig(ctx).GoogleAPISecret))
+	b64state, err := state.SignedString([]byte(ctx.GetConfig().GoogleAPISecret))
 	require.NoError(t, err, "unable to sign state")
 
 	req, err := http.NewRequest("GET", "/auth/google/login?code=code&state="+url.QueryEscape(b64state), bytes.NewBuffer([]byte{}))
@@ -432,10 +432,10 @@ func TestGoogleCallbackInvalidOrigin(t *testing.T) {
 func TestGoogleCallbackNoApi(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	context.GetConfig(ctx).Authentication = true
-	context.GetConfig(ctx).GoogleAuthentication = true
-	context.GetConfig(ctx).GoogleAPIClientID = "google_api_client_id"
-	context.GetConfig(ctx).GoogleAPISecret = "google_api_secret"
+	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().GoogleAuthentication = true
+	ctx.GetConfig().GoogleAPIClientID = "google_api_client_id"
+	ctx.GetConfig().GoogleAPISecret = "google_api_secret"
 
 	/* Generate state */
 	state := jwt.New(jwt.SigningMethodHS256)
@@ -445,7 +445,7 @@ func TestGoogleCallbackNoApi(t *testing.T) {
 	ctx.Set(googeleEndpointContextKey, oauth2TestEndpoint)
 
 	/* Sign state */
-	b64state, err := state.SignedString([]byte(context.GetConfig(ctx).GoogleAPISecret))
+	b64state, err := state.SignedString([]byte(ctx.GetConfig().GoogleAPISecret))
 	require.NoError(t, err, "unable to sign state")
 
 	req, err := http.NewRequest("GET", "/auth/google/login?code=code&state="+url.QueryEscape(b64state), bytes.NewBuffer([]byte{}))
@@ -460,10 +460,10 @@ func TestGoogleCallbackNoApi(t *testing.T) {
 func TestGoogleCallbackCreateUser(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	context.GetConfig(ctx).Authentication = true
-	context.GetConfig(ctx).GoogleAuthentication = true
-	context.GetConfig(ctx).GoogleAPIClientID = "google_api_client_id"
-	context.GetConfig(ctx).GoogleAPISecret = "google_api_secret"
+	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().GoogleAuthentication = true
+	ctx.GetConfig().GoogleAPIClientID = "google_api_client_id"
+	ctx.GetConfig().GoogleAPISecret = "google_api_secret"
 
 	/* Generate state */
 	state := jwt.New(jwt.SigningMethodHS256)
@@ -513,7 +513,7 @@ func TestGoogleCallbackCreateUser(t *testing.T) {
 	require.NoError(t, err, "unable to start ovh api mock server")
 
 	/* Sign state */
-	b64state, err := state.SignedString([]byte(context.GetConfig(ctx).GoogleAPISecret))
+	b64state, err := state.SignedString([]byte(ctx.GetConfig().GoogleAPISecret))
 	require.NoError(t, err, "unable to sign state")
 
 	req, err := http.NewRequest("GET", "/auth/google/login?code=code&state="+url.QueryEscape(b64state), bytes.NewBuffer([]byte{}))
@@ -545,7 +545,7 @@ func TestGoogleCallbackCreateUser(t *testing.T) {
 	require.NotEqual(t, "", sessionCookie, "missing plik session cookie")
 	require.NotEqual(t, "", xsrfCookie, "missing plik xsrf cookie")
 
-	user, err := context.GetMetadataBackend(ctx).GetUser("google:plik")
+	user, err := ctx.GetMetadataBackend().GetUser("google:plik")
 	require.NotNil(t, user, "missing user")
 	require.Equal(t, googleUser.Email, user.Email, "invalid user email")
 	require.Equal(t, googleUser.Name, user.Name, "invalid user name")
@@ -554,10 +554,10 @@ func TestGoogleCallbackCreateUserNotWhitelisted(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 	context.SetWhitelisted(ctx, false)
 
-	context.GetConfig(ctx).Authentication = true
-	context.GetConfig(ctx).GoogleAuthentication = true
-	context.GetConfig(ctx).GoogleAPIClientID = "google_api_client_id"
-	context.GetConfig(ctx).GoogleAPISecret = "google_api_secret"
+	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().GoogleAuthentication = true
+	ctx.GetConfig().GoogleAPIClientID = "google_api_client_id"
+	ctx.GetConfig().GoogleAPISecret = "google_api_secret"
 
 	/* Generate state */
 	state := jwt.New(jwt.SigningMethodHS256)
@@ -607,7 +607,7 @@ func TestGoogleCallbackCreateUserNotWhitelisted(t *testing.T) {
 	require.NoError(t, err, "unable to start ovh api mock server")
 
 	/* Sign state */
-	b64state, err := state.SignedString([]byte(context.GetConfig(ctx).GoogleAPISecret))
+	b64state, err := state.SignedString([]byte(ctx.GetConfig().GoogleAPISecret))
 	require.NoError(t, err, "unable to sign state")
 
 	req, err := http.NewRequest("GET", "/auth/google/login?code=code&state="+url.QueryEscape(b64state), bytes.NewBuffer([]byte{}))

@@ -24,7 +24,7 @@ func TestCreateToken(t *testing.T) {
 
 	err := addTestUser(ctx, user)
 	require.NoError(t, err, "unable to add user")
-	context.SetUser(ctx, user)
+	ctx.SetUser(user)
 
 	token := common.NewToken()
 	token.Comment = "token comment"
@@ -61,7 +61,7 @@ func TestCreateTokenWithForbiddenOptions(t *testing.T) {
 
 	err := addTestUser(ctx, user)
 	require.NoError(t, err, "unable to add user")
-	context.SetUser(ctx, user)
+	ctx.SetUser(user)
 
 	token := common.NewToken()
 	token.Comment = "token comment"
@@ -113,7 +113,7 @@ func TestCreateTokenMetadataBackendError(t *testing.T) {
 
 	err := addTestUser(ctx, user)
 	require.NoError(t, err, "unable to add user")
-	context.SetUser(ctx, user)
+	ctx.SetUser(user)
 
 	token := common.NewToken()
 	token.Comment = "token comment"
@@ -124,7 +124,7 @@ func TestCreateTokenMetadataBackendError(t *testing.T) {
 	req, err := http.NewRequest("POST", "/me/token", bytes.NewBuffer(reqBody))
 	require.NoError(t, err, "unable to create new request")
 
-	context.GetMetadataBackend(ctx).(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
+	ctx.GetMetadataBackend().(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
 
 	rr := httptest.NewRecorder()
 	CreateToken(ctx, rr, req)
@@ -145,7 +145,7 @@ func TestRemoveToken(t *testing.T) {
 
 	err := addTestUser(ctx, user)
 	require.NoError(t, err, "unable to add user")
-	context.SetUser(ctx, user)
+	ctx.SetUser(user)
 
 	req, err := http.NewRequest("DELETE", "/me/token/"+token.Token, bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -166,7 +166,7 @@ func TestRemoveToken(t *testing.T) {
 	require.NoError(t, err, "unable to read response body")
 	require.Equal(t, "ok", string(respBody), "invalid response body")
 
-	user, err = context.GetMetadataBackend(ctx).GetUser(user.ID)
+	user, err = ctx.GetMetadataBackend().GetUser(user.ID)
 	require.NoError(t, err, "unable to get user")
 	require.Equal(t, 0, len(user.Tokens), "invalid user token count")
 }
@@ -184,7 +184,7 @@ func TestRemoveMissingToken(t *testing.T) {
 
 	err := addTestUser(ctx, user)
 	require.NoError(t, err, "unable to add user")
-	context.SetUser(ctx, user)
+	ctx.SetUser(user)
 
 	req, err := http.NewRequest("DELETE", "/me/token/invalid_token_id", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -227,7 +227,7 @@ func TestRevokeTokenMetadataBackendError(t *testing.T) {
 
 	err := addTestUser(ctx, user)
 	require.NoError(t, err, "unable to add user")
-	context.SetUser(ctx, user)
+	ctx.SetUser(user)
 
 	req, err := http.NewRequest("DELETE", "/me/token", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -238,7 +238,7 @@ func TestRevokeTokenMetadataBackendError(t *testing.T) {
 	}
 	req = mux.SetURLVars(req, vars)
 
-	context.GetMetadataBackend(ctx).(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
+	ctx.GetMetadataBackend().(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
 
 	rr := httptest.NewRecorder()
 	RevokeToken(ctx, rr, req)

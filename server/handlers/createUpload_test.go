@@ -10,15 +10,15 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/root-gg/juliet"
+
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
 	metadatadata_test "github.com/root-gg/plik/server/metadata/testing"
 	"github.com/stretchr/testify/require"
 )
 
-func createTestUpload(ctx *juliet.Context, uploadToCreate *common.Upload) {
-	metadataBackend := context.GetMetadataBackend(ctx)
+func createTestUpload(ctx *context.Context, uploadToCreate *common.Upload) {
+	metadataBackend := ctx.GetMetadataBackend()
 	_ = metadataBackend.CreateUpload(uploadToCreate)
 }
 
@@ -138,7 +138,7 @@ func TestCreateWithForbiddenOptions(t *testing.T) {
 
 func TestCreateWithoutAnonymousUpload(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	context.GetConfig(ctx).NoAnonymousUploads = true
+	ctx.GetConfig().NoAnonymousUploads = true
 
 	uploadToCreate := &common.Upload{}
 	reqBody, err := json.Marshal(uploadToCreate)
@@ -184,7 +184,7 @@ func TestCreateInvalidRequestBody(t *testing.T) {
 
 func TestCreateTooManyFiles(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	context.GetConfig(ctx).MaxFilePerUpload = 2
+	ctx.GetConfig().MaxFilePerUpload = 2
 
 	uploadToCreate := &common.Upload{}
 	uploadToCreate.Files = make(map[string]*common.File)
@@ -209,7 +209,7 @@ func TestCreateTooManyFiles(t *testing.T) {
 
 func TestCreateOneShotWhenOneShotIsDisabled(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	context.GetConfig(ctx).OneShot = false
+	ctx.GetConfig().OneShot = false
 
 	uploadToCreate := &common.Upload{}
 	uploadToCreate.OneShot = true
@@ -227,7 +227,7 @@ func TestCreateOneShotWhenOneShotIsDisabled(t *testing.T) {
 
 func TestCreateOneShotWhenRemovableIsDisabled(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	context.GetConfig(ctx).Removable = false
+	ctx.GetConfig().Removable = false
 
 	uploadToCreate := &common.Upload{}
 	uploadToCreate.Removable = true
@@ -245,7 +245,7 @@ func TestCreateOneShotWhenRemovableIsDisabled(t *testing.T) {
 
 func TestCreateStreamWhenStreamIsDisabled(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	context.GetConfig(ctx).StreamMode = false
+	ctx.GetConfig().StreamMode = false
 
 	uploadToCreate := &common.Upload{}
 	uploadToCreate.Stream = true
@@ -263,7 +263,7 @@ func TestCreateStreamWhenStreamIsDisabled(t *testing.T) {
 
 func TestCreateInvalidTTL(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	context.GetConfig(ctx).MaxTTL = 30
+	ctx.GetConfig().MaxTTL = 30
 
 	uploadToCreate := &common.Upload{}
 	uploadToCreate.TTL = 365
@@ -298,7 +298,7 @@ func TestCreateInvalidNegativeTTL(t *testing.T) {
 
 func TestCreateWithPasswordWhenPasswordIsNotEnabled(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	context.GetConfig(ctx).ProtectedByPassword = false
+	ctx.GetConfig().ProtectedByPassword = false
 
 	uploadToCreate := &common.Upload{}
 	uploadToCreate.Password = "password"
@@ -382,7 +382,7 @@ func TestCreateWithFilenameTooLong(t *testing.T) {
 
 func TestCreateWithMetadataBackendError(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	context.GetMetadataBackend(ctx).(*metadatadata_test.Backend).SetError(errors.New("metadata backend error"))
+	ctx.GetMetadataBackend().(*metadatadata_test.Backend).SetError(errors.New("metadata backend error"))
 
 	uploadToCreate := common.NewUpload()
 	file := common.NewFile()

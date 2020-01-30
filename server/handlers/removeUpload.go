@@ -4,16 +4,16 @@ import (
 	"github.com/root-gg/plik/server/common"
 	"net/http"
 
-	"github.com/root-gg/juliet"
+
 	"github.com/root-gg/plik/server/context"
 )
 
 // RemoveUpload remove an upload and all associated files
-func RemoveUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := context.GetLogger(ctx)
+func RemoveUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
+	log := ctx.GetLogger()
 
 	// Get upload from context
-	upload := context.GetUpload(ctx)
+	upload := ctx.GetUpload()
 	if upload == nil {
 		// This should never append
 		log.Critical("Missing upload in removeUploadHandler")
@@ -22,7 +22,7 @@ func RemoveUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reque
 	}
 
 	// Check authorization
-	if !upload.Removable && !context.IsUploadAdmin(ctx) {
+	if !upload.Removable && !ctx.IsUploadAdmin() {
 		log.Warningf("Unable to remove upload : unauthorized")
 		context.Fail(ctx, req, resp, "You are not allowed to remove this upload", http.StatusForbidden)
 		return
@@ -43,7 +43,7 @@ func RemoveUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reque
 		return nil
 	}
 
-	upload, err := context.GetMetadataBackend(ctx).UpdateUpload(upload, tx)
+	upload, err := ctx.GetMetadataBackend().UpdateUpload(upload, tx)
 	if err != nil {
 		log.Warningf("Unable to update upload metadata : %s", err)
 		context.Fail(ctx, req, resp, "Unable to update upload metadata", http.StatusInternalServerError)

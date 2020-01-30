@@ -4,29 +4,29 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/root-gg/juliet"
+
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
 	"github.com/root-gg/utils"
 )
 
 // GetUsers return users information ( name / email / tokens / ... )
-func GetUsers(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := context.GetLogger(ctx)
+func GetUsers(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
+	log := ctx.GetLogger()
 
 	// Get user from context
-	user := context.GetUser(ctx)
+	user := ctx.GetUser()
 	if user == nil {
 		context.Fail(ctx, req, resp, "Missing user, Please login first", http.StatusUnauthorized)
 		return
 	}
 
-	if !context.IsAdmin(ctx) {
+	if !ctx.IsAdmin() {
 		context.Fail(ctx, req, resp, "You need administrator privileges", http.StatusForbidden)
 		return
 	}
 
-	ids, err := context.GetMetadataBackend(ctx).GetUsers()
+	ids, err := ctx.GetMetadataBackend().GetUsers()
 	if err != nil {
 		log.Warningf("Unable to get users : %s", err)
 		context.Fail(ctx, req, resp, "Unable to get users", http.StatusInternalServerError)
@@ -69,7 +69,7 @@ func GetUsers(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) 
 
 	var users []*common.User
 	for _, id := range ids[offset : offset+size] {
-		user, err := context.GetMetadataBackend(ctx).GetUser(id)
+		user, err := ctx.GetMetadataBackend().GetUser(id)
 		if err != nil {
 			log.Warningf("Unable to get user %s : %s", id, err)
 			continue
@@ -93,23 +93,23 @@ func GetUsers(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) 
 }
 
 // GetServerStatistics return the server statistics
-func GetServerStatistics(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := context.GetLogger(ctx)
+func GetServerStatistics(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
+	log := ctx.GetLogger()
 
 	// Get user from context
-	user := context.GetUser(ctx)
+	user := ctx.GetUser()
 	if user == nil {
 		context.Fail(ctx, req, resp, "Missing user, Please login first", http.StatusUnauthorized)
 		return
 	}
 
-	if !context.IsAdmin(ctx) {
+	if !ctx.IsAdmin() {
 		context.Fail(ctx, req, resp, "You need administrator privileges", http.StatusForbidden)
 		return
 	}
 
 	// Get server statistics
-	stats, err := context.GetMetadataBackend(ctx).GetServerStatistics()
+	stats, err := ctx.GetMetadataBackend().GetServerStatistics()
 	if err != nil {
 		log.Warningf("Unable to get server statistics : %s", err)
 		context.Fail(ctx, req, resp, "Unable to get server statistics", http.StatusInternalServerError)

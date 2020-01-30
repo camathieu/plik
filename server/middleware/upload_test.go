@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -23,15 +22,15 @@ func TestUploadNoUploadID(t *testing.T) {
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	Upload(ctx, common.DummyHandler).ServeHTTP(rr, req)
 
-	context.TestFail(t, rr, http.StatusBadRequest, "Missing upload id")
+	context.TestMissingParameter(t, rr, "upload id")
 }
 
 func TestUploadMetadataBackendError(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	context.GetMetadataBackend(ctx).(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
+	ctx.GetMetadataBackend().(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
 	require.NoError(t, err, "unable to create new request")
@@ -42,10 +41,11 @@ func TestUploadMetadataBackendError(t *testing.T) {
 	}
 	req = mux.SetURLVars(req, vars)
 
-	rr := httptest.NewRecorder()
-	Upload(ctx, common.DummyHandler).ServeHTTP(rr, req)
+	rr := ctx.NewRecorder(req)
 
-	context.TestFail(t, rr, http.StatusInternalServerError, "metadata backend error")
+	context.TestPanic(t, rr, func() {
+		Upload(ctx, common.DummyHandler).ServeHTTP(rr, req)
+	})
 }
 
 func TestUpload(t *testing.T) {
@@ -54,7 +54,7 @@ func TestUpload(t *testing.T) {
 	upload := common.NewUpload()
 	upload.Create()
 
-	err := context.GetMetadataBackend(ctx).CreateUpload(upload)
+	err := ctx.GetMetadataBackend().CreateUpload(upload)
 	require.NoError(t, err, "Unable to create upload")
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
@@ -66,11 +66,11 @@ func TestUpload(t *testing.T) {
 	}
 	req = mux.SetURLVars(req, vars)
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	Upload(ctx, common.DummyHandler).ServeHTTP(rr, req)
 
 	require.Equal(t, http.StatusOK, rr.Code, "invalid handler response status code")
-	require.Equal(t, upload, context.GetUpload(ctx), "invalid upload from context")
+	require.Equal(t, upload, ctx.GetUpload(), "invalid upload from context")
 }
 
 func TestUploadExpired(t *testing.T) {
@@ -81,7 +81,7 @@ func TestUploadExpired(t *testing.T) {
 	upload.TTL = 60
 	upload.Creation = time.Now().Add(-10 * time.Minute).Unix()
 
-	err := context.GetMetadataBackend(ctx).CreateUpload(upload)
+	err := ctx.GetMetadataBackend().CreateUpload(upload)
 	require.NoError(t, err, "Unable to create upload")
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
@@ -93,10 +93,10 @@ func TestUploadExpired(t *testing.T) {
 	}
 	req = mux.SetURLVars(req, vars)
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	Upload(ctx, common.DummyHandler).ServeHTTP(rr, req)
 
-	context.TestFail(t, rr, http.StatusNotFound, "Upload "+upload.ID+" has expired")
+	context.TestFail(t, rr, http.StatusNotFound, "upload "+upload.ID+" has expired")
 }
 
 func TestUploadToken(t *testing.T) {
@@ -106,7 +106,7 @@ func TestUploadToken(t *testing.T) {
 	upload.Create()
 	upload.UploadToken = "token"
 
-	err := context.GetMetadataBackend(ctx).CreateUpload(upload)
+	err := ctx.GetMetadataBackend().CreateUpload(upload)
 	require.NoError(t, err, "Unable to create upload")
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
@@ -120,27 +120,27 @@ func TestUploadToken(t *testing.T) {
 
 	req.Header.Set("X-UploadToken", upload.UploadToken)
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	Upload(ctx, common.DummyHandler).ServeHTTP(rr, req)
 
 	require.Equal(t, http.StatusOK, rr.Code, "invalid handler response status code")
-	require.Equal(t, upload, context.GetUpload(ctx), "invalid upload from context")
-	require.True(t, context.IsUploadAdmin(ctx), "invalid upload admin status")
+	require.Equal(t, upload, ctx.GetUpload(), "invalid upload from context")
+	require.True(t, ctx.IsUploadAdmin(), "invalid upload admin status")
 }
 
 func TestUploadUser(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	context.GetConfig(ctx).Authentication = true
+	ctx.GetConfig().Authentication = true
 
 	user := common.NewUser()
 	user.ID = "user"
-	context.SetUser(ctx, user)
+	ctx.SetUser(user)
 
 	upload := common.NewUpload()
 	upload.Create()
 	upload.User = user.ID
 
-	err := context.GetMetadataBackend(ctx).CreateUpload(upload)
+	err := ctx.GetMetadataBackend().CreateUpload(upload)
 	require.NoError(t, err, "Unable to create upload")
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
@@ -152,27 +152,27 @@ func TestUploadUser(t *testing.T) {
 	}
 	req = mux.SetURLVars(req, vars)
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	Upload(ctx, common.DummyHandler).ServeHTTP(rr, req)
 
 	require.Equal(t, http.StatusOK, rr.Code, "invalid handler response status code")
-	require.Equal(t, upload, context.GetUpload(ctx), "invalid upload from context")
-	require.True(t, context.IsUploadAdmin(ctx), "invalid upload admin status")
+	require.Equal(t, upload, ctx.GetUpload(), "invalid upload from context")
+	require.True(t, ctx.IsUploadAdmin(), "invalid upload admin status")
 }
 
 func TestUploadUserAdmin(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	context.GetConfig(ctx).Authentication = true
+	ctx.GetConfig().Authentication = true
 
 	user := common.NewUser()
 	user.ID = "user"
-	context.SetAdmin(ctx, true)
-	context.SetUser(ctx, user)
+	ctx.SetAdmin(true)
+	ctx.SetUser(user)
 
 	upload := common.NewUpload()
 	upload.Create()
 
-	err := context.GetMetadataBackend(ctx).CreateUpload(upload)
+	err := ctx.GetMetadataBackend().CreateUpload(upload)
 	require.NoError(t, err, "Unable to create upload")
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
@@ -184,23 +184,23 @@ func TestUploadUserAdmin(t *testing.T) {
 	}
 	req = mux.SetURLVars(req, vars)
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	Upload(ctx, common.DummyHandler).ServeHTTP(rr, req)
 
 	require.Equal(t, http.StatusOK, rr.Code, "invalid handler response status code")
-	require.Equal(t, upload, context.GetUpload(ctx), "invalid upload from context")
-	require.True(t, context.IsUploadAdmin(ctx), "invalid upload admin status")
+	require.Equal(t, upload, ctx.GetUpload(), "invalid upload from context")
+	require.True(t, ctx.IsUploadAdmin(), "invalid upload admin status")
 }
 
 func TestUploadPasswordMissingHeader(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	context.GetConfig(ctx).Authentication = true
+	ctx.GetConfig().Authentication = true
 
 	upload := common.NewUpload()
 	upload.ProtectedByPassword = true
 	upload.Create()
 
-	err := context.GetMetadataBackend(ctx).CreateUpload(upload)
+	err := ctx.GetMetadataBackend().CreateUpload(upload)
 	require.NoError(t, err, "Unable to create upload")
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
@@ -212,21 +212,21 @@ func TestUploadPasswordMissingHeader(t *testing.T) {
 	}
 	req = mux.SetURLVars(req, vars)
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	Upload(ctx, common.DummyHandler).ServeHTTP(rr, req)
 
-	context.TestFail(t, rr, http.StatusUnauthorized, "Please provide valid credentials to access this upload")
+	context.TestUnauthorized(t, rr, "please provide valid credentials to access this upload")
 }
 
 func TestUploadPasswordInvalidHeader(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	context.GetConfig(ctx).Authentication = true
+	ctx.GetConfig().Authentication = true
 
 	upload := common.NewUpload()
 	upload.ProtectedByPassword = true
 	upload.Create()
 
-	err := context.GetMetadataBackend(ctx).CreateUpload(upload)
+	err := ctx.GetMetadataBackend().CreateUpload(upload)
 	require.NoError(t, err, "Unable to create upload")
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
@@ -240,21 +240,21 @@ func TestUploadPasswordInvalidHeader(t *testing.T) {
 
 	req.Header.Set("Authorization", "invalid_header")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	Upload(ctx, common.DummyHandler).ServeHTTP(rr, req)
 
-	context.TestFail(t, rr, http.StatusUnauthorized, "Please provide valid credentials to access this upload")
+	context.TestUnauthorized(t, rr, "please provide valid credentials to access this upload")
 }
 
 func TestUploadPasswordInvalidScheme(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	context.GetConfig(ctx).Authentication = true
+	ctx.GetConfig().Authentication = true
 
 	upload := common.NewUpload()
 	upload.ProtectedByPassword = true
 	upload.Create()
 
-	err := context.GetMetadataBackend(ctx).CreateUpload(upload)
+	err := ctx.GetMetadataBackend().CreateUpload(upload)
 	require.NoError(t, err, "Unable to create upload")
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
@@ -268,21 +268,21 @@ func TestUploadPasswordInvalidScheme(t *testing.T) {
 
 	req.Header.Set("Authorization", "invalid_scheme invalid_creds")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	Upload(ctx, common.DummyHandler).ServeHTTP(rr, req)
 
-	context.TestFail(t, rr, http.StatusUnauthorized, "Please provide valid credentials to access this upload")
+	context.TestUnauthorized(t, rr, "please provide valid credentials to access this upload")
 }
 
 func TestUploadPasswordInvalidPassword(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	context.GetConfig(ctx).Authentication = true
+	ctx.GetConfig().Authentication = true
 
 	upload := common.NewUpload()
 	upload.ProtectedByPassword = true
 	upload.Create()
 
-	err := context.GetMetadataBackend(ctx).CreateUpload(upload)
+	err := ctx.GetMetadataBackend().CreateUpload(upload)
 	require.NoError(t, err, "Unable to create upload")
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
@@ -296,15 +296,15 @@ func TestUploadPasswordInvalidPassword(t *testing.T) {
 
 	req.Header.Set("Authorization", "Basic invalid_creds")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	Upload(ctx, common.DummyHandler).ServeHTTP(rr, req)
 
-	context.TestFail(t, rr, http.StatusUnauthorized, "Please provide valid credentials to access this upload")
+	context.TestUnauthorized(t, rr, "please provide valid credentials to access this upload")
 }
 
 func TestUploadPassword(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	context.GetConfig(ctx).Authentication = true
+	ctx.GetConfig().Authentication = true
 
 	var err error
 
@@ -320,7 +320,7 @@ func TestUploadPassword(t *testing.T) {
 	upload.Password, err = utils.Md5sum(b64str)
 	require.NoError(t, err, "unable to b64encode upload credentials")
 
-	err = context.GetMetadataBackend(ctx).CreateUpload(upload)
+	err = ctx.GetMetadataBackend().CreateUpload(upload)
 	require.NoError(t, err, "Unable to create upload")
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
@@ -334,10 +334,10 @@ func TestUploadPassword(t *testing.T) {
 
 	req.Header.Add("Authorization", "Basic "+b64str)
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	Upload(ctx, common.DummyHandler).ServeHTTP(rr, req)
 
 	require.Equal(t, http.StatusOK, rr.Code, "invalid handler response status code")
-	require.Equal(t, upload, context.GetUpload(ctx), "invalid upload from context")
-	require.False(t, context.IsUploadAdmin(ctx), "invalid upload admin status")
+	require.Equal(t, upload, ctx.GetUpload(), "invalid upload from context")
+	require.False(t, ctx.IsUploadAdmin(), "invalid upload admin status")
 }

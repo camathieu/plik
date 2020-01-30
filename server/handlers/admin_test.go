@@ -8,23 +8,23 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/root-gg/juliet"
+
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
 	"github.com/stretchr/testify/require"
 )
 
-func addTestUser(ctx *juliet.Context, user *common.User) (err error) {
-	metadataBackend := context.GetMetadataBackend(ctx)
+func addTestUser(ctx *context.Context, user *common.User) (err error) {
+	metadataBackend := ctx.GetMetadataBackend()
 	return metadataBackend.CreateUser(user)
 }
 
-func addTestUserAdmin(ctx *juliet.Context) (user *common.User, err error) {
+func addTestUserAdmin(ctx *context.Context) (user *common.User, err error) {
 	user = common.NewUser()
 	user.ID = "admin"
 	user.Email = "admin@root.gg"
 	user.Login = "admin"
-	context.SetUser(ctx, user)
+	ctx.SetUser(user)
 	context.SetAdmin(ctx, true)
 	return user, addTestUser(ctx, user)
 }
@@ -124,7 +124,7 @@ func TestGetServerStatistics(t *testing.T) {
 			file.Type = item.typ
 			file.CurrentSize = item.size
 
-			err := context.GetMetadataBackend(ctx).CreateUpload(upload)
+			err := ctx.GetMetadataBackend().CreateUpload(upload)
 			require.NoError(t, err, "create error")
 		}
 	}

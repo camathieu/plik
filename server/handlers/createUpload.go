@@ -7,24 +7,24 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"github.com/root-gg/juliet"
+
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
 	"github.com/root-gg/utils"
 )
 
 // CreateUpload create a new upload
-func CreateUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := context.GetLogger(ctx)
-	config := context.GetConfig(ctx)
+func CreateUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
+	log := ctx.GetLogger()
+	config := ctx.GetConfig()
 
-	user := context.GetUser(ctx)
+	user := ctx.GetUser()
 	if user == nil {
 		if config.NoAnonymousUploads {
 			log.Warning("Unable to create upload from anonymous user")
 			context.Fail(ctx, req, resp, "Unable to create upload from anonymous user. Please login or use a cli token.", http.StatusForbidden)
 			return
-		} else if !context.IsWhitelisted(ctx) {
+		} else if !ctx.IsWhitelisted() {
 			log.Warning("Unable to create upload from untrusted source IP address")
 			context.Fail(ctx, req, resp, "Unable to create upload from untrusted source IP address. Please login or use a cli token.", http.StatusForbidden)
 			return
@@ -32,11 +32,9 @@ func CreateUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reque
 	}
 
 	upload := common.NewUpload()
-	// Save upload in the request context
-	context.SetUpload(ctx, upload)
 
 	// Read request body
-	defer req.Body.Close()
+	defer func() { _ = req.Body.Close() }()
 	req.Body = http.MaxBytesReader(resp, req.Body, 1048576)
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
@@ -76,15 +74,15 @@ func CreateUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reque
 	// Update request logger prefix
 	prefix := fmt.Sprintf("%s[%s]", log.Prefix, upload.ID)
 	log.SetPrefix(prefix)
-	context.SetUpload(ctx, upload)
+	ctx.SetUpload(upload)
 
 	// Set upload remote IP
-	upload.RemoteIP = context.GetSourceIP(ctx).String()
+	upload.RemoteIP = ctx.GetSourceIP().String()
 
 	// Set upload user and token
 	if user != nil {
 		upload.User = user.ID
-		token := context.GetToken(ctx)
+		token := ctx.GetToken()
 		if token != nil {
 			upload.Token = token.Token
 		}
@@ -209,7 +207,7 @@ func CreateUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reque
 	}
 
 	// Save the metadata
-	err = context.GetMetadataBackend(ctx).CreateUpload(upload)
+	err = ctx.GetMetadataBackend().CreateUpload(upload)
 	if err != nil {
 		log.Warningf("Create new upload error : %s", err)
 		context.Fail(ctx, req, resp, "Unable to create new upload", http.StatusInternalServerError)

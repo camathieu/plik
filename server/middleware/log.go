@@ -5,15 +5,15 @@ import (
 	"net/http/httputil"
 	"strings"
 
-	"github.com/root-gg/juliet"
+
 	"github.com/root-gg/logger"
 	"github.com/root-gg/plik/server/context"
 )
 
 // Log the http request
-func Log(ctx *juliet.Context, next http.Handler) http.Handler {
+func Log(ctx *context.Context, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
-		log := context.GetLogger(ctx)
+		log := ctx.GetLogger()
 
 		if log.LogIf(logger.DEBUG) {
 

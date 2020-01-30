@@ -8,15 +8,15 @@ import (
 
 	"github.com/boombuler/barcode"
 	"github.com/boombuler/barcode/qr"
-	"github.com/root-gg/juliet"
+
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
 	"github.com/root-gg/utils"
 )
 
 // GetVersion return the build information.
-func GetVersion(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := context.GetLogger(ctx)
+func GetVersion(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
+	log := ctx.GetLogger()
 
 	// Print version and build information in the json response.
 	json, err := utils.ToJson(common.GetBuildInfo())
@@ -30,9 +30,9 @@ func GetVersion(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request
 }
 
 // GetConfiguration return the server configuration
-func GetConfiguration(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := context.GetLogger(ctx)
-	config := context.GetConfig(ctx)
+func GetConfiguration(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
+	log := ctx.GetLogger()
+	config := ctx.GetConfig()
 
 	// Print configuration in the json response.
 	json, err := utils.ToJson(config)
@@ -45,13 +45,13 @@ func GetConfiguration(ctx *juliet.Context, resp http.ResponseWriter, req *http.R
 }
 
 // Logout return the server configuration
-func Logout(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
+func Logout(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
 	common.Logout(resp)
 }
 
 // GetQrCode return a QRCode for the requested URL
-func GetQrCode(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := context.GetLogger(ctx)
+func GetQrCode(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
+	log := ctx.GetLogger()
 
 	// Check params
 	urlParam := req.FormValue("url")
@@ -97,11 +97,11 @@ func GetQrCode(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request)
 }
 
 // DeleteRemovedFile deletes a removed file
-func DeleteRemovedFile(ctx *juliet.Context, upload *common.Upload, file *common.File) (err error) {
+func DeleteRemovedFile(ctx *context.Context, upload *common.Upload, file *common.File) (err error) {
 
 	// /!\ File status MUST be removed before to call this /!\
 
-	backend := context.GetDataBackend(ctx)
+	backend := ctx.GetDataBackend()
 	err = backend.RemoveFile(upload, file.ID)
 	if err != nil {
 		return fmt.Errorf("error while deleting file %s (%s) from upload %s : %s", file.Name, file.ID, upload.ID, err)
@@ -124,7 +124,7 @@ func DeleteRemovedFile(ctx *juliet.Context, upload *common.Upload, file *common.
 		return nil
 	}
 
-	upload, err = context.GetMetadataBackend(ctx).UpdateUpload(upload, tx)
+	upload, err = ctx.GetMetadataBackend().UpdateUpload(upload, tx)
 	if err != nil {
 		return fmt.Errorf("Unable to update upload metadata : %s", err)
 	}
@@ -137,8 +137,8 @@ func DeleteRemovedFile(ctx *juliet.Context, upload *common.Upload, file *common.
 
 // RemoveEmptyUpload iterates on upload files and remove upload files
 // and metadata if all the files have been downloaded (useful for OneShot uploads)
-func RemoveEmptyUpload(ctx *juliet.Context, upload *common.Upload) {
-	log := context.GetLogger(ctx)
+func RemoveEmptyUpload(ctx *context.Context, upload *common.Upload) {
+	log := ctx.GetLogger()
 
 	// Test if there are remaining files
 	filesInUpload := len(upload.Files)
@@ -149,7 +149,7 @@ func RemoveEmptyUpload(ctx *juliet.Context, upload *common.Upload) {
 	}
 
 	if filesInUpload == 0 {
-		err := context.GetMetadataBackend(ctx).RemoveUpload(upload)
+		err := ctx.GetMetadataBackend().RemoveUpload(upload)
 		if err != nil {
 			log.Warningf("Unable to remove upload : %s", err)
 			return

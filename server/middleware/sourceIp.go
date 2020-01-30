@@ -5,15 +5,15 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/root-gg/juliet"
+
 	"github.com/root-gg/plik/server/context"
 )
 
 // SourceIP extract the source IP address from the request and save it to the request context
-func SourceIP(ctx *juliet.Context, next http.Handler) http.Handler {
+func SourceIP(ctx *context.Context, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
-		log := context.GetLogger(ctx)
-		config := context.GetConfig(ctx)
+		log := ctx.GetLogger()
+		config := ctx.GetConfig()
 
 		var sourceIPstr string
 		if config.SourceIPHeader != "" && req.Header.Get(config.SourceIPHeader) != "" {
@@ -23,8 +23,7 @@ func SourceIP(ctx *juliet.Context, next http.Handler) http.Handler {
 			var err error
 			sourceIPstr, _, err = net.SplitHostPort(req.RemoteAddr)
 			if err != nil {
-				log.Warningf("Unable to parse source IP address %s", req.RemoteAddr)
-				context.Fail(ctx, req, resp, "Unable to parse source IP address", http.StatusInternalServerError)
+				ctx.InternalServerError(fmt.Errorf("unable to parse source IP address : %s", err))
 				return
 			}
 		}
@@ -32,13 +31,12 @@ func SourceIP(ctx *juliet.Context, next http.Handler) http.Handler {
 		// Parse source IP address
 		sourceIP := net.ParseIP(sourceIPstr)
 		if sourceIP == nil {
-			log.Warningf("Unable to parse source IP address %s", sourceIPstr)
-			context.Fail(ctx, req, resp, "Unable to parse source IP address", http.StatusInternalServerError)
+			ctx.InvalidParameter("IP address")
 			return
 		}
 
 		// Save source IP address in the context
-		context.SetSourceIP(ctx, sourceIP)
+		ctx.SetSourceIP(sourceIP)
 
 		// Update request logger prefix
 		prefix := fmt.Sprintf("%s[%s]", log.Prefix, sourceIP.String())

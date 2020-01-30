@@ -8,15 +8,15 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
-	"github.com/root-gg/juliet"
+
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
 )
 
 // GetArchive download all file of the upload in a zip archive
-func GetArchive(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := context.GetLogger(ctx)
-	config := context.GetConfig(ctx)
+func GetArchive(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
+	log := ctx.GetLogger()
+	config := ctx.GetConfig()
 
 	// If a download domain is specified verify that the request comes from this specific domain
 	if config.GetDownloadDomain() != nil {
@@ -32,7 +32,7 @@ func GetArchive(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request
 	}
 
 	// Get upload from context
-	upload := context.GetUpload(ctx)
+	upload := ctx.GetUpload()
 	if upload == nil {
 		// This should never append
 		log.Critical("Missing upload in getFileHandler")
@@ -111,7 +111,7 @@ func GetArchive(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request
 				return nil
 			}
 
-			upload, err := context.GetMetadataBackend(ctx).UpdateUpload(upload, tx)
+			upload, err := ctx.GetMetadataBackend().UpdateUpload(upload, tx)
 			if err != nil {
 				log.Warningf("Unable to update upload metadata : %s", err)
 				context.Fail(ctx, req, resp, "Unable to update upload metadata", http.StatusInternalServerError)
@@ -144,7 +144,7 @@ func GetArchive(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request
 			return
 		}
 
-		backend := context.GetDataBackend(ctx)
+		backend := ctx.GetDataBackend()
 
 		// The zip archive is piped directly to http response body without buffering
 		archive := zip.NewWriter(resp)

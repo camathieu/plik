@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"fmt"
-	"github.com/root-gg/juliet"
+
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
 	"github.com/root-gg/plik/server/data"
@@ -13,9 +13,9 @@ import (
 )
 
 // GetFile download a file
-func GetFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := context.GetLogger(ctx)
-	config := context.GetConfig(ctx)
+func GetFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
+	log := ctx.GetLogger()
+	config := ctx.GetConfig()
 
 	// If a download domain is specified verify that the request comes from this specific domain
 	if config.GetDownloadDomain() != nil {
@@ -31,7 +31,7 @@ func GetFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	}
 
 	// Get upload from context
-	upload := context.GetUpload(ctx)
+	upload := ctx.GetUpload()
 	if upload == nil {
 		// This should never append
 		log.Critical("Missing upload in getFileHandler")
@@ -40,7 +40,7 @@ func GetFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	}
 
 	// Get file from context
-	file := context.GetFile(ctx)
+	file := ctx.GetFile()
 	if file == nil {
 		// This should never append
 		log.Critical("Missing file in getFileHandler")
@@ -89,7 +89,7 @@ func GetFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 			return nil
 		}
 
-		upload, err := context.GetMetadataBackend(ctx).UpdateUpload(upload, tx)
+		upload, err := ctx.GetMetadataBackend().UpdateUpload(upload, tx)
 		if err != nil {
 			if txError, ok := err.(common.TxError); ok {
 				context.Fail(ctx, req, resp, txError.Error(), txError.GetStatusCode())
@@ -157,9 +157,9 @@ func GetFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 		// Get file in data backend
 		var backend data.Backend
 		if upload.Stream {
-			backend = context.GetStreamBackend(ctx)
+			backend = ctx.GetStreamBackend()
 		} else {
-			backend = context.GetDataBackend(ctx)
+			backend = ctx.GetDataBackend()
 		}
 
 		fileReader, err := backend.GetFile(upload, file.ID)

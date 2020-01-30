@@ -5,24 +5,24 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/root-gg/juliet"
+
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
 	"github.com/root-gg/utils"
 )
 
 // UserInfo return user information ( name / email / tokens / ... )
-func UserInfo(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := context.GetLogger(ctx)
+func UserInfo(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
+	log := ctx.GetLogger()
 
 	// Get user from context
-	user := context.GetUser(ctx)
+	user := ctx.GetUser()
 	if user == nil {
 		context.Fail(ctx, req, resp, "Missing user, Please login first", http.StatusUnauthorized)
 		return
 	}
 
-	user.IsAdmin = context.IsAdmin(ctx)
+	user.IsAdmin = ctx.IsAdmin()
 
 	// Serialize user to JSON
 	// Print token in the json response.
@@ -37,18 +37,18 @@ func UserInfo(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) 
 }
 
 // DeleteAccount remove a user account
-func DeleteAccount(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := context.GetLogger(ctx)
+func DeleteAccount(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
+	log := ctx.GetLogger()
 
 	// Get user from context
-	user := context.GetUser(ctx)
+	user := ctx.GetUser()
 	if user == nil {
 		// This should never append
 		context.Fail(ctx, req, resp, "Missing user, Please login first", http.StatusUnauthorized)
 		return
 	}
 
-	err := context.GetMetadataBackend(ctx).RemoveUser(user)
+	err := ctx.GetMetadataBackend().RemoveUser(user)
 	if err != nil {
 		log.Warningf("Unable to remove user %s : %s", user.ID, err)
 		context.Fail(ctx, req, resp, "Unable to remove user", http.StatusInternalServerError)
@@ -57,11 +57,11 @@ func DeleteAccount(ctx *juliet.Context, resp http.ResponseWriter, req *http.Requ
 }
 
 // GetUserUploads get user uploads
-func GetUserUploads(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := context.GetLogger(ctx)
+func GetUserUploads(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
+	log := ctx.GetLogger()
 
 	// Get user from context
-	user := context.GetUser(ctx)
+	user := ctx.GetUser()
 	if user == nil {
 		context.Fail(ctx, req, resp, "Missing user, Please login first", http.StatusUnauthorized)
 		return
@@ -86,7 +86,7 @@ func GetUserUploads(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 	}
 
 	// Get uploads
-	ids, err := context.GetMetadataBackend(ctx).GetUserUploads(user, token)
+	ids, err := ctx.GetMetadataBackend().GetUserUploads(user, token)
 	if err != nil {
 		log.Warningf("Unable to get uploads for user %s : %s", user.ID, err)
 		context.Fail(ctx, req, resp, "Unable to get uploads", http.StatusInternalServerError)
@@ -129,7 +129,7 @@ func GetUserUploads(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 
 	uploads := []*common.Upload{}
 	for _, id := range ids[offset : offset+size] {
-		upload, err := context.GetMetadataBackend(ctx).GetUpload(id)
+		upload, err := ctx.GetMetadataBackend().GetUpload(id)
 		if err != nil {
 			log.Warningf("Unable to get upload %s : %s", id, err)
 			continue
@@ -159,11 +159,11 @@ func GetUserUploads(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 }
 
 // RemoveUserUploads delete all user uploads
-func RemoveUserUploads(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := context.GetLogger(ctx)
+func RemoveUserUploads(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
+	log := ctx.GetLogger()
 
 	// Get user from context
-	user := context.GetUser(ctx)
+	user := ctx.GetUser()
 	if user == nil {
 		context.Fail(ctx, req, resp, "Missing user, Please login first", http.StatusUnauthorized)
 		return
@@ -186,7 +186,7 @@ func RemoveUserUploads(ctx *juliet.Context, resp http.ResponseWriter, req *http.
 	}
 
 	// Get uploads
-	ids, err := context.GetMetadataBackend(ctx).GetUserUploads(user, token)
+	ids, err := ctx.GetMetadataBackend().GetUserUploads(user, token)
 	if err != nil {
 		log.Warningf("Unable to get uploads for user %s : %s", user.ID, err)
 		context.Fail(ctx, req, resp, "Unable to get uploads", http.StatusInternalServerError)
@@ -195,7 +195,7 @@ func RemoveUserUploads(ctx *juliet.Context, resp http.ResponseWriter, req *http.
 
 	removed := 0
 	for _, id := range ids {
-		upload, err := context.GetMetadataBackend(ctx).GetUpload(id)
+		upload, err := ctx.GetMetadataBackend().GetUpload(id)
 		if err != nil {
 			log.Warningf("Unable to get upload %s : %s", id, err)
 			continue
@@ -205,7 +205,7 @@ func RemoveUserUploads(ctx *juliet.Context, resp http.ResponseWriter, req *http.
 			continue
 		}
 
-		err = context.GetMetadataBackend(ctx).RemoveUpload(upload)
+		err = ctx.GetMetadataBackend().RemoveUpload(upload)
 		if err != nil {
 			log.Warningf("Unable to remove upload %s : %s", id, err)
 		} else {
@@ -217,11 +217,11 @@ func RemoveUserUploads(ctx *juliet.Context, resp http.ResponseWriter, req *http.
 }
 
 // GetUserStatistics return the user statistics
-func GetUserStatistics(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := context.GetLogger(ctx)
+func GetUserStatistics(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
+	log := ctx.GetLogger()
 
 	// Get user from context
-	user := context.GetUser(ctx)
+	user := ctx.GetUser()
 	if user == nil {
 		context.Fail(ctx, req, resp, "Missing user, Please login first", http.StatusUnauthorized)
 		return
@@ -246,7 +246,7 @@ func GetUserStatistics(ctx *juliet.Context, resp http.ResponseWriter, req *http.
 	}
 
 	// Get server statistics
-	stats, err := context.GetMetadataBackend(ctx).GetUserStatistics(user, token)
+	stats, err := ctx.GetMetadataBackend().GetUserStatistics(user, token)
 	if err != nil {
 		log.Warningf("Unable to get server statistics : %s", err)
 		context.Fail(ctx, req, resp, "Unable to get user statistics", http.StatusInternalServerError)

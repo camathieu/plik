@@ -1,54 +1,53 @@
 package middleware
 
 import (
+	"fmt"
 	"net/http"
 
-	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
 )
 
 // CreateUpload create a new upload on the fly to be used in the next handler
-func CreateUpload(ctx *juliet.Context, next http.Handler) http.Handler {
+func CreateUpload(ctx *context.Context, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
 		upload := common.NewUpload()
 		upload.Create()
 
 		// Set upload remote IP
-		upload.RemoteIP = context.GetSourceIP(ctx).String()
+		upload.RemoteIP = ctx.GetSourceIP().String()
 
 		// Set upload one shot mode
-		if context.GetConfig(ctx).OneShot {
+		if ctx.GetConfig().OneShot {
 			upload.OneShot = true
 		}
 
 		// Set upload TTL
-		upload.TTL = context.GetConfig(ctx).DefaultTTL
+		upload.TTL = ctx.GetConfig().DefaultTTL
 
 		// Set upload user and token
-		user := context.GetUser(ctx)
+		user := ctx.GetUser()
 		if user != nil {
 			upload.User = user.ID
-			token := context.GetToken(ctx)
+			token := ctx.GetToken()
 			if token != nil {
 				upload.Token = token.Token
 			}
 		}
 
 		// Save the upload metadata
-		err := context.GetMetadataBackend(ctx).CreateUpload(upload)
+		err := ctx.GetMetadataBackend().CreateUpload(upload)
 		if err != nil {
-			context.GetLogger(ctx).Warningf("Create new upload error : %s", err)
-			context.Fail(ctx, req, resp, "Unable to create new upload", http.StatusInternalServerError)
+			ctx.InternalServerError(fmt.Errorf("unable to create upload : %s", err))
 			return
 		}
 
 		// Save upload in the request context
-		context.SetUpload(ctx, upload)
-		context.SetUploadAdmin(ctx, true)
+		ctx.SetUpload(upload)
+		ctx.SetUploadAdmin(true)
 
 		// Change the output of the addFile handler
-		context.SetQuick(ctx, true)
+		ctx.SetQuick(true)
 
 		next.ServeHTTP(resp, req)
 	})

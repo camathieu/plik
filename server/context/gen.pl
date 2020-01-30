@@ -6,14 +6,14 @@ use warnings;
 use Data::Dumper;
 
 my $struct = [
-	'config', '*common.Configuration', { panic => 1 },
-	'logger', '*logger.Logger', {  panic => 1 },
+	'config', '*common.Configuration', {},
+	'logger', '*logger.Logger', {},
 
-	'metadataBackend', 'metadata.Backend', {  panic => 1  },
-	'dataBackend', 'data.Backend', {  panic => 1  },
-	'streamBackend', 'data.Backend', {  panic => 1 },
+	'metadataBackend', 'metadata.Backend', {},
+	'dataBackend', 'data.Backend', {},
+	'streamBackend', 'data.Backend', {},
 
-	'sourceIp', 'net.IP', {},
+	'sourceIP', 'net.IP', {},
 
 	'upload', '*common.Upload', {},
 	'file', '*common.File', {},
@@ -25,72 +25,66 @@ my $struct = [
 	'isUploadAdmin', 'bool', {},
 	'isRedirectOnFailure', 'bool', {},
 	'isQuick', 'bool', {},
-	'isPanic', 'bool', {},
+	'isPanic', 'bool', { 'no_has' => 1, 'no_set' => 1, 'no_get' => 1 },
 
 	'req', '*http.Request', {},
 	'resp', 'http.ResponseWriter', {},
+
+	#'goctx', 'gocontext.Context', { 'no_has' => 1, 'no_set' => 1, 'no_get' => 1 },
+	'mu', 'sync.RWMutex', { 'no_has' => 1, 'no_set' => 1, 'no_get' => 1 },
 ];
 
-my @struct_extra = qw(
-	goctx gocontext.Context
-	mu sync.RWMutex
-);
-
 sub genHas
-{
-    my $param = shift;
-    my $params = shift;
-
-    return "" if $params->{'no has'};
-
-    my $uc = ucfirst $param;
-
-    my $str = << "EOF";
-// Has$uc return true if $param is set for the context
-func (ctx *Context) Has$uc() bool {
-    ctx.mu.RLock()
-    ctx.mu.RUnlock()
-
-    if ctx.$param != nil {
-        return true
-    }
-    return false
-}
-EOF
-    return $str;
-}
-
-sub genWith
 {
     my $param = shift;
     my $type = shift;
     my $params = shift;
 
-    return "" if defined $params->{'no with'};
+    return "" if $type eq 'bool';
+    return "" if $params->{'no_has'};
 
     my $uc = ucfirst $param;
 
     my $str = << "EOF";
-// WithConfig set $param for the context
-func (ctx *Context) With$uc($param $type) *Context {
+// Has$uc return true if $param is set in the context
+func (ctx *Context) Has$uc() bool {
+    ctx.mu.RLock()
+    defer ctx.mu.RUnlock()
+
+    if ctx.$param != nil {
+        return true
+    }
+
+    return false
+}
+
+EOF
+    return $str;
+}
+
+sub genSet
+{
+    my $param = shift;
+    my $type = shift;
+    my $params = shift;
+
+    return "" if $params->{'no_set'};
+
+    my $uc = ucfirst $param;
+
+    if ( $type eq 'bool' ) {
+        $uc =~ s/^Is//
+    }
+
+    my $str = << "EOF";
+// Set$uc set $param in the context
+func (ctx *Context) Set$uc($param $type) {
     ctx.mu.Lock()
     ctx.mu.Unlock()
 
-    if ctx.$param == nil {
-        ctx.$param = $param
-    } else {
-EOF
-
-    if ( defined $params->{'panic'} )
-    {
-        $str .= "        ctx.isPanic = true";
-    }
-
-    $str .= << "EOF";
-        ctx.InternalServerError(internalServerError, fmt.Errorf("context $param overwrite"))
-    }
-    return ctx
+    ctx.$param = $param
 }
+
 EOF
 
     return $str;
@@ -102,43 +96,109 @@ sub genGet
     my $type = shift;
     my $params = shift;
 
-    return "" if defined $params->{'no get'};
+    return "" if $params->{'no_get'};
 
     my $uc = ucfirst $param;
 
-    my $str = << "EOF";
-// GetConfig from the request context.
-func (ctx *Context) Get$uc() (config $type) {
+    my $str = "";
+    if ( $type eq 'bool' ) {
+        $str = << "EOF";
+// $uc get $param from the context.
+func (ctx *Context) $uc() $type {
     ctx.mu.RLock()
-    ctx.mu.RUnlock()
+    defer ctx.mu.RUnlock()
 
-    if ctx.$param == nil {
-EOF
-
-    if ( defined $params->{'panic'} )
-    {
-        $str .= "   ctx.isPanic = true";
-    }
-
-    $str .= << "EOF";
-        ctx.InternalServerError(internalServerError, fmt.Errorf("missing context $param"))
-    }
     return ctx.$param
 }
+
 EOF
+    } else {
+        $str = << "EOF";
+// Get$uc get $param from the context.
+func (ctx *Context) Get$uc() $type {
+    ctx.mu.RLock()
+    defer ctx.mu.RUnlock()
 
+    if ctx.$param == nil {
+        ctx.isPanic = true
+        ctx.internalServerError(fmt.Errorf("missing $param from context"))
+    }
+
+    return ctx.$param
 }
 
-for (my $i = 0 ; $i < @$struct ; $i += 3)
+EOF
+    }
+}
+
+sub genImports
 {
-    my $param = $struct->[$i];
-    my $type = $struct->[$i + 1];
-    my $params = $struct->[$i + 2];
+    my $str = << 'EOF';
+package context
 
-    my $uc = ucfirst $param;
+import (
+	"fmt"
+	"net"
+	"net/http"
+	"sync"
 
+	gocontext "context"
+	"github.com/root-gg/logger"
+	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/plik/server/data"
+	"github.com/root-gg/plik/server/metadata"
+)
 
-    print genHas($param, $params);
-    print genWith($param, $type, $params);
-    print genGet($param, $type, $params);
+EOF
+    return $str;
 }
+
+sub genStruct
+{
+    my $struct = shift;
+
+    my $str = "type Context struct {\n";
+    for (my $i = 0 ; $i < @$struct ; $i += 3)
+    {
+        my $param = $struct->[$i];
+        my $type = $struct->[$i + 1];
+
+        $str .= "\t$param $type\n";
+    }
+    $str .= "}\n";
+
+    return $str;
+}
+
+sub genMethods
+{
+    my $struct = shift;
+
+    my $str = "";
+    for (my $i = 0 ; $i < @$struct ; $i += 3)
+    {
+        my $param = $struct->[$i];
+        my $type = $struct->[$i + 1];
+        my $params = $struct->[$i + 2];
+
+        my $uc = ucfirst $param;
+
+        $str .= genSet($param, $type, $params);
+        $str .= genHas($param, $type, $params);
+        $str .= genGet($param, $type, $params);
+    }
+
+    return $str;
+}
+
+sub gen
+{
+    print genImports;
+    print "\n";
+    print genStruct $struct;
+    print "\n";
+    print genMethods $struct;
+    print "\n";
+}
+
+gen;

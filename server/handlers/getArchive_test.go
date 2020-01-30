@@ -35,7 +35,7 @@ func TestGetArchive(t *testing.T) {
 	err := createTestFile(ctx, upload, file, bytes.NewBuffer([]byte(data)))
 	require.NoError(t, err, "unable to create test file")
 
-	context.SetUpload(ctx, upload)
+	ctx.SetUpload(upload)
 
 	req, err := http.NewRequest("GET", "/archive/"+upload.ID+"/"+"archive.zip", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -75,7 +75,7 @@ func TestGetArchiveNoFile(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
 	upload := common.NewUpload()
-	context.SetUpload(ctx, upload)
+	ctx.SetUpload(upload)
 
 	req, err := http.NewRequest("GET", "/archive/"+upload.ID+"/"+"archive.zip", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -134,7 +134,7 @@ func TestGetArchiveOneShot(t *testing.T) {
 	err := createTestFile(ctx, upload, file, bytes.NewBuffer([]byte(data)))
 	require.NoError(t, err, "unable to create test file")
 
-	context.SetUpload(ctx, upload)
+	ctx.SetUpload(upload)
 
 	req, err := http.NewRequest("GET", "/archive/"+upload.ID+"/"+"archive.zip", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -169,10 +169,10 @@ func TestGetArchiveOneShot(t *testing.T) {
 	require.NoError(t, err, "unable to read archived file")
 	require.Equal(t, data, string(content), "invalid archived file content")
 
-	_, err = context.GetDataBackend(ctx).GetFile(upload, file.ID)
+	_, err = ctx.GetDataBackend().GetFile(upload, file.ID)
 	require.Error(t, err, "downloaded file still exists")
 
-	u, err := context.GetMetadataBackend(ctx).GetUpload(upload.ID)
+	u, err := ctx.GetMetadataBackend().GetUpload(upload.ID)
 	require.Error(t, err, "unexpected error getting upload")
 	require.Nil(t, u, "downloaded upload still exists")
 }
@@ -190,7 +190,7 @@ func TestGetArchiveNoArchiveName(t *testing.T) {
 	err := createTestFile(ctx, upload, file, bytes.NewBuffer([]byte(data)))
 	require.NoError(t, err, "unable to create test file")
 
-	context.SetUpload(ctx, upload)
+	ctx.SetUpload(upload)
 
 	req, err := http.NewRequest("GET", "/archive/"+upload.ID+"/"+"archive.zip", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -214,7 +214,7 @@ func TestGetArchiveInvalidArchiveName(t *testing.T) {
 	err := createTestFile(ctx, upload, file, bytes.NewBuffer([]byte(data)))
 	require.NoError(t, err, "unable to create test file")
 
-	context.SetUpload(ctx, upload)
+	ctx.SetUpload(upload)
 
 	req, err := http.NewRequest("GET", "/archive/"+upload.ID+"/"+"archive.zip", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -244,7 +244,7 @@ func TestGetArchiveDataBackendError(t *testing.T) {
 	err := createTestFile(ctx, upload, file, bytes.NewBuffer([]byte(data)))
 	require.NoError(t, err, "unable to create test file")
 
-	context.SetUpload(ctx, upload)
+	ctx.SetUpload(upload)
 
 	req, err := http.NewRequest("GET", "/archive/"+upload.ID+"/"+"archive.zip", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -255,7 +255,7 @@ func TestGetArchiveDataBackendError(t *testing.T) {
 	}
 	req = mux.SetURLVars(req, vars)
 
-	context.GetDataBackend(ctx).(*data_test.Backend).SetError(errors.New("data backend error"))
+	ctx.GetDataBackend().(*data_test.Backend).SetError(errors.New("data backend error"))
 
 	rr := httptest.NewRecorder()
 	GetArchive(ctx, rr, req)
@@ -277,7 +277,7 @@ func TestGetArchiveMetadataBackendError(t *testing.T) {
 	err := createTestFile(ctx, upload, file, bytes.NewBuffer([]byte(data)))
 	require.NoError(t, err, "unable to create test file")
 
-	context.SetUpload(ctx, upload)
+	ctx.SetUpload(upload)
 
 	req, err := http.NewRequest("GET", "/archive/"+upload.ID+"/"+"archive.zip", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -288,7 +288,7 @@ func TestGetArchiveMetadataBackendError(t *testing.T) {
 	}
 	req = mux.SetURLVars(req, vars)
 
-	context.GetMetadataBackend(ctx).(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
+	ctx.GetMetadataBackend().(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
 
 	rr := httptest.NewRecorder()
 	GetArchive(ctx, rr, req)

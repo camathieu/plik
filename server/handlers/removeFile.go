@@ -4,17 +4,17 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/root-gg/juliet"
+
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
 )
 
 // RemoveFile remove a file from an existing upload
-func RemoveFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := context.GetLogger(ctx)
+func RemoveFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
+	log := ctx.GetLogger()
 
 	// Get upload from context
-	upload := context.GetUpload(ctx)
+	upload := ctx.GetUpload()
 	if upload == nil {
 		// This should never append
 		log.Critical("Missing upload in removeFileHandler")
@@ -23,14 +23,14 @@ func RemoveFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request
 	}
 
 	// Check authorization
-	if !upload.Removable && !context.IsUploadAdmin(ctx) {
+	if !upload.Removable && !ctx.IsUploadAdmin() {
 		log.Warningf("Unable to remove file : unauthorized")
 		context.Fail(ctx, req, resp, "You are not allowed to remove file from this upload", http.StatusForbidden)
 		return
 	}
 
 	// Get file from context
-	file := context.GetFile(ctx)
+	file := ctx.GetFile()
 	if file == nil {
 		// This should never append
 		log.Critical("Missing file in removeFileHandler")
@@ -66,7 +66,7 @@ func RemoveFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request
 		return nil
 	}
 
-	upload, err := context.GetMetadataBackend(ctx).UpdateUpload(upload, tx)
+	upload, err := ctx.GetMetadataBackend().UpdateUpload(upload, tx)
 	if err != nil {
 		if txError, ok := err.(common.TxError); ok {
 			context.Fail(ctx, req, resp, txError.Error(), txError.GetStatusCode())

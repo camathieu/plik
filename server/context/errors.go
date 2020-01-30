@@ -16,79 +16,89 @@ import (
 
 var internalServerError = "internal server error"
 
+func (ctx *Context) InternalServerError(err error) {
+	ctx.mu.RLock()
+	defer ctx.mu.RLock()
+
+	ctx.internalServerError(err)
+}
+
+func (ctx *Context) internalServerError(err error) {
+	ctx.isPanic = true
+	ctx.fail(internalServerError, err, http.StatusInternalServerError)
+}
+
+func (ctx *Context) BadRequest(message string) {
+	ctx.mu.RLock()
+	defer ctx.mu.RLock()
+
+	ctx.badRequest(message)
+}
+
+func (ctx *Context) badRequest(message string) {
+	ctx.fail(message, nil, http.StatusBadRequest)
+}
+
+func (ctx *Context) NotFound(message string) {
+	ctx.mu.RLock()
+	defer ctx.mu.RLock()
+
+	ctx.notFound(message)
+}
+
+func (ctx *Context) notFound(message string) {
+	ctx.fail(message, nil, http.StatusNotFound)
+}
+
+func (ctx *Context) Forbidden(message string) {
+	ctx.mu.RLock()
+	defer ctx.mu.RLock()
+
+	ctx.fail(message, nil, http.StatusForbidden)
+}
+
+func (ctx *Context) Unauthorized(message string) {
+	ctx.mu.RLock()
+	defer ctx.mu.RLock()
+
+	ctx.fail(message, nil, http.StatusUnauthorized)
+}
+
 func (ctx *Context) MissingParameter(parameter string) {
-	ctx.BadRequest(fmt.Sprintf("missing %s", parameter), nil)
+	ctx.mu.RLock()
+	defer ctx.mu.RLock()
+
+	ctx.badRequest(fmt.Sprintf("missing %s", parameter))
 }
 
-func (ctx *Context) InvalidParameterValue(value interface{}, parameter string, limit string) {
-	ctx.BadRequest(fmt.Sprintf("invalid %s value %v. %s", value, parameter, limit), nil)
-}
+func (ctx *Context) InvalidParameter(parameter string) {
+	ctx.mu.RLock()
+	defer ctx.mu.RLock()
 
-func (ctx *Context) UploadIDNotFound(uploadID string) {
-	ctx.NotFound(fmt.Sprintf("upload %s not found", uploadID), nil)
-}
-
-func (ctx *Context) UploadNotFound() {
-	if ctx.upload == nil {
-		ctx.isPanic = true
-		ctx.InternalServerError(internalServerError, fmt.Errorf("missing upload from context"))
-		return
-	}
-
-	ctx.NotFound(fmt.Sprintf("upload %s not found", ctx.upload.ID), nil)
-}
-
-func (ctx *Context) FileNotFound() {
-	if ctx.upload == nil {
-		ctx.isPanic = true
-		ctx.InternalServerError(internalServerError, fmt.Errorf("missing upload from context"))
-		return
-	}
-	if ctx.file == nil {
-		ctx.isPanic = true
-		ctx.InternalServerError(internalServerError, fmt.Errorf("missing file from context"))
-		return
-	}
-
-	ctx.NotFound(fmt.Sprintf("file %s (%s) not found", ctx.file.Name, ctx.file.ID), nil)
-}
-
-func (ctx *Context) UserNotFound(user *common.User) {
-	if ctx.upload == nil {
-		ctx.isPanic = true
-		ctx.InternalServerError(internalServerError, fmt.Errorf("missing user from context"))
-		return
-	}
-
-	ctx.NotFound(fmt.Sprintf("user %s not found", ctx.user.Name), nil)
-}
-
-func (ctx *Context) InternalServerError(message string, err error) {
-	ctx.Fail(message, err, http.StatusInternalServerError)
-}
-
-func (ctx *Context) BadRequest(message string, err error) {
-	ctx.Fail(message, err, http.StatusBadRequest)
-}
-
-func (ctx *Context) NotFound(message string, err error) {
-	ctx.Fail(message, err, http.StatusInternalServerError)
+	ctx.badRequest(fmt.Sprintf("invalid %s", parameter))
 }
 
 var userAgents = []string{"wget", "curl", "python-urllib", "libwwww-perl", "php", "pycurl", "go-http-client"}
 
 func (ctx *Context) Fail(message string, err error, status int) {
+	ctx.mu.RLock()
+	defer ctx.mu.RLock()
+
+	ctx.fail(message, err, status)
+}
+
+func (ctx *Context) fail(message string, err error, status int) {
 	msg := fmt.Sprintf("%s : %v (%d)", message, err, status)
 
 	if err != nil {
-		if ctx.HasLogger() {
+		if ctx.logger != nil {
 			ctx.logger.Warningf(msg)
 		} else {
 			log.Println(msg)
 		}
 	}
 
-	if ctx.HasRequest() && ctx.HasRequest() {
+	if ctx.req != nil && ctx.resp != nil {
 		if ctx.isRedirectOnFailure {
 			// The web client uses http redirect to get errors
 			// from http redirect and display a nice HTML error message
@@ -114,6 +124,49 @@ func (ctx *Context) Fail(message string, err error, status int) {
 	}
 }
 
+// NewRecorder create a new response recorder for testing
+func (ctx *Context) NewRecorder(req *http.Request) *httptest.ResponseRecorder {
+	rr := httptest.NewRecorder()
+	ctx.SetReq(req)
+	ctx.SetResp(rr)
+	return rr
+}
+
+// TestMissingParameter is a helper to test a httptest.ResponseRecoreder status
+func TestMissingParameter(t *testing.T, resp *httptest.ResponseRecorder, parameter string) {
+	TestFail(t,resp, http.StatusBadRequest, fmt.Sprintf("missing %s", parameter))
+}
+
+// TestInvalidParameter is a helper to test a httptest.ResponseRecoreder status
+func TestInvalidParameter(t *testing.T, resp *httptest.ResponseRecorder, parameter string) {
+	TestFail(t,resp, http.StatusBadRequest, fmt.Sprintf("invalid %s", parameter))
+}
+
+// TestNotFound is a helper to test a httptest.ResponseRecoreder status
+func TestNotFound(t *testing.T, resp *httptest.ResponseRecorder, message string) {
+	TestFail(t,resp, http.StatusNotFound, message)
+}
+
+// TestForbidden is a helper to test a httptest.ResponseRecoreder status
+func TestForbidden(t *testing.T, resp *httptest.ResponseRecorder, message string) {
+	TestFail(t,resp, http.StatusForbidden, message)
+}
+
+// TestUnauthorized is a helper to test a httptest.ResponseRecoreder status
+func TestUnauthorized(t *testing.T, resp *httptest.ResponseRecorder, message string) {
+	TestFail(t,resp, http.StatusUnauthorized, message)
+}
+
+// TestBadRequest is a helper to test a httptest.ResponseRecoreder status
+func TestBadRequest(t *testing.T, resp *httptest.ResponseRecorder, message string) {
+	TestFail(t,resp, http.StatusBadRequest, message)
+}
+
+// TestInternalServerError is a helper to test a httptest.ResponseRecoreder status
+func TestInternalServerError(t *testing.T, resp *httptest.ResponseRecorder) {
+	TestFail(t,resp, http.StatusInternalServerError, internalServerError)
+}
+
 // TestFail is a helper to test a httptest.ResponseRecoreder status
 func TestFail(t *testing.T, resp *httptest.ResponseRecorder, status int, message string) {
 	require.Equal(t, status, resp.Code, "handler returned wrong status code")
@@ -129,4 +182,15 @@ func TestFail(t *testing.T, resp *httptest.ResponseRecorder, status int, message
 	if message != "" {
 		require.Contains(t, result.Message, message, "invalid response error message")
 	}
+}
+
+// TestPanic is a helper to test a httptest.ResponseRecoreder status
+func TestPanic(t *testing.T, resp *httptest.ResponseRecorder, handler func()) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("The code did not panic")
+		}
+		TestFail(t, resp, http.StatusInternalServerError, internalServerError)
+	}()
+	handler()
 }

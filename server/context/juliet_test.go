@@ -115,35 +115,3 @@ func TestThenHandlerFunc(t *testing.T) {
 		t.Fatalf("Invalid output %s, expected %s", str, expected)
 	}
 }
-
-func TestContext(t *testing.T) {
-
-	contextMiddleware1 := func(ctx *Context, next http.Handler) http.Handler {
-		return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
-			ctx.Set("value", "contextMiddleware1->")
-			next.ServeHTTP(resp, req)
-		})
-	}
-
-	contextMiddleware2 := func(ctx *Context, next http.Handler) http.Handler {
-		return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
-			if value, ok := ctx.Get("value"); ok {
-				ctx.Set("value", value.(string)+"contextMiddleware2->")
-			}
-			next.ServeHTTP(resp, req)
-		})
-	}
-
-	contextHandler := func(ctx *Context, resp http.ResponseWriter, req *http.Request) {
-		if value, ok := ctx.Get("value"); ok {
-			fmt.Fprintf(resp, value.(string)+"contextHandler")
-		}
-
-	}
-
-	str := serveAndRequest(NewChain(contextMiddleware1, contextMiddleware2).Then(contextHandler))
-	expected := "contextMiddleware1->contextMiddleware2->contextHandler"
-	if str != expected {
-		t.Fatalf("Invalid output %s, expected %s", str, expected)
-	}
-}

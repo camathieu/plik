@@ -17,7 +17,7 @@ import (
 
 func TestRemoveUpload(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	context.SetUploadAdmin(ctx, true)
+	ctx.SetUploadAdmin(true)
 
 	data := "data"
 
@@ -33,7 +33,7 @@ func TestRemoveUpload(t *testing.T) {
 
 	createTestUpload(ctx, upload)
 
-	context.SetUpload(ctx, upload)
+	ctx.SetUpload(upload)
 
 	req, err := http.NewRequest("DELETE", "/file/"+upload.ID+"/"+file1.ID+"/"+file1.Name, bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -46,11 +46,11 @@ func TestRemoveUpload(t *testing.T) {
 	require.NoError(t, err, "unable to read response body")
 	require.Equal(t, 0, len(respBody), "invalid response body")
 
-	u, err := context.GetMetadataBackend(ctx).GetUpload(upload.ID)
+	u, err := ctx.GetMetadataBackend().GetUpload(upload.ID)
 	require.NoError(t, err, "unexpected get upload error")
 	require.Nil(t, u, "removed upload still exists")
 
-	_, err = context.GetDataBackend(ctx).GetFile(upload, file1.ID)
+	_, err = ctx.GetDataBackend().GetFile(upload, file1.ID)
 	require.Error(t, err, "removed file still exists")
 }
 
@@ -71,7 +71,7 @@ func TestRemoveUploadNotAdmin(t *testing.T) {
 
 	createTestUpload(ctx, upload)
 
-	context.SetUpload(ctx, upload)
+	ctx.SetUpload(upload)
 	context.SetFile(ctx, file1)
 
 	req, err := http.NewRequest("DELETE", "/file/"+upload.ID+"/"+file1.ID+"/"+file1.Name, bytes.NewBuffer([]byte{}))
@@ -95,19 +95,19 @@ func TestRemoveUploadNoUpload(t *testing.T) {
 
 func TestRemoveUploadMetadataBackendError(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	context.SetUploadAdmin(ctx, true)
+	ctx.SetUploadAdmin(true)
 
 	upload := common.NewUpload()
 	upload.Create()
 
 	createTestUpload(ctx, upload)
 
-	context.SetUpload(ctx, upload)
+	ctx.SetUpload(upload)
 
 	req, err := http.NewRequest("DELETE", "/file/uploadID/fileID/fileName", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	context.GetMetadataBackend(ctx).(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
+	ctx.GetMetadataBackend().(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
 
 	rr := httptest.NewRecorder()
 	RemoveUpload(ctx, rr, req)
@@ -116,18 +116,18 @@ func TestRemoveUploadMetadataBackendError(t *testing.T) {
 
 func TestRemoveUploadDataBackendError(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	context.SetUploadAdmin(ctx, true)
+	ctx.SetUploadAdmin(true)
 
 	upload := common.NewUpload()
 	upload.Create()
 	createTestUpload(ctx, upload)
 
-	context.SetUpload(ctx, upload)
+	ctx.SetUpload(upload)
 
 	req, err := http.NewRequest("DELETE", "/file/uploadID/fileID/fileName", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	context.GetDataBackend(ctx).(*data_test.Backend).SetError(errors.New("data backend error"))
+	ctx.GetDataBackend().(*data_test.Backend).SetError(errors.New("data backend error"))
 
 	rr := httptest.NewRecorder()
 	RemoveUpload(ctx, rr, req)

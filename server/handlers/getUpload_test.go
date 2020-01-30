@@ -21,7 +21,7 @@ func TestGetUpload(t *testing.T) {
 	upload.Login = "secret"
 	upload.Password = "secret"
 	createTestUpload(ctx, upload)
-	context.SetUpload(ctx, upload)
+	ctx.SetUpload(upload)
 
 	req, err := http.NewRequest("GET", "/upload/"+upload.ID, bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
