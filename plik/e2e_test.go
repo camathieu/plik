@@ -2,6 +2,7 @@ package plik
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"sync"
@@ -81,7 +82,7 @@ func TestDownloadDuringUpload(t *testing.T) {
 	// The file has not been uploaded
 	_, err = pc.downloadFile(upload.Details(), file.Details())
 	require.Error(t, err, "unable to download file")
-	require.Contains(t, err.Error(), "not found", "invalid error")
+	require.Contains(t, err.Error(), fmt.Sprintf("file %s (%s) is not available : missing", file.Name, file.ID()), "invalid error")
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -96,7 +97,7 @@ func TestDownloadDuringUpload(t *testing.T) {
 	// The file is being uploaded
 	_, err = pc.downloadFile(upload.Details(), file.Details())
 	require.Error(t, err, "unable to download file")
-	require.Contains(t, err.Error(), "not found", "invalid error")
+	require.Contains(t, err.Error(), fmt.Sprintf("file %s (%s) is not available : uploading", file.Name, file.ID()), "invalid error")
 
 	lockedReader.Unleash()
 	wg.Wait()
@@ -133,7 +134,7 @@ func TestOneShot(t *testing.T) {
 
 	_, err = pc.downloadFile(upload.Details(), file.Details())
 	require.Error(t, err, "unable to download file")
-	require.Contains(t, err.Error(), "not found", "invalid error")
+	require.Contains(t, err.Error(), fmt.Sprintf("file %s (%s) is not available : deleted", file.Name, file.ID()), "invalid error")
 }
 
 func TestDownloadOneShotBeforeUpload(t *testing.T) {
@@ -157,7 +158,7 @@ func TestDownloadOneShotBeforeUpload(t *testing.T) {
 	// This should not trigger a file status change and make it impossible to download the file afterwards
 	_, err = pc.downloadFile(upload.Details(), file.Details())
 	require.Error(t, err, "unable to download file")
-	require.Contains(t, err.Error(), "not found", "invalid error")
+	require.Contains(t, err.Error(), fmt.Sprintf("file %s (%s) is not available : missing", file.Name, file.ID()), "invalid error")
 
 	err = upload.Upload()
 	require.NoError(t, err, "unable to upload file")
@@ -170,7 +171,7 @@ func TestDownloadOneShotBeforeUpload(t *testing.T) {
 
 	_, err = pc.downloadFile(upload.Details(), file.Details())
 	require.Error(t, err, "unable to download file")
-	require.Contains(t, err.Error(), "not found", "invalid error")
+	require.Contains(t, err.Error(), fmt.Sprintf("file %s (%s) is not available : deleted", file.Name, file.ID()), "invalid error")
 }
 
 func TestRemoveFileWithoutUploadToken(t *testing.T) {
@@ -188,7 +189,7 @@ func TestRemoveFileWithoutUploadToken(t *testing.T) {
 	upload.Details().UploadToken = ""
 	err = pc.removeFile(upload.Details(), file.Details())
 	require.Error(t, err, "unable to remove file")
-	require.Contains(t, err.Error(), "You are not allowed to remove file from this upload", "invalid error")
+	require.Contains(t, err.Error(), "you are not allowed to remove files from this upload", "invalid error")
 }
 
 func TestRemovable(t *testing.T) {
@@ -229,7 +230,7 @@ func TestUploadWithoutUploadToken(t *testing.T) {
 	upload.Details().UploadToken = ""
 	err = file.Upload()
 	require.Error(t, err, "should not be able to upload file to anonymous upload")
-	require.Equal(t, "403 Forbidden : You are not allowed to add file to this upload", err.Error(), "invalid error")
+	require.Contains(t, err.Error(), "you are not allowed to add file to this upload", "invalid error")
 
 	upload.Details().UploadToken = uploadToken
 	err = file.Upload()
@@ -285,7 +286,7 @@ func TestStream(t *testing.T) {
 
 	_, err = pc.downloadFile(upload.Details(), file.Details())
 	require.Error(t, err, "unable to download file")
-	require.Contains(t, err.Error(), "not found", "invalid error")
+	require.Contains(t, err.Error(), fmt.Sprintf("file %s (%s) is not available : deleted", file.Name, file.ID()), "invalid error")
 }
 
 func TestTTL(t *testing.T) {

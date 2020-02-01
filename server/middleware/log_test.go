@@ -33,7 +33,7 @@ func TestLogInfo(t *testing.T) {
 func TestLogDebug(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 	log := ctx.GetLogger()
-	log.SetMinLevel(logger.DEBUG)
+	ctx.GetConfig().DebugRequests = true
 
 	buffer := &bytes.Buffer{}
 	log.SetOutput(buffer)

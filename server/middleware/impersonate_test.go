@@ -41,7 +41,7 @@ func TestImpersonateMetadataBackendError(t *testing.T) {
 
 	rr := ctx.NewRecorder(req)
 
-	context.TestPanic(t, rr, func() {
+	context.TestPanic(t, rr, "unable to get user : metadata backend error", func() {
 		Impersonate(ctx, common.DummyHandler).ServeHTTP(rr, req)
 	})
 }

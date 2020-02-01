@@ -14,6 +14,10 @@ func RemoveUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Requ
 
 	// Get upload from context
 	upload := ctx.GetUpload()
+	if upload == nil {
+		ctx.InternalServerError("missing upload from context", nil)
+		return
+	}
 
 	// Check authorization
 	if !upload.Removable && !ctx.IsUploadAdmin() {
@@ -29,7 +33,11 @@ func RemoveUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Requ
 
 		files = []*common.File{}
 		for _, f := range u.Files {
-			if f.Status == common.FileUploaded {
+			if f.Status == common.FileUploading {
+				return common.NewHTTPError(fmt.Sprintf("file %s (%s) is still uploading", f.Name, f.ID), http.StatusBadRequest)
+			}
+
+			if f.Status == common.FileUploaded || f.Status == common.FileRemoved {
 				files = append(files, f)
 			}
 
@@ -54,9 +62,36 @@ func RemoveUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Requ
 			log.Warningf("unable to delete file %s (%s) : %s", file.Name, file.ID, err)
 		}
 	}
-
 	if err != nil {
-		ctx.InternalServerError(fmt.Errorf("unable to remove all files : %s", err))
+		ctx.InternalServerError("unable to remove all files", err)
 		return
 	}
+
+	// Reload upload metadata
+	upload, err = ctx.GetMetadataBackend().GetUpload(upload.ID)
+	if err != nil {
+		ctx.InternalServerError("unable to reload upload metadata", err)
+	} else if upload == nil {
+		ctx.NotFound("upload does not exist anymore")
+	}
+
+	// Test if there are remaining files
+	filesInUpload := len(upload.Files)
+	for _, f := range upload.Files {
+		if f.Status == common.FileDeleted {
+			filesInUpload--
+		}
+	}
+
+	if filesInUpload > 0 {
+		ctx.BadRequest("there are still %d files in this upload", filesInUpload)
+	}
+
+	err = ctx.GetMetadataBackend().RemoveUpload(upload)
+	if err != nil {
+		ctx.InternalServerError("unable to reload upload metadata", err)
+		return
+	}
+
+	_, _ = resp.Write([]byte("ok"))
 }

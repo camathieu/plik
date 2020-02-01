@@ -89,17 +89,17 @@ func (ps *PlikServer) start() (err error) {
 	// Initialize backends
 	err = ps.initializeMetadataBackend()
 	if err != nil {
-		return fmt.Errorf("Unable to initialize metadata backend : %s", err)
+		return fmt.Errorf("unable to initialize metadata backend : %s", err)
 	}
 
 	err = ps.initializeDataBackend()
 	if err != nil {
-		return fmt.Errorf("Unable to initialize data backend : %s", err)
+		return fmt.Errorf("unable to initialize data backend : %s", err)
 	}
 
 	err = ps.initializeStreamBackend()
 	if err != nil {
-		return fmt.Errorf("Unable to initialize stream backend : %s", err)
+		return fmt.Errorf("unable to initialize stream backend : %s", err)
 	}
 
 	if ps.config.IsAutoClean() {
@@ -116,7 +116,7 @@ func (ps *PlikServer) start() (err error) {
 		// Load cert
 		cert, err := tls.LoadX509KeyPair(ps.config.SslCert, ps.config.SslKey)
 		if err != nil {
-			return fmt.Errorf("Unable to load ssl certificate : %s", err)
+			return fmt.Errorf("unable to load ssl certificate : %s", err)
 		}
 
 		tlsConfig := &tls.Config{MinVersion: tls.VersionTLS10, Certificates: []tls.Certificate{cert}}
@@ -192,7 +192,7 @@ func (ps *PlikServer) shutdown(timeout time.Duration) (err error) {
 
 func (ps *PlikServer) getHTTPHandler() (handler http.Handler) {
 	// Initialize middleware chain
-	stdChain := context.NewChainWithContextBuilder(ps.NewContext, middleware.SourceIP, middleware.Log)
+	stdChain := context.NewChain(middleware.Context(ps.setupContext), middleware.SourceIP, middleware.Log)
 
 	// Get user from session cookie
 	authChain := stdChain.Append(middleware.Authenticate(false), middleware.Impersonate)
@@ -412,13 +412,11 @@ func (ps *PlikServer) GetStreamBackend() data.Backend {
 	return ps.streamBackend
 }
 
-// NewContext return a new scoped httpContext to pass along
-func (ps *PlikServer) NewContext() *context.Context {
-	ctx := &context.Context{}
+// SetupContext sets necessary context values
+func (ps *PlikServer) setupContext(ctx *context.Context) {
 	ctx.SetConfig(ps.config)
 	ctx.SetLogger(ps.config.NewLogger())
 	ctx.SetMetadataBackend(ps.metadataBackend)
 	ctx.SetDataBackend(ps.dataBackend)
 	ctx.SetStreamBackend(ps.streamBackend)
-	return ctx
 }

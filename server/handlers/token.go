@@ -15,13 +15,13 @@ import (
 
 // CreateToken create a new token
 func CreateToken(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
+
 	// Get user from context
-	if !ctx.HasUser() {
-		ctx.Unauthorized("missing user, Please login first")
+	user := ctx.GetUser()
+	if user == nil {
+		ctx.Unauthorized("missing user, please login first")
 		return
 	}
-
-	user := ctx.GetUser()
 
 	// Create token
 	token := common.NewToken()
@@ -48,7 +48,7 @@ func CreateToken(ctx *context.Context, resp http.ResponseWriter, req *http.Reque
 	// Initialize token
 	err = token.Create()
 	if err != nil {
-		ctx.InternalServerError(fmt.Errorf("unable to generate token : %s", err))
+		ctx.InternalServerError("unable to generate token", err)
 	}
 
 	// Add token to user
@@ -70,7 +70,7 @@ func CreateToken(ctx *context.Context, resp http.ResponseWriter, req *http.Reque
 	// Print token in the json response.
 	var bytes []byte
 	if bytes, err = utils.ToJson(token); err != nil {
-		ctx.InternalServerError(fmt.Errorf("unable to serialize json response : %s", err))
+		ctx.InternalServerError("unable to serialize json response", err)
 		return
 	}
 
@@ -79,13 +79,13 @@ func CreateToken(ctx *context.Context, resp http.ResponseWriter, req *http.Reque
 
 // RevokeToken remove a token
 func RevokeToken(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
+
 	// Get user from context
-	if !ctx.HasUser() {
-		ctx.Unauthorized("missing user, Please login first")
+	user := ctx.GetUser()
+	if user == nil {
+		ctx.Unauthorized("missing user, please login first")
 		return
 	}
-
-	user := ctx.GetUser()
 
 	// Get token to remove from URL params
 	vars := mux.Vars(req)

@@ -19,7 +19,7 @@ func TestSourceIPInvalid(t *testing.T) {
 	req.RemoteAddr = "invalid_ip_address"
 	rr := ctx.NewRecorder(req)
 
-	context.TestPanic(t, rr, func() {
+	context.TestPanic(t, rr, "unable to parse source IP address", func() {
 		SourceIP(ctx, common.DummyHandler).ServeHTTP(rr, req)
 	})
 }

@@ -3,6 +3,7 @@ package handlers
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -89,10 +90,6 @@ func TestGetOneShotFile(t *testing.T) {
 	respBody, err := ioutil.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 	require.Equal(t, data, string(respBody), "invalid file content")
-
-	u, err := ctx.GetMetadataBackend().GetUpload(upload.ID)
-	require.NoError(t, err, "unexpected error getting upload")
-	require.Nil(t, u, "upload should have been deleted")
 }
 
 func TestGetRemovedFile(t *testing.T) {
@@ -116,7 +113,7 @@ func TestGetRemovedFile(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	GetFile(ctx, rr, req)
 
-	context.TestFail(t, rr, http.StatusNotFound, "status is not uploaded")
+	context.TestNotFound(t, rr, fmt.Sprintf("file %s (%s) is not available : removed", file.Name, file.ID))
 }
 
 func TestGetDeletedFile(t *testing.T) {
@@ -140,7 +137,7 @@ func TestGetDeletedFile(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	GetFile(ctx, rr, req)
 
-	context.TestFail(t, rr, http.StatusNotFound, "status is not uploaded")
+	context.TestNotFound(t, rr, fmt.Sprintf("file %s (%s) is not available : deleted", file.Name, file.ID))
 }
 
 func TestGetFileInvalidDownloadDomain(t *testing.T) {
@@ -167,8 +164,9 @@ func TestGetFileMissingUpload(t *testing.T) {
 	require.NoError(t, err, "unable to create new request")
 
 	rr := ctx.NewRecorder(req)
-	GetFile(ctx, rr, req)
-	context.TestFail(t, rr, http.StatusInternalServerError, "Internal error")
+	context.TestPanic(t, rr, "missing upload from context", func() {
+		GetFile(ctx, rr, req)
+	})
 }
 
 func TestGetFileMissingFile(t *testing.T) {
@@ -180,8 +178,9 @@ func TestGetFileMissingFile(t *testing.T) {
 	require.NoError(t, err, "unable to create new request")
 
 	rr := ctx.NewRecorder(req)
-	GetFile(ctx, rr, req)
-	context.TestFail(t, rr, http.StatusInternalServerError, "Internal error")
+	context.TestPanic(t, rr, "missing file from context", func() {
+		GetFile(ctx, rr, req)
+	})
 }
 
 func TestGetHtmlFile(t *testing.T) {
@@ -256,8 +255,9 @@ func TestGetFileDataBackendError(t *testing.T) {
 	require.NoError(t, err, "unable to create new request")
 
 	rr := ctx.NewRecorder(req)
-	GetFile(ctx, rr, req)
-	context.TestFail(t, rr, http.StatusNotFound, "Failed to read file file")
+	context.TestPanic(t, rr, "unable to get file from data backend : data backend error", func() {
+		GetFile(ctx, rr, req)
+	})
 }
 
 func TestGetFileMetadataBackendError(t *testing.T) {
@@ -281,6 +281,7 @@ func TestGetFileMetadataBackendError(t *testing.T) {
 	require.NoError(t, err, "unable to create new request")
 
 	rr := ctx.NewRecorder(req)
-	GetFile(ctx, rr, req)
-	require.Equal(t, http.StatusInternalServerError, rr.Code, "handler returned wrong status code")
+	context.TestPanic(t, rr, "unable to update upload metadata : metadata backend error", func() {
+		GetFile(ctx, rr, req)
+	})
 }

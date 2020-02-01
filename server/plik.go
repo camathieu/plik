@@ -38,7 +38,7 @@ func main() {
 		config.ListenPort = *port
 	}
 
-	if config.LogLevel == "DEBUG" {
+	if config.Debug {
 		utils.Dump(config)
 	}
 

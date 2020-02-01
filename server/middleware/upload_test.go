@@ -43,7 +43,7 @@ func TestUploadMetadataBackendError(t *testing.T) {
 
 	rr := ctx.NewRecorder(req)
 
-	context.TestPanic(t, rr, func() {
+	context.TestPanic(t, rr, "unable to get upload metadata : metadata backend error", func() {
 		Upload(ctx, common.DummyHandler).ServeHTTP(rr, req)
 	})
 }
@@ -96,7 +96,7 @@ func TestUploadExpired(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	Upload(ctx, common.DummyHandler).ServeHTTP(rr, req)
 
-	context.TestFail(t, rr, http.StatusNotFound, "upload "+upload.ID+" has expired")
+	context.TestNotFound(t, rr, "upload "+upload.ID+" has expired")
 }
 
 func TestUploadToken(t *testing.T) {

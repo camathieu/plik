@@ -71,6 +71,7 @@ func (b *Backend) UpdateUpload(upload *common.Upload, uploadTx common.UploadTx) 
 		// Abort transaction
 		defer func() { _ = sctx.AbortTransaction(sctx) }()
 
+		// Fetch upload
 		upload = &common.Upload{}
 		result := b.uploadCollection.FindOne(ctx, bson.M{"id": upload.ID})
 		if result.Err() != nil {
@@ -81,12 +82,12 @@ func (b *Backend) UpdateUpload(upload *common.Upload, uploadTx common.UploadTx) 
 				if err != nil {
 					return err
 				}
-				return fmt.Errorf("Upload tx without an upload shoud have returned an error")
+				return fmt.Errorf("upload tx without an upload should return an error")
 			}
 			return result.Err()
 		}
 
-		// Get upload
+		// Decode upload
 		u = &common.Upload{}
 		err = result.Decode(&upload)
 		if err != nil {
@@ -105,7 +106,7 @@ func (b *Backend) UpdateUpload(upload *common.Upload, uploadTx common.UploadTx) 
 			return err
 		}
 		if replaceResult.ModifiedCount != 1 {
-			return fmt.Errorf("ReplaceOne should have updated exactly one mongodb document but has updated %d", replaceResult.ModifiedCount)
+			return fmt.Errorf("replaceOne should have updated exactly one mongodb document but has updated %d", replaceResult.ModifiedCount)
 		}
 
 		return commitWithRetry(sctx)

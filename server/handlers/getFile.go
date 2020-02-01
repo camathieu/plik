@@ -22,19 +22,27 @@ func GetFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 
 	// Get upload from context
 	upload := ctx.GetUpload()
+	if upload == nil {
+		ctx.InternalServerError("missing upload from context", nil)
+		return
+	}
 
 	// Get file from context
 	file := ctx.GetFile()
+	if file == nil {
+		ctx.InternalServerError("missing file from context", nil)
+		return
+	}
 
 	// File status pre-check
 	if upload.Stream {
 		if file.Status != common.FileUploading {
-			ctx.NotFound(fmt.Sprintf("file %s (%s) is not available : %s", file.Name, file.ID, file.Status))
+			ctx.NotFound("file %s (%s) is not available : %s", file.Name, file.ID, file.Status)
 			return
 		}
 	} else {
 		if file.Status != common.FileUploaded {
-			ctx.NotFound(fmt.Sprintf("file %s (%s) is not available : %s", file.Name, file.ID, file.Status))
+			ctx.NotFound("file %s (%s) is not available : %s", file.Name, file.ID, file.Status)
 			return
 		}
 	}
@@ -78,7 +86,7 @@ func GetFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 			defer func() {
 				err = DeleteRemovedFile(ctx, upload, file)
 				if err != nil {
-					log.Warningf("enable to delete file %s (%s) : %s", file.Name, file.ID, err)
+					log.Warningf("unable to delete file %s (%s) : %s", file.Name, file.ID, err)
 				}
 			}()
 		}
@@ -137,7 +145,7 @@ func GetFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 
 		fileReader, err := backend.GetFile(upload, file.ID)
 		if err != nil {
-			ctx.InternalServerError(fmt.Errorf("error retreiving file from data backend : %s", err))
+			ctx.InternalServerError("unable to get file from data backend", err)
 			return
 		}
 		defer func() { _ = fileReader.Close() }()

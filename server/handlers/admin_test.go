@@ -77,7 +77,7 @@ func TestGetUsersNoUser(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	GetUsers(ctx, rr, req)
 
-	context.TestFail(t, rr, http.StatusUnauthorized, "Missing user, Please login first")
+	context.TestForbidden(t, rr, "you need administrator privileges")
 }
 
 func TestGetUsersNotAdmin(t *testing.T) {
@@ -93,7 +93,7 @@ func TestGetUsersNotAdmin(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	GetUsers(ctx, rr, req)
 
-	context.TestFail(t, rr, http.StatusForbidden, "You need administrator privileges")
+	context.TestForbidden(t, rr, "you need administrator privileges")
 }
 
 func TestGetServerStatistics(t *testing.T) {
@@ -166,7 +166,7 @@ func TestGetServerStatisticsNoUser(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	GetServerStatistics(ctx, rr, req)
 
-	context.TestFail(t, rr, http.StatusUnauthorized, "Missing user, Please login first")
+	context.TestForbidden(t, rr, "you need administrator privileges")
 }
 
 func TestGetServerStatisticsNotAdmin(t *testing.T) {
@@ -182,5 +182,5 @@ func TestGetServerStatisticsNotAdmin(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	GetServerStatistics(ctx, rr, req)
 
-	context.TestFail(t, rr, http.StatusForbidden, "You need administrator privileges")
+	context.TestForbidden(t, rr, "you need administrator privileges")
 }

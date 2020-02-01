@@ -19,7 +19,7 @@ func GetVersion(ctx *context.Context, resp http.ResponseWriter, req *http.Reques
 	// Print version and build information in the json response.
 	json, err := utils.ToJson(common.GetBuildInfo())
 	if err != nil {
-		ctx.InternalServerError(fmt.Errorf("unable to serialize json response : %s", err))
+		ctx.InternalServerError("unable to serialize json response", err)
 		return
 	}
 
@@ -33,7 +33,7 @@ func GetConfiguration(ctx *context.Context, resp http.ResponseWriter, req *http.
 	// Print configuration in the json response.
 	json, err := utils.ToJson(config)
 	if err != nil {
-		ctx.InternalServerError(fmt.Errorf("unable to serialize json response : %s", err))
+		ctx.InternalServerError("unable to serialize json response", err)
 		return
 	}
 
@@ -68,27 +68,35 @@ func GetQrCode(ctx *context.Context, resp http.ResponseWriter, req *http.Request
 	// Generate QRCode png from url
 	qrcode, err := qr.Encode(urlParam, qr.H, qr.Auto)
 	if err != nil {
-		ctx.InternalServerError(fmt.Errorf("unable to generate QRCode : %s", err))
+		ctx.InternalServerError("unable to generate QRCode", err)
 		return
 	}
 
 	// Scale QRCode png size
 	qrcode, err = barcode.Scale(qrcode, sizeInt, sizeInt)
 	if err != nil {
-		ctx.InternalServerError(fmt.Errorf("unable to scale QRCode : %s", err))
+		ctx.InternalServerError("unable to scale QRCode : %s", err)
 		return
 	}
 
 	resp.Header().Add("Content-Type", "image/png")
 	err = png.Encode(resp, qrcode)
 	if err != nil {
-		ctx.InternalServerError(fmt.Errorf("unable to encore png : %s", err))
+		ctx.InternalServerError("unable to encore png : %s", err)
 		return
 	}
 }
 
 // DeleteRemovedFile deletes a removed file
 func DeleteRemovedFile(ctx *context.Context, upload *common.Upload, file *common.File) (err error) {
+
+	if upload == nil {
+		return fmt.Errorf("upload parameter is nil")
+	}
+
+	if file == nil {
+		return fmt.Errorf("file parameter is nil")
+	}
 
 	// /!\ File status MUST be removed before to call this /!\
 
@@ -117,38 +125,38 @@ func DeleteRemovedFile(ctx *context.Context, upload *common.Upload, file *common
 
 	upload, err = ctx.GetMetadataBackend().UpdateUpload(upload, tx)
 	if err != nil {
-		return fmt.Errorf("Unable to update upload metadata : %s", err)
+		return fmt.Errorf("unable to update upload metadata : %s", err)
 	}
 
 	// Remove upload if no files anymore
-	RemoveEmptyUpload(ctx, upload)
+	//RemoveEmptyUpload(ctx, upload)
 
 	return nil
 }
 
-// RemoveEmptyUpload iterates on upload files and remove upload files
-// and metadata if all the files have been downloaded (useful for OneShot uploads)
-func RemoveEmptyUpload(ctx *context.Context, upload *common.Upload) {
-	log := ctx.GetLogger()
-
-	// Test if there are remaining files
-	filesInUpload := len(upload.Files)
-	for _, f := range upload.Files {
-		if f.Status == common.FileDeleted {
-			filesInUpload--
-		}
-	}
-
-	if filesInUpload == 0 {
-		err := ctx.GetMetadataBackend().RemoveUpload(upload)
-		if err != nil {
-			log.Warningf("Unable to remove upload : %s", err)
-			return
-		}
-	}
-
-	return
-}
+//// RemoveEmptyUpload iterates on upload files and remove upload files
+//// and metadata if all the files have been downloaded (useful for OneShot uploads)
+//func RemoveEmptyUpload(ctx *context.Context, upload *common.Upload) {
+//	log := ctx.GetLogger()
+//
+//	// Test if there are remaining files
+//	filesInUpload := len(upload.Files)
+//	for _, f := range upload.Files {
+//		if f.Status == common.FileDeleted {
+//			filesInUpload--
+//		}
+//	}
+//
+//	if filesInUpload == 0 {
+//		err := ctx.GetMetadataBackend().RemoveUpload(upload)
+//		if err != nil {
+//			log.Warningf("unable to remove upload : %s", err)
+//			return
+//		}
+//	}
+//
+//	return
+//}
 
 // If a download domain is specified verify that the request comes from this specific domain
 func checkDownloadDomain(ctx *context.Context) bool {
@@ -163,7 +171,7 @@ func checkDownloadDomain(ctx *context.Context) bool {
 				config.GetDownloadDomain().Scheme,
 				config.GetDownloadDomain().Host,
 				req.RequestURI)
-			log.Warningf("Invalid download domain %s, expected %s", req.Host, config.GetDownloadDomain().Host)
+			log.Warningf("invalid download domain %s, expected %s", req.Host, config.GetDownloadDomain().Host)
 			http.Redirect(resp, req, downloadURL, http.StatusMovedPermanently)
 			return false
 		}
@@ -176,6 +184,6 @@ func handleTxError(ctx *context.Context, message string, err error) {
 	if txError, ok := err.(common.HTTPError); ok {
 		ctx.Fail(txError.Error(), nil, txError.GetStatusCode())
 	} else {
-		ctx.InternalServerError(fmt.Errorf("%s : %s", message, err))
+		ctx.InternalServerError(message, err)
 	}
 }

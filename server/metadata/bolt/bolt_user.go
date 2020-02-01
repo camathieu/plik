@@ -14,33 +14,33 @@ import (
 // CreateUser implementation for Bolt Metadata Backend
 func (b *Backend) CreateUser(user *common.User) (err error) {
 	if user == nil {
-		return errors.New("Unable to save user : Missing user")
+		return errors.New("unable to save user : Missing user")
 	}
 
 	// Serialize user to json
 	j, err := json.Marshal(user)
 	if err != nil {
-		return fmt.Errorf("Unable to serialize user to json : %s", err)
+		return fmt.Errorf("unable to serialize user to json : %s", err)
 	}
 
 	// Save json user to Bolt database
 	return b.db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte("users"))
 		if bucket == nil {
-			return fmt.Errorf("Unable to get users Bolt bucket")
+			return fmt.Errorf("unable to get users Bolt bucket")
 		}
 
 		// Save user
 		err := bucket.Put([]byte(user.ID), j)
 		if err != nil {
-			return fmt.Errorf("Unable save user : %s", err)
+			return fmt.Errorf("unable save user : %s", err)
 		}
 
 		// Update token index
 		for _, token := range user.Tokens {
 			err = bucket.Put([]byte(token.Token), []byte(user.ID))
 			if err != nil {
-				return fmt.Errorf("Unable save new token index : %s", err)
+				return fmt.Errorf("unable save new token index : %s", err)
 			}
 		}
 
@@ -51,14 +51,14 @@ func (b *Backend) CreateUser(user *common.User) (err error) {
 // GetUser implementation for Bolt Metadata Backend
 func (b *Backend) GetUser(userID string) (user *common.User, err error) {
 	if userID == "" {
-		return nil, errors.New("Unable to get user : Missing user id or token")
+		return nil, errors.New("unable to get user : Missing user id or token")
 	}
 
 	// Get json user from Bolt database
 	err = b.db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte("users"))
 		if bucket == nil {
-			return fmt.Errorf("Unable to get users Bolt bucket")
+			return fmt.Errorf("unable to get users Bolt bucket")
 		}
 
 		b := bucket.Get([]byte(userID))
@@ -72,13 +72,13 @@ func (b *Backend) GetUser(userID string) (user *common.User, err error) {
 		user = common.NewUser()
 		err = json.Unmarshal(b, user)
 		if err != nil {
-			return fmt.Errorf("Unable to unserialize user from json \"%s\" : %s", string(b), err)
+			return fmt.Errorf("unable to unserialize user from json \"%s\" : %s", string(b), err)
 		}
 
 		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("Unable to get user : %s", err)
+		return nil, fmt.Errorf("unable to get user : %s", err)
 	}
 
 	return user, nil
@@ -87,14 +87,14 @@ func (b *Backend) GetUser(userID string) (user *common.User, err error) {
 // GetUserFromToken implementation for Bolt Metadata Backend
 func (b *Backend) GetUserFromToken(token string) (user *common.User, err error) {
 	if token == "" {
-		return nil, errors.New("Unable to get user : Missing user id or token")
+		return nil, errors.New("unable to get user : Missing user id or token")
 	}
 
 	// Get json user from Bolt database
 	err = b.db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte("users"))
 		if bucket == nil {
-			return fmt.Errorf("Unable to get users Bolt bucket")
+			return fmt.Errorf("unable to get users Bolt bucket")
 		}
 
 		// token index lookup
@@ -115,13 +115,13 @@ func (b *Backend) GetUserFromToken(token string) (user *common.User, err error) 
 		user = common.NewUser()
 		err = json.Unmarshal(b, user)
 		if err != nil {
-			return fmt.Errorf("Unable to unserialize user from json \"%s\" : %s", string(b), err)
+			return fmt.Errorf("unable to unserialize user from json \"%s\" : %s", string(b), err)
 		}
 
 		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("Unable to get user : %s", err)
+		return nil, fmt.Errorf("unable to get user : %s", err)
 	}
 
 	return user, nil
@@ -130,28 +130,34 @@ func (b *Backend) GetUserFromToken(token string) (user *common.User, err error) 
 // UpdateUser implementation for Bolt Metadata Backend
 func (b *Backend) UpdateUser(user *common.User, userTx common.UserTx) (u *common.User, err error) {
 	if user == nil {
-		return nil, errors.New("Unable to remove user : Missing user")
+		return nil, errors.New("unable to remove user : Missing user")
 	}
 
 	// Get json user from Bolt database
 	err = b.db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte("users"))
 		if bucket == nil {
-			return fmt.Errorf("Unable to get users Bolt bucket")
+			return fmt.Errorf("unable to get users Bolt bucket")
 		}
 
 		b := bucket.Get([]byte(user.ID))
 
 		// User not found but no error
 		if b == nil || len(b) == 0 {
-			return nil
+			// Upload not found ( maybe it has been removed in the mean time )
+			// Let the upload tx set the (HTTP) error and forward it
+			err = userTx(nil)
+			if err != nil {
+				return err
+			}
+			return fmt.Errorf("upload tx without an upload should return an error")
 		}
 
 		// Deserialize user from json
 		u = common.NewUser()
 		err = json.Unmarshal(b, u)
 		if err != nil {
-			return fmt.Errorf("Unable to unserialize user from json \"%s\" : %s", string(b), err)
+			return fmt.Errorf("unable to unserialize user from json \"%s\" : %s", string(b), err)
 		}
 
 		// Apply UserTx
@@ -163,14 +169,14 @@ func (b *Backend) UpdateUser(user *common.User, userTx common.UserTx) (u *common
 		// Serialize user to json
 		j, err := json.Marshal(u)
 		if err != nil {
-			return fmt.Errorf("Unable to serialize user to json : %s", err)
+			return fmt.Errorf("unable to serialize user to json : %s", err)
 		}
 
 		// Save user
 		// Avoid the possibility to override an other upload by changing the upload.ID in the tx
 		err = bucket.Put([]byte(user.ID), j)
 		if err != nil {
-			return fmt.Errorf("Unable save user : %s", err)
+			return fmt.Errorf("unable save user : %s", err)
 		}
 
 		return nil
@@ -186,13 +192,13 @@ func (b *Backend) UpdateUser(user *common.User, userTx common.UserTx) (u *common
 // RemoveUser implementation for Bolt Metadata Backend
 func (b *Backend) RemoveUser(user *common.User) (err error) {
 	if user == nil {
-		return errors.New("Unable to remove user : Missing user")
+		return errors.New("unable to remove user : Missing user")
 	}
 
 	return b.db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte("users"))
 		if bucket == nil {
-			return fmt.Errorf("Unable to get users Bolt bucket")
+			return fmt.Errorf("unable to get users Bolt bucket")
 		}
 
 		err = bucket.Delete([]byte(user.ID))
@@ -204,7 +210,7 @@ func (b *Backend) RemoveUser(user *common.User) (err error) {
 		for _, token := range user.Tokens {
 			err = bucket.Delete([]byte(token.Token))
 			if err != nil {
-				return fmt.Errorf("Unable delete token index : %s", err)
+				return fmt.Errorf("unable delete token index : %s", err)
 			}
 		}
 
@@ -215,14 +221,14 @@ func (b *Backend) RemoveUser(user *common.User) (err error) {
 // GetUserUploads implementation for Bolt Metadata Backend
 func (b *Backend) GetUserUploads(user *common.User, token *common.Token) (ids []string, err error) {
 	if user == nil {
-		return nil, errors.New("Unable to get user uploads : Missing user")
+		return nil, errors.New("unable to get user uploads : Missing user")
 
 	}
 
 	err = b.db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte("uploads"))
 		if bucket == nil {
-			return fmt.Errorf("Unable to get uploads Bolt bucket")
+			return fmt.Errorf("unable to get uploads Bolt bucket")
 		}
 		cursor := bucket.Cursor()
 
@@ -260,7 +266,7 @@ func (b *Backend) GetUsers() (ids []string, err error) {
 	err = b.db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte("users"))
 		if bucket == nil {
-			return fmt.Errorf("Unable to get users Bolt bucket")
+			return fmt.Errorf("unable to get users Bolt bucket")
 		}
 
 		cursor := bucket.Cursor()
@@ -281,7 +287,7 @@ func (b *Backend) GetUsers() (ids []string, err error) {
 	})
 
 	if err != nil {
-		return nil, fmt.Errorf("Unable to get users : %s", err)
+		return nil, fmt.Errorf("unable to get users : %s", err)
 	}
 
 	return ids, nil

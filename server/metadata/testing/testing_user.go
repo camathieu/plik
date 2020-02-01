@@ -110,7 +110,11 @@ func (b *Backend) UpdateUser(user *common.User, tx common.UserTx) (u *common.Use
 
 	user, ok := b.users[user.ID]
 	if !ok {
-		return nil, errors.New("user does not exists")
+		err = tx(u)
+		if err != nil {
+			return nil, err
+		}
+		return nil, fmt.Errorf("user tx without user should return an error")
 	}
 
 	u, err = defCopyUser(user)
@@ -128,7 +132,7 @@ func (b *Backend) UpdateUser(user *common.User, tx common.UserTx) (u *common.Use
 		return nil, err
 	}
 
-	// Avoid the possibility to override an other upload by changing the upload.ID in the tx
+	// Avoid the possibility to override an other user by changing the user.ID in the tx
 	b.users[user.ID] = u
 
 	u, err = defCopyUser(u)
@@ -175,7 +179,7 @@ func (b *Backend) GetUserUploads(user *common.User, token *common.Token) (ids []
 
 func (b *Backend) getUserUploads(user *common.User, token *common.Token) (ids []string, err error) {
 	if user == nil {
-		return nil, errors.New("Missing user")
+		return nil, errors.New("missing user")
 	}
 	for _, upload := range b.uploads {
 		if upload.User != user.ID {

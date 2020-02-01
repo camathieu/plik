@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/root-gg/plik/server/common"
@@ -21,7 +20,7 @@ func Authenticate(allowToken bool) context.ContextMiddleware {
 					if tokenHeader != "" {
 						user, err := ctx.GetMetadataBackend().GetUserFromToken(tokenHeader)
 						if err != nil {
-							ctx.InternalServerError(fmt.Errorf("unable to get user from token : %s", err))
+							ctx.InternalServerError("unable to get user from token ", err)
 							return
 						}
 						if user == nil {
@@ -39,7 +38,7 @@ func Authenticate(allowToken bool) context.ContextMiddleware {
 						}
 						if token == nil {
 							// THIS SHOULD NEVER HAPPEN
-							ctx.InternalServerError(fmt.Errorf("missing token %s from user %s", tokenHeader, user.ID))
+							ctx.InternalServerError("token not found", nil)
 							return
 						}
 
@@ -81,7 +80,7 @@ func Authenticate(allowToken bool) context.ContextMiddleware {
 					user, err := ctx.GetMetadataBackend().GetUser(uid)
 					if err != nil {
 						common.Logout(resp)
-						ctx.InternalServerError(fmt.Errorf("unable to get user from session : %s", err))
+						ctx.InternalServerError("unable to get user from session", err)
 						return
 					}
 					if user == nil {

@@ -59,7 +59,7 @@ func TestGetUserNoUser(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	UserInfo(ctx, rr, req)
 
-	context.TestFail(t, rr, http.StatusUnauthorized, "Please login first")
+	context.TestUnauthorized(t, rr, "missing user, please login first")
 }
 
 func TestDeleteUser(t *testing.T) {
@@ -84,7 +84,7 @@ func TestDeleteUser(t *testing.T) {
 	respBody, err := ioutil.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 
-	require.Equal(t, string(respBody), "", "invalid response body")
+	require.Equal(t, string(respBody), "ok", "invalid response body")
 }
 
 func TestDeleteUserNoUser(t *testing.T) {
@@ -96,7 +96,7 @@ func TestDeleteUserNoUser(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	DeleteAccount(ctx, rr, req)
 
-	context.TestFail(t, rr, http.StatusUnauthorized, "Please login first")
+	context.TestUnauthorized(t, rr, "missing user, please login first")
 }
 
 func TestGetUserUploads(t *testing.T) {
@@ -152,7 +152,7 @@ func TestGetUserUploadsNoUser(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	GetUserUploads(ctx, rr, req)
 
-	context.TestFail(t, rr, http.StatusUnauthorized, "Please login first")
+	context.TestUnauthorized(t, rr, "missing user, please login first")
 }
 
 func TestGetUserUploadsWithToken(t *testing.T) {
@@ -221,7 +221,7 @@ func TestGetUserUploadsInvalidToken(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	GetUserUploads(ctx, rr, req)
 
-	context.TestFail(t, rr, http.StatusBadRequest, "Invalid token")
+	context.TestBadRequest(t, rr, "invalid token")
 }
 
 func TestGetUserUploadsWithSizeAndOffset(t *testing.T) {
@@ -286,7 +286,7 @@ func TestGetUserUploadsWithInvalidSize(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	GetUserUploads(ctx, rr, req)
 
-	context.TestFail(t, rr, http.StatusBadRequest, "Invalid size parameter")
+	context.TestBadRequest(t, rr, "invalid size")
 }
 
 func TestGetUserUploadsWithInvalidOffset(t *testing.T) {
@@ -306,7 +306,7 @@ func TestGetUserUploadsWithInvalidOffset(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	GetUserUploads(ctx, rr, req)
 
-	context.TestFail(t, rr, http.StatusBadRequest, "Invalid offset parameter")
+	context.TestBadRequest(t, rr, "invalid offset")
 }
 
 func TestGetUserStatisticsMetadataBackendError(t *testing.T) {
@@ -331,9 +331,9 @@ func TestGetUserStatisticsMetadataBackendError(t *testing.T) {
 	ctx.GetMetadataBackend().(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
 
 	rr := ctx.NewRecorder(req)
-	GetUserStatistics(ctx, rr, req)
-
-	context.TestFail(t, rr, http.StatusInternalServerError, "Unable to get user statistics")
+	context.TestPanic(t, rr, "unable to get user statistics : metadata backend error", func() {
+		GetUserStatistics(ctx, rr, req)
+	})
 }
 
 func TestRemoveUserUploads(t *testing.T) {
@@ -385,7 +385,7 @@ func TestRemoveUserUploadsNoUser(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	RemoveUserUploads(ctx, rr, req)
 
-	context.TestFail(t, rr, http.StatusUnauthorized, "Please login first")
+	context.TestUnauthorized(t, rr, "missing user, please login first")
 }
 
 func TestRemoveUserUploadsWithToken(t *testing.T) {
@@ -451,7 +451,7 @@ func TestRemoveUserUploadsInvalidToken(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	RemoveUserUploads(ctx, rr, req)
 
-	context.TestFail(t, rr, http.StatusBadRequest, "Unable to remove uploads : Invalid token")
+	context.TestBadRequest(t, rr, "invalid token")
 }
 
 func TestRemoveUserUploadsMetadataBackendError(t *testing.T) {
@@ -476,9 +476,9 @@ func TestRemoveUserUploadsMetadataBackendError(t *testing.T) {
 	ctx.GetMetadataBackend().(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
 
 	rr := ctx.NewRecorder(req)
-	RemoveUserUploads(ctx, rr, req)
-
-	context.TestFail(t, rr, http.StatusInternalServerError, "Unable to get uploads")
+	context.TestPanic(t, rr, "unable to get user statistics : metadata backend error", func() {
+		GetUserStatistics(ctx, rr, req)
+	})
 }
 
 func TestGetUserStatistics(t *testing.T) {
@@ -607,7 +607,7 @@ func TestGetUserStatisticsInvalidToken(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	GetUserStatistics(ctx, rr, req)
 
-	context.TestFail(t, rr, http.StatusBadRequest, "Unable to get uploads : Invalid token")
+	context.TestBadRequest(t, rr, "invalid token")
 }
 
 func TestGetUserStatisticsNoUser(t *testing.T) {
@@ -619,7 +619,7 @@ func TestGetUserStatisticsNoUser(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	GetUserStatistics(ctx, rr, req)
 
-	context.TestFail(t, rr, http.StatusUnauthorized, "Please login first")
+	context.TestUnauthorized(t, rr, "please login first")
 }
 
 func TestRemoveUserStatisticsMetadataBackendError(t *testing.T) {
@@ -644,7 +644,7 @@ func TestRemoveUserStatisticsMetadataBackendError(t *testing.T) {
 	ctx.GetMetadataBackend().(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
 
 	rr := ctx.NewRecorder(req)
-	GetUserStatistics(ctx, rr, req)
-
-	context.TestFail(t, rr, http.StatusInternalServerError, "Unable to get user statistics")
+	context.TestPanic(t, rr, "unable to get user statistics : metadata backend error", func() {
+		GetUserStatistics(ctx, rr, req)
+	})
 }

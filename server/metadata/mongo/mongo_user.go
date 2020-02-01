@@ -3,6 +3,10 @@ package mongo
 import (
 	"errors"
 	"fmt"
+	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo/readconcern"
+	"go.mongodb.org/mongo-driver/mongo/readpref"
+	"go.mongodb.org/mongo-driver/mongo/writeconcern"
 
 	"go.mongodb.org/mongo-driver/mongo"
 	"gopkg.in/mgo.v2/bson"
@@ -69,48 +73,70 @@ func (b *Backend) UpdateUser(user *common.User, userTx common.UserTx) (u *common
 	ctx, cancel := b.newContext()
 	defer cancel()
 
-	err = b.client.UseSession(ctx, func(sessionContext mongo.SessionContext) error {
-		err = sessionContext.StartTransaction()
+	// Prepare upload update transaction
+	updateUsetTx := func(sctx mongo.SessionContext) error {
+		err := sctx.StartTransaction(options.Transaction().
+			SetReadConcern(readconcern.Snapshot()).
+			SetWriteConcern(writeconcern.New(writeconcern.WMajority())),
+		)
 		if err != nil {
 			return err
 		}
 
+		// Abort transaction
+		defer func() { _ = sctx.AbortTransaction(sctx) }()
+
+		// Fetch user
 		u := &common.User{}
-		err := b.userCollection.FindOne(sessionContext, bson.M{"id": user.ID}).Decode(&u)
-		if err != nil {
-			err2 := sessionContext.AbortTransaction(sessionContext)
-			if err2 != nil {
-				return fmt.Errorf("%s : %s", err, err2)
+		result := b.uploadCollection.FindOne(ctx, bson.M{"id": user.ID})
+		if result.Err() != nil {
+			if result.Err() == mongo.ErrNoDocuments {
+				// User not found ( maybe it has been removed in the mean time )
+				// Let the user tx set the (HTTP) error and forward it
+				err = userTx(nil)
+				if err != nil {
+					return err
+				}
+				return fmt.Errorf("user tx without an user should return an error")
 			}
+			return result.Err()
+		}
+
+		// Decode user
+		u = &common.User{}
+		err = result.Decode(&user)
+		if err != nil {
 			return err
 		}
 
+		// Apply transaction ( mutate )
 		err = userTx(u)
 		if err != nil {
-			err2 := sessionContext.AbortTransaction(sessionContext)
-			if err2 != nil {
-				return fmt.Errorf("%s : %s", err, err2)
-			}
 			return err
 		}
 
-		// Avoid the possibility to override an other upload by changing the upload.ID in the tx
-		_, err = b.userCollection.ReplaceOne(sessionContext, bson.M{"id": user.ID}, u)
+		// Avoid the possibility to override an other user by changing the user.ID in the tx
+		replaceResult, err := b.userCollection.ReplaceOne(sctx, bson.M{"id": user.ID}, u)
 		if err != nil {
-			err2 := sessionContext.AbortTransaction(sessionContext)
-			if err2 != nil {
-				return fmt.Errorf("%s : %s", err, err2)
-			}
 			return err
 		}
+		if replaceResult.ModifiedCount != 1 {
+			return fmt.Errorf("replaceOne should have updated exactly one mongodb document but has updated %d", replaceResult.ModifiedCount)
+		}
 
-		return sessionContext.CommitTransaction(sessionContext)
-	})
+		return commitWithRetry(sctx)
+	}
 
+	// Execute transaction with automatic retries and timeout
+	err = b.client.UseSessionWithOptions(
+		ctx, options.Session().SetDefaultReadPreference(readpref.Primary()),
+		func(sctx mongo.SessionContext) error {
+			return runTransactionWithRetry(sctx, updateUsetTx)
+		},
+	)
 	if err != nil {
 		return nil, err
 	}
-
 	return u, nil
 }
 

@@ -92,15 +92,15 @@ func TestTokenMultipleToken(t *testing.T) {
 	f2 := upload.AddFileFromReader("filename", bytes.NewBufferString("data"))
 	err = upload.Upload()
 	common.RequireError(t, err, "Failed to upload at least one file")
-	common.RequireError(t, f2.Error(), "You are not allowed to add file to this upload")
+	common.RequireError(t, f2.Error(), "you are not allowed to add file to this upload")
 
 	// try to remove file to upload with the wrong token
 	err = file.Delete()
-	common.RequireError(t, err, "You are not allowed to remove file from this upload")
+	common.RequireError(t, err, "you are not allowed to remove files from this upload")
 
 	// try to remove upload with the wrong token
 	err = upload.Delete()
-	common.RequireError(t, err, "You are not allowed to remove this upload")
+	common.RequireError(t, err, "you are not allowed to remove this upload")
 
 	upload.Token = t1.Token
 
@@ -150,15 +150,15 @@ func TestTokenMultipleTokenAdmin(t *testing.T) {
 	f2 := upload.AddFileFromReader("filename", bytes.NewBufferString("data"))
 	err = upload.Upload()
 	common.RequireError(t, err, "Failed to upload at least one file")
-	common.RequireError(t, f2.Error(), "You are not allowed to add file to this upload")
+	common.RequireError(t, f2.Error(), "you are not allowed to add file to this upload")
 
 	// try to remove file to upload with the wrong token
 	err = file.Delete()
-	common.RequireError(t, err, "You are not allowed to remove file from this upload")
+	common.RequireError(t, err, "you are not allowed to remove files from this upload")
 
 	// try to remove upload with the wrong token
 	err = upload.Delete()
-	common.RequireError(t, err, "You are not allowed to remove this upload")
+	common.RequireError(t, err, "you are not allowed to remove this upload")
 
 	upload.Token = t1.Token
 

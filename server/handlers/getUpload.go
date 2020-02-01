@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/root-gg/plik/server/context"
@@ -14,6 +13,10 @@ func GetUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Request
 
 	// Get upload from context
 	upload := ctx.GetUpload()
+	if upload == nil {
+		ctx.InternalServerError("missing upload from context", nil)
+		return
+	}
 
 	// Remove all private information (ip, data backend details, ...) before
 	// sending metadata back to the client
@@ -27,7 +30,7 @@ func GetUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Request
 	// Print upload metadata in the json response.
 	json, err := utils.ToJson(upload)
 	if err != nil {
-		ctx.InternalServerError(fmt.Errorf("unable to serialize json response : %s", err))
+		ctx.InternalServerError("unable to serialize json response", err)
 		return
 	}
 

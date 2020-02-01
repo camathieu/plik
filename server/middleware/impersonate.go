@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/root-gg/plik/server/context"
@@ -22,7 +21,7 @@ func Impersonate(ctx *context.Context, next http.Handler) http.Handler {
 
 			newUser, err := ctx.GetMetadataBackend().GetUser(newUserID)
 			if err != nil {
-				ctx.InternalServerError(fmt.Errorf("unable to get user : %s", err))
+				ctx.InternalServerError("unable to get user", err)
 				return
 			}
 

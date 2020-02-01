@@ -22,18 +22,18 @@ func GoogleLogin(ctx *context.Context, resp http.ResponseWriter, req *http.Reque
 	config := ctx.GetConfig()
 
 	if !config.Authentication {
-		ctx.Forbidden("authentication is disabled")
+		ctx.BadRequest("authentication is disabled")
 		return
 	}
 
 	if !config.GoogleAuthentication {
-		ctx.Forbidden("Google authentication is disabled")
+		ctx.BadRequest("Google authentication is disabled")
 		return
 	}
 
 	origin := req.Header.Get("referer")
 	if origin == "" {
-		ctx.MissingParameter("referer")
+		ctx.MissingParameter("referer header")
 		return
 	}
 
@@ -56,7 +56,7 @@ func GoogleLogin(ctx *context.Context, resp http.ResponseWriter, req *http.Reque
 	/* Sign state */
 	b64state, err := state.SignedString([]byte(config.GoogleAPISecret))
 	if err != nil {
-		ctx.InternalServerError(fmt.Errorf("unable to sign state : %s", err))
+		ctx.InternalServerError("unable to sign state", err)
 		return
 	}
 
@@ -72,17 +72,17 @@ func GoogleCallback(ctx *context.Context, resp http.ResponseWriter, req *http.Re
 	config := ctx.GetConfig()
 
 	if !config.Authentication {
-		ctx.Forbidden("authentication is disabled")
+		ctx.BadRequest("authentication is disabled")
 		return
 	}
 
 	if !config.GoogleAuthentication {
-		ctx.Forbidden("Google authentication is disabled")
+		ctx.BadRequest("Google authentication is disabled")
 		return
 	}
 
 	if config.GoogleAPIClientID == "" || config.GoogleAPISecret == "" {
-		ctx.InternalServerError(fmt.Errorf("missing Google API credentials"))
+		ctx.InternalServerError("missing Google API credentials", nil)
 		return
 	}
 
@@ -102,26 +102,26 @@ func GoogleCallback(ctx *context.Context, resp http.ResponseWriter, req *http.Re
 	state, err := jwt.Parse(b64state, func(token *jwt.Token) (interface{}, error) {
 		// Verify signing algorithm
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("Unexpected siging method : %v", token.Header["alg"])
+			return nil, fmt.Errorf("unexpected siging method : %v", token.Header["alg"])
 		}
 
 		// Verify expiration data
 		if expire, ok := token.Claims.(jwt.MapClaims)["expire"]; ok {
 			if _, ok = expire.(float64); ok {
 				if time.Now().Unix() > (int64)(expire.(float64)) {
-					return nil, fmt.Errorf("State has expired")
+					return nil, fmt.Errorf("state has expired")
 				}
 			} else {
-				return nil, fmt.Errorf("Invalid expiration date")
+				return nil, fmt.Errorf("invalid expiration date")
 			}
 		} else {
-			return nil, fmt.Errorf("Missing expiration date")
+			return nil, fmt.Errorf("missing expiration date")
 		}
 
 		return []byte(config.GoogleAPISecret), nil
 	})
 	if err != nil {
-		ctx.InvalidParameter(fmt.Sprintf("oauth2 state : %s", err))
+		ctx.InvalidParameter("oauth2 state : %s", err)
 		return
 	}
 
@@ -155,13 +155,13 @@ func GoogleCallback(ctx *context.Context, resp http.ResponseWriter, req *http.Re
 
 	token, err := conf.Exchange(oauth2.NoContext, code)
 	if err != nil {
-		ctx.InternalServerError(fmt.Errorf("unable to get user info from Google API : %s", err))
+		ctx.InternalServerError("unable to get user info from Google API (1)", err)
 		return
 	}
 
 	client, err := api_oauth2.New(conf.Client(oauth2.NoContext, token))
 	if err != nil {
-		ctx.InternalServerError(fmt.Errorf("unable to get user info from Google API : %s", err))
+		ctx.InternalServerError("unable to get user info from Google API (2)", err)
 		return
 	}
 
@@ -172,7 +172,7 @@ func GoogleCallback(ctx *context.Context, resp http.ResponseWriter, req *http.Re
 
 	userInfo, err := client.Userinfo.Get().Do()
 	if err != nil {
-		ctx.InternalServerError(fmt.Errorf("unable to get user info from Google API : %s", err))
+		ctx.InternalServerError("unable to get user info from Google API (3)", err)
 		return
 	}
 	userID := "google:" + userInfo.Id
@@ -180,7 +180,7 @@ func GoogleCallback(ctx *context.Context, resp http.ResponseWriter, req *http.Re
 	// Get user from metadata backend
 	user, err := ctx.GetMetadataBackend().GetUser(userID)
 	if err != nil {
-		ctx.InternalServerError(fmt.Errorf("unable to get user from metadata backend : %s", err))
+		ctx.InternalServerError("unable to get user from metadata backend", err)
 		return
 	}
 
@@ -215,7 +215,7 @@ func GoogleCallback(ctx *context.Context, resp http.ResponseWriter, req *http.Re
 			// Save user to metadata backend
 			err = ctx.GetMetadataBackend().CreateUser(user)
 			if err != nil {
-				ctx.InternalServerError(fmt.Errorf("unable to create user in metadata backend : %s", err))
+				ctx.InternalServerError("unable to create user in metadata backend : %s", err)
 				return
 			}
 		} else {
@@ -227,7 +227,7 @@ func GoogleCallback(ctx *context.Context, resp http.ResponseWriter, req *http.Re
 	// Set Plik session cookie and xsrf cookie
 	sessionCookie, xsrfCookie, err := common.GenAuthCookies(user, ctx.GetConfig())
 	if err != nil {
-		ctx.InternalServerError(fmt.Errorf("unable to generate session cookies : %s", err))
+		ctx.InternalServerError("unable to generate session cookies : %s", err)
 	}
 	http.SetCookie(resp, sessionCookie)
 	http.SetCookie(resp, xsrfCookie)

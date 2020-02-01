@@ -16,74 +16,84 @@ import (
 
 var internalServerError = "internal server error"
 
-func (ctx *Context) InternalServerError(err error) {
+func (ctx *Context) InternalServerError(message string, err error) {
 	ctx.mu.RLock()
 	defer ctx.mu.RLock()
 
-	ctx.internalServerError(err)
+	ctx.internalServerError(message, err)
 }
 
-func (ctx *Context) internalServerError(err error) {
-	ctx.isPanic = true
+func (ctx *Context) internalServerError(message string, err error) {
 
-	msg := internalServerError
-	if ctx.config != nil && ctx.config.Debug && err != nil{
+	if ctx.config != nil && ctx.config.Debug {
 		// In DEBUG mode return the error message to the user
-		msg = err.Error()
-		err = nil // no need to print the message twice in the logs
+		if err != nil {
+			message = fmt.Sprintf("%s : %s", message, err)
+			err = nil // no need to log twice
+		}
+	} else {
+		// In PROD mode return "internal server error" to the user
+		message = internalServerError
 	}
 
-	ctx.fail(msg, err, http.StatusInternalServerError)
+	ctx.panic = true
+	ctx.fail(message, err, http.StatusInternalServerError)
 }
 
-func (ctx *Context) BadRequest(message string) {
+func (ctx *Context) BadRequest(message string, params ...interface{}) {
 	ctx.mu.RLock()
 	defer ctx.mu.RLock()
 
-	ctx.badRequest(message)
+	ctx.badRequest(message, params...)
 }
 
-func (ctx *Context) badRequest(message string) {
+func (ctx *Context) badRequest(message string, params ...interface{}) {
+	message = fmt.Sprintf(message, params...)
 	ctx.fail(message, nil, http.StatusBadRequest)
 }
 
-func (ctx *Context) NotFound(message string) {
+func (ctx *Context) NotFound(message string, params ...interface{}) {
 	ctx.mu.RLock()
 	defer ctx.mu.RLock()
 
-	ctx.notFound(message)
+	ctx.notFound(message, params...)
 }
 
-func (ctx *Context) notFound(message string) {
+func (ctx *Context) notFound(message string, params ...interface{}) {
+	message = fmt.Sprintf(message, params...)
 	ctx.fail(message, nil, http.StatusNotFound)
 }
 
-func (ctx *Context) Forbidden(message string) {
+func (ctx *Context) Forbidden(message string, params ...interface{}) {
 	ctx.mu.RLock()
 	defer ctx.mu.RLock()
 
+	message = fmt.Sprintf(message, params...)
 	ctx.fail(message, nil, http.StatusForbidden)
 }
 
-func (ctx *Context) Unauthorized(message string) {
+func (ctx *Context) Unauthorized(message string, params ...interface{}) {
 	ctx.mu.RLock()
 	defer ctx.mu.RLock()
 
+	message = fmt.Sprintf(message, params...)
 	ctx.fail(message, nil, http.StatusUnauthorized)
 }
 
-func (ctx *Context) MissingParameter(parameter string) {
+func (ctx *Context) MissingParameter(message string, params ...interface{}) {
 	ctx.mu.RLock()
 	defer ctx.mu.RLock()
 
-	ctx.badRequest(fmt.Sprintf("missing %s", parameter))
+	message = fmt.Sprintf(message, params...)
+	ctx.badRequest(fmt.Sprintf("missing %s", message))
 }
 
-func (ctx *Context) InvalidParameter(parameter string) {
+func (ctx *Context) InvalidParameter(message string, params ...interface{}) {
 	ctx.mu.RLock()
 	defer ctx.mu.RLock()
 
-	ctx.badRequest(fmt.Sprintf("invalid %s", parameter))
+	message = fmt.Sprintf(message, params...)
+	ctx.badRequest(fmt.Sprintf("invalid %s", message))
 }
 
 var userAgents = []string{"wget", "curl", "python-urllib", "libwwww-perl", "php", "pycurl", "go-http-client"}
@@ -96,42 +106,47 @@ func (ctx *Context) Fail(message string, err error, status int) {
 }
 
 func (ctx *Context) fail(message string, err error, status int) {
-	msg := fmt.Sprintf("%s : %v (%d)", message, err, status)
+
+	logMessage := fmt.Sprintf("%s -- %d", message, status)
+	if err != nil {
+		logMessage = fmt.Sprintf("%s -- %v -- %d", message, err, status)
+	}
 
 	if ctx.logger != nil {
 		if err != nil {
-			ctx.logger.Warning(msg)
-		} else {
-			ctx.logger.Info(msg)
+			ctx.logger.Warning(logMessage)
 		}
 	} else {
-		log.Println(msg)
+		log.Println(logMessage)
 	}
 
 	if ctx.req != nil && ctx.resp != nil {
+
+		redirect := false
 		if ctx.isRedirectOnFailure {
 			// The web client uses http redirect to get errors
 			// from http redirect and display a nice HTML error message
 			// But cli clients needs a clean string response
 			userAgent := strings.ToLower(ctx.req.UserAgent())
-			redirect := true
+			redirect = true
 			for _, ua := range userAgents {
 				if strings.HasPrefix(userAgent, ua) {
 					redirect = false
 				}
 			}
-			if redirect {
-				url := fmt.Sprintf("%s/#/?err=%s&errcode=%d&uri=%s", ctx.config.Path, message, status, ctx.req.RequestURI)
-				http.Redirect(ctx.resp, ctx.req, url, http.StatusMovedPermanently)
-			}
+		}
+
+		if redirect {
+			url := fmt.Sprintf("%s/#/?err=%s&errcode=%d&uri=%s", ctx.config.Path, message, status, ctx.req.RequestURI)
+			http.Redirect(ctx.resp, ctx.req, url, http.StatusMovedPermanently)
 		} else {
 			http.Error(ctx.resp, common.NewResult(message, nil).ToJSONString(), status)
 		}
 	}
 
 	// This will be recovered by the HTTP server
-	if ctx.isPanic {
-		panic(msg)
+	if ctx.panic {
+		panic(logMessage)
 	}
 }
 

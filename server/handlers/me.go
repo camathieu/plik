@@ -14,19 +14,19 @@ import (
 func UserInfo(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
 
 	// Get user from context
-	if !ctx.HasUser() {
-		ctx.Unauthorized("missing user, Please login first")
+	user := ctx.GetUser()
+	if user == nil {
+		ctx.Unauthorized("missing user, please login first")
 		return
 	}
 
-	user := ctx.GetUser()
 	user.IsAdmin = ctx.IsAdmin()
 
 	// Serialize user to JSON
 	// Print token in the json response.
 	json, err := utils.ToJson(user)
 	if err != nil {
-		ctx.InternalServerError(fmt.Errorf("unable to serialize json response : %s", err))
+		ctx.InternalServerError("unable to serialize json response", err)
 		return
 	}
 
@@ -37,16 +37,15 @@ func UserInfo(ctx *context.Context, resp http.ResponseWriter, req *http.Request)
 func DeleteAccount(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
 
 	// Get user from context
-	if !ctx.HasUser() {
-		ctx.Unauthorized("missing user, Please login first")
+	user := ctx.GetUser()
+	if user == nil {
+		ctx.Unauthorized("missing user, please login first")
 		return
 	}
 
-	user := ctx.GetUser()
-
 	err := ctx.GetMetadataBackend().RemoveUser(user)
 	if err != nil {
-		ctx.InternalServerError(fmt.Errorf("unable to remove user : %s", err))
+		ctx.InternalServerError("unable to remove user", err)
 		return
 	}
 
@@ -58,12 +57,11 @@ func GetUserUploads(ctx *context.Context, resp http.ResponseWriter, req *http.Re
 	log := ctx.GetLogger()
 
 	// Get user from context
-	if !ctx.HasUser() {
-		ctx.Unauthorized("missing user, Please login first")
+	user := ctx.GetUser()
+	if user == nil {
+		ctx.Unauthorized("missing user, please login first")
 		return
 	}
-
-	user := ctx.GetUser()
 
 	// Get token from URL query parameter
 	var token *common.Token
@@ -85,7 +83,7 @@ func GetUserUploads(ctx *context.Context, resp http.ResponseWriter, req *http.Re
 	// Get uploads
 	ids, err := ctx.GetMetadataBackend().GetUserUploads(user, token)
 	if err != nil {
-		ctx.InternalServerError(fmt.Errorf("unable to get user uploads : %s", err))
+		ctx.InternalServerError("unable to get user uploads : %s", err)
 		return
 	}
 
@@ -95,7 +93,7 @@ func GetUserUploads(ctx *context.Context, resp http.ResponseWriter, req *http.Re
 	if sizeStr != "" {
 		size, err = strconv.Atoi(sizeStr)
 		if err != nil || size <= 0 || size > 100 {
-			ctx.InvalidParameter("size")
+			ctx.InvalidParameter("size, must be positive integer less than 100")
 			return
 		}
 	}
@@ -106,7 +104,7 @@ func GetUserUploads(ctx *context.Context, resp http.ResponseWriter, req *http.Re
 	if offsetStr != "" {
 		offset, err = strconv.Atoi(offsetStr)
 		if err != nil || offset < 0 {
-			ctx.InvalidParameter("offset")
+			ctx.InvalidParameter("offset, must be positive integer")
 			return
 		}
 	}
@@ -145,7 +143,7 @@ func GetUserUploads(ctx *context.Context, resp http.ResponseWriter, req *http.Re
 	// Print uploads in the json response.
 	var json []byte
 	if json, err = utils.ToJson(uploads); err != nil {
-		ctx.InternalServerError(fmt.Errorf("unable to serialize json response : %s", err))
+		ctx.InternalServerError("unable to serialize json response", err)
 		return
 	}
 
@@ -157,12 +155,11 @@ func RemoveUserUploads(ctx *context.Context, resp http.ResponseWriter, req *http
 	log := ctx.GetLogger()
 
 	// Get user from context
-	if !ctx.HasUser() {
-		ctx.Unauthorized("missing user, Please login first")
+	user := ctx.GetUser()
+	if user == nil {
+		ctx.Unauthorized("missing user, please login first")
 		return
 	}
-
-	user := ctx.GetUser()
 
 	// Get token from URL query parameter
 	var token *common.Token
@@ -182,7 +179,7 @@ func RemoveUserUploads(ctx *context.Context, resp http.ResponseWriter, req *http
 	// Get uploads
 	ids, err := ctx.GetMetadataBackend().GetUserUploads(user, token)
 	if err != nil {
-		ctx.InternalServerError(fmt.Errorf("unable to get user uploads : %s", err))
+		ctx.InternalServerError("unable to get user uploads", err)
 		return
 	}
 
@@ -213,12 +210,11 @@ func RemoveUserUploads(ctx *context.Context, resp http.ResponseWriter, req *http
 func GetUserStatistics(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
 
 	// Get user from context
-	if !ctx.HasUser() {
-		ctx.Unauthorized("missing user, Please login first")
+	user := ctx.GetUser()
+	if user == nil {
+		ctx.Unauthorized("missing user, please login first")
 		return
 	}
-
-	user := ctx.GetUser()
 
 	// Get token from URL query parameter
 	var token *common.Token
@@ -240,14 +236,14 @@ func GetUserStatistics(ctx *context.Context, resp http.ResponseWriter, req *http
 	// Get server statistics
 	stats, err := ctx.GetMetadataBackend().GetUserStatistics(user, token)
 	if err != nil {
-		ctx.InternalServerError(fmt.Errorf("unable to get user statistics : %s", err))
+		ctx.InternalServerError("unable to get user statistics", err)
 		return
 	}
 
 	// Print stats in the json response.
 	var json []byte
 	if json, err = utils.ToJson(stats); err != nil {
-		ctx.InternalServerError(fmt.Errorf("unable to serialize json response : %s", err))
+		ctx.InternalServerError("unable to serialize json response", err)
 		return
 	}
 

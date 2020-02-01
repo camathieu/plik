@@ -6,12 +6,16 @@ import (
 	"github.com/root-gg/plik/server/context"
 )
 
-// Log the http request
-func Context(ctx *context.Context, next http.Handler) http.Handler {
-	return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
-		ctx.SetReq(req)
-		ctx.SetResp(resp)
+// Context sets necessary request context values
+func Context(setupContext func(ctx *context.Context)) context.ContextMiddleware {
+	return func(ctx *context.Context, next http.Handler) http.Handler {
+		return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
 
-		next.ServeHTTP(resp, req)
-	})
+			setupContext(ctx)
+			ctx.SetReq(req)
+			ctx.SetResp(resp)
+
+			next.ServeHTTP(resp, req)
+		})
+	}
 }

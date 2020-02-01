@@ -14,19 +14,27 @@ func RemoveFile(ctx *context.Context, resp http.ResponseWriter, req *http.Reques
 
 	// Get upload from context
 	upload := ctx.GetUpload()
+	if upload == nil {
+		ctx.InternalServerError("missing upload from context", nil)
+		return
+	}
 
 	// Check authorization
 	if !upload.Removable && !ctx.IsUploadAdmin() {
-		ctx.Forbidden("you are not allowed to remove this upload")
+		ctx.Forbidden("you are not allowed to remove files from this upload")
 		return
 	}
 
 	// Get file from context
 	file := ctx.GetFile()
+	if file == nil {
+		ctx.InternalServerError("missing file from context", nil)
+		return
+	}
 
 	// Check if file is not already removed
 	if file.Status != common.FileUploaded {
-		ctx.NotFound(fmt.Sprintf("file %s (%s) is not removable : %s", file.Name, file.ID, file.Status))
+		ctx.NotFound("file %s (%s) is not removable : %s", file.Name, file.ID, file.Status)
 		return
 	}
 
@@ -54,6 +62,14 @@ func RemoveFile(ctx *context.Context, resp http.ResponseWriter, req *http.Reques
 	upload, err := ctx.GetMetadataBackend().UpdateUpload(upload, tx)
 	if err != nil {
 		handleTxError(ctx, "unable to update upload metadata", err)
+		return
+	}
+
+	// Get updated file
+	var ok bool
+	file, ok = upload.Files[file.ID]
+	if !ok {
+		ctx.InternalServerError("missing file from upload after metadata update", nil)
 		return
 	}
 

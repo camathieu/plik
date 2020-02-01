@@ -44,7 +44,7 @@ func TestRemoveUpload(t *testing.T) {
 
 	respBody, err := ioutil.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
-	require.Equal(t, 0, len(respBody), "invalid response body")
+	require.Equal(t, "ok", string(respBody), "invalid response body")
 
 	u, err := ctx.GetMetadataBackend().GetUpload(upload.ID)
 	require.NoError(t, err, "unexpected get upload error")
@@ -79,7 +79,7 @@ func TestRemoveUploadNotAdmin(t *testing.T) {
 
 	rr := ctx.NewRecorder(req)
 	RemoveUpload(ctx, rr, req)
-	context.TestFail(t, rr, http.StatusForbidden, "You are not allowed to remove this upload")
+	context.TestForbidden(t, rr, "you are not allowed to remove this upload")
 }
 
 func TestRemoveUploadNoUpload(t *testing.T) {
@@ -89,8 +89,9 @@ func TestRemoveUploadNoUpload(t *testing.T) {
 	require.NoError(t, err, "unable to create new request")
 
 	rr := ctx.NewRecorder(req)
-	RemoveUpload(ctx, rr, req)
-	context.TestFail(t, rr, http.StatusInternalServerError, "Internal error")
+	context.TestPanic(t, rr, "missing upload from context", func() {
+		RemoveUpload(ctx, rr, req)
+	})
 }
 
 func TestRemoveUploadMetadataBackendError(t *testing.T) {
@@ -110,8 +111,9 @@ func TestRemoveUploadMetadataBackendError(t *testing.T) {
 	ctx.GetMetadataBackend().(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
 
 	rr := ctx.NewRecorder(req)
-	RemoveUpload(ctx, rr, req)
-	context.TestFail(t, rr, http.StatusInternalServerError, "Unable to update upload metadata")
+	context.TestPanic(t, rr, "unable to update upload metadata : metadata backend error", func() {
+		RemoveUpload(ctx, rr, req)
+	})
 }
 
 func TestRemoveUploadDataBackendError(t *testing.T) {

@@ -101,7 +101,7 @@ func TestCreateTokenMissingUser(t *testing.T) {
 
 	rr := ctx.NewRecorder(req)
 	CreateToken(ctx, rr, req)
-	context.TestFail(t, rr, http.StatusUnauthorized, "Please login first")
+	context.TestUnauthorized(t, rr, "missing user, please login first")
 }
 
 func TestCreateTokenMetadataBackendError(t *testing.T) {
@@ -127,9 +127,10 @@ func TestCreateTokenMetadataBackendError(t *testing.T) {
 	ctx.GetMetadataBackend().(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
 
 	rr := ctx.NewRecorder(req)
-	CreateToken(ctx, rr, req)
 
-	context.TestFail(t, rr, http.StatusInternalServerError, "Unable to update user metadata")
+	context.TestPanic(t, rr, "unable to update user metadata : metadata backend error", func() {
+		CreateToken(ctx, rr, req)
+	})
 }
 
 func TestRemoveToken(t *testing.T) {
@@ -198,7 +199,7 @@ func TestRemoveMissingToken(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	RevokeToken(ctx, rr, req)
 
-	context.TestFail(t, rr, http.StatusNotFound, "unable to get token")
+	context.TestNotFound(t, rr, "unable to get token")
 }
 
 func TestRevokeTokenMissingUser(t *testing.T) {
@@ -210,7 +211,7 @@ func TestRevokeTokenMissingUser(t *testing.T) {
 
 	rr := ctx.NewRecorder(req)
 	RevokeToken(ctx, rr, req)
-	context.TestFail(t, rr, http.StatusUnauthorized, "Please login first")
+	context.TestUnauthorized(t, rr, "missing user, please login first")
 }
 
 func TestRevokeTokenMetadataBackendError(t *testing.T) {
@@ -241,6 +242,7 @@ func TestRevokeTokenMetadataBackendError(t *testing.T) {
 	ctx.GetMetadataBackend().(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
 
 	rr := ctx.NewRecorder(req)
-	RevokeToken(ctx, rr, req)
-	context.TestFail(t, rr, http.StatusInternalServerError, "Unable to update upload metadata")
+	context.TestPanic(t, rr, "unable to update user metadata : metadata backend error", func() {
+		RevokeToken(ctx, rr, req)
+	})
 }

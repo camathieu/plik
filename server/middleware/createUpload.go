@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/root-gg/plik/server/common"
@@ -38,7 +37,7 @@ func CreateUpload(ctx *context.Context, next http.Handler) http.Handler {
 		// Save the upload metadata
 		err := ctx.GetMetadataBackend().CreateUpload(upload)
 		if err != nil {
-			ctx.InternalServerError(fmt.Errorf("unable to create upload : %s", err))
+			ctx.InternalServerError("unable to create upload", err)
 			return
 		}
 

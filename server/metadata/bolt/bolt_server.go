@@ -15,7 +15,7 @@ func (b *Backend) GetUploadsToRemove() (ids []string, err error) {
 	err = b.db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte("uploads"))
 		if bucket == nil {
-			return fmt.Errorf("Unable to get uploads Bolt bucket")
+			return fmt.Errorf("unable to get uploads Bolt bucket")
 		}
 		cursor := bucket.Cursor()
 
@@ -62,7 +62,7 @@ func (b *Backend) GetServerStatistics() (stats *common.ServerStats, err error) {
 	err = b.db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte("uploads"))
 		if bucket == nil {
-			return fmt.Errorf("Unable to get uploads Bolt bucket")
+			return fmt.Errorf("unable to get uploads Bolt bucket")
 		}
 		cursor := bucket.Cursor()
 
@@ -105,7 +105,7 @@ func (b *Backend) GetServerStatistics() (stats *common.ServerStats, err error) {
 	err = b.db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte("users"))
 		if bucket == nil {
-			return fmt.Errorf("Unable to get users Bolt bucket")
+			return fmt.Errorf("unable to get users Bolt bucket")
 		}
 		cursor := bucket.Cursor()
 

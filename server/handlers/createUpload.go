@@ -20,10 +20,10 @@ func CreateUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Requ
 	user := ctx.GetUser()
 	if user == nil {
 		if config.NoAnonymousUploads {
-			ctx.Forbidden("unable to create upload from anonymous user")
+			ctx.BadRequest("anonymous uploads are disabled, please authenticate first")
 			return
 		} else if !ctx.IsWhitelisted() {
-			ctx.Forbidden("unable to create upload from untrusted source IP address")
+			ctx.Forbidden("untrusted source IP address")
 			return
 		}
 	}
@@ -35,7 +35,7 @@ func CreateUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Requ
 	req.Body = http.MaxBytesReader(resp, req.Body, 1048576)
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
-		ctx.BadRequest(fmt.Sprintf("unable to read request body : %s", err))
+		ctx.BadRequest("unable to read request body", err)
 		return
 	}
 
@@ -43,14 +43,14 @@ func CreateUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Requ
 	if len(body) > 0 {
 		err = json.Unmarshal(body, upload)
 		if err != nil {
-			ctx.BadRequest(fmt.Sprintf("unable to deserialize request body : %s", err))
+			ctx.BadRequest("unable to deserialize request body : %s", err)
 			return
 		}
 	}
 
 	// Limit number of files per upload
 	if len(upload.Files) > config.MaxFilePerUpload {
-		ctx.Forbidden(fmt.Sprintf("unable to create upload : Maximum number file per upload reached (%d)", config.MaxFilePerUpload))
+		ctx.BadRequest("too many files. maximum is %d", config.MaxFilePerUpload)
 		return
 	}
 
@@ -70,23 +70,26 @@ func CreateUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Requ
 		upload.User = user.ID
 		token := ctx.GetToken()
 		if token != nil {
-			upload.Token = token.Token
+			token := ctx.GetToken()
+			if token != nil {
+				upload.Token = token.Token
+			}
 		}
 	}
 
 	if upload.OneShot && !config.OneShot {
-		ctx.Forbidden("one shot downloads are not enabled")
+		ctx.BadRequest("one shot downloads are not enabled")
 		return
 	}
 
 	if upload.Removable && !config.Removable {
-		ctx.Forbidden("removable uploads are not enabled")
+		ctx.BadRequest("removable uploads are not enabled")
 		return
 	}
 
 	if upload.Stream {
 		if !config.StreamMode {
-			ctx.Forbidden("stream mode is not enabled")
+			ctx.BadRequest("stream mode is not enabled")
 			return
 		}
 		upload.OneShot = true
@@ -100,7 +103,7 @@ func CreateUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Requ
 		upload.TTL = config.DefaultTTL
 	case -1:
 		if config.MaxTTL != -1 {
-			ctx.BadRequest(fmt.Sprintf("cannot set infinite ttl (maximum allowed is : %d)", config.MaxTTL))
+			ctx.BadRequest("cannot set infinite ttl (maximum allowed is : %d)", config.MaxTTL)
 			return
 		}
 	default:
@@ -109,7 +112,7 @@ func CreateUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Requ
 			return
 		}
 		if config.MaxTTL > 0 && upload.TTL > config.MaxTTL {
-			ctx.InvalidParameter(fmt.Sprintf("ttl. (maximum allowed is : %d)", config.MaxTTL))
+			ctx.InvalidParameter("ttl. (maximum allowed is : %d)", config.MaxTTL)
 			return
 		}
 	}
@@ -119,7 +122,7 @@ func CreateUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Requ
 	// So clients can just copy this header into the next request
 	if upload.Password != "" {
 		if !config.ProtectedByPassword {
-			ctx.Forbidden("password protection is not enabled")
+			ctx.BadRequest("password protection is not enabled")
 			return
 		}
 
@@ -133,7 +136,7 @@ func CreateUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Requ
 		b64str := base64.StdEncoding.EncodeToString([]byte(upload.Login + ":" + upload.Password))
 		upload.Password, err = utils.Md5sum(b64str)
 		if err != nil {
-			ctx.Forbidden(fmt.Sprintf("unable to generate password hash : %s", err))
+			ctx.BadRequest("unable to generate password hash : %s", err)
 			return
 		}
 		resp.Header().Add("Authorization", "Basic "+b64str)
@@ -147,13 +150,13 @@ func CreateUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Requ
 		upload.ProtectedByYubikey = true
 
 		if !config.YubikeyEnabled {
-			ctx.Forbidden("yubikey are disabled on this server")
+			ctx.BadRequest("yubikey are disabled on this server")
 			return
 		}
 
 		_, ok, err := config.GetYubiAuth().Verify(upload.Yubikey)
 		if err != nil {
-			ctx.InternalServerError(fmt.Errorf("unable to validate yubikey token : %s", err))
+			ctx.InternalServerError("unable to validate yubikey token : %s", err)
 			return
 		}
 
@@ -170,7 +173,7 @@ func CreateUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Requ
 
 		// Check file name length
 		if len(file.Name) > 1024 {
-			ctx.Forbidden("at least one file name is too long, maximum length is 1024 characters")
+			ctx.InvalidParameter("file name, at least one file name is too long, maximum length is 1024 characters")
 			return
 		}
 
@@ -183,7 +186,7 @@ func CreateUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Requ
 	// Save the metadata
 	err = ctx.GetMetadataBackend().CreateUpload(upload)
 	if err != nil {
-		ctx.InternalServerError(fmt.Errorf("create upload error : %s", err))
+		ctx.InternalServerError("create upload error", err)
 		return
 	}
 
@@ -200,7 +203,7 @@ func CreateUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Requ
 	// Print upload metadata in the json response.
 	var bytes []byte
 	if bytes, err = utils.ToJson(upload); err != nil {
-		ctx.InternalServerError(fmt.Errorf("unable to serialize json response : %s", err))
+		ctx.InternalServerError("unable to serialize json response", err)
 	}
 
 	_, _ = resp.Write(bytes)

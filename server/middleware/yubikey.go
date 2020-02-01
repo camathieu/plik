@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -17,7 +16,7 @@ func Yubikey(ctx *context.Context, next http.Handler) http.Handler {
 		// Get upload from context
 		upload := ctx.GetUpload()
 		if upload == nil {
-			ctx.InternalServerError(fmt.Errorf("missing upload in yubikey middleware"))
+			ctx.InternalServerError("missing upload in yubikey middleware", nil)
 			return
 		}
 
@@ -33,21 +32,21 @@ func Yubikey(ctx *context.Context, next http.Handler) http.Handler {
 			vars := mux.Vars(req)
 			token := vars["yubikey"]
 			if token == "" {
-				ctx.Unauthorized("missing yubikey token")
+				ctx.BadRequest("missing yubikey token")
 				return
 			}
 			if len(token) != 44 {
-				ctx.Unauthorized("invalid yubikey token")
+				ctx.BadRequest("invalid yubikey token")
 				return
 			}
 			if token[:12] != upload.Yubikey {
-				ctx.Unauthorized("invalid yubikey token")
+				ctx.BadRequest("invalid yubikey token")
 				return
 			}
 
 			_, isValid, err := config.GetYubiAuth().Verify(token)
 			if err != nil {
-				ctx.InternalServerError(fmt.Errorf("unable to validate yubikey token : %s", err))
+				ctx.InternalServerError("unable to validate yubikey token", err)
 				return
 			}
 			if !isValid {

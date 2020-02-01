@@ -41,25 +41,25 @@ func NewBackend(config *Config) (b *Backend, err error) {
 	// Open the Bolt database
 	b.db, err = bolt.Open(b.Config.Path, 0600, &bolt.Options{Timeout: 10 * time.Second})
 	if err != nil {
-		return nil, fmt.Errorf("Unable to open Bolt database %s : %s", b.Config.Path, err)
+		return nil, fmt.Errorf("unable to open Bolt database %s : %s", b.Config.Path, err)
 	}
 
 	// Create Bolt buckets if needed
 	err = b.db.Update(func(tx *bolt.Tx) error {
 		_, err := tx.CreateBucketIfNotExists([]byte("uploads"))
 		if err != nil {
-			return fmt.Errorf("Unable to create metadata bucket : %s", err)
+			return fmt.Errorf("unable to create metadata bucket : %s", err)
 		}
 
 		_, err = tx.CreateBucketIfNotExists([]byte("users"))
 		if err != nil {
-			return fmt.Errorf("Unable to create user bucket : %s", err)
+			return fmt.Errorf("unable to create user bucket : %s", err)
 		}
 
 		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("Unable to create Bolt buckets : %s", err)
+		return nil, fmt.Errorf("unable to create Bolt buckets : %s", err)
 	}
 
 	return b, nil

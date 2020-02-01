@@ -6,12 +6,12 @@ use warnings;
 use Data::Dumper;
 
 my $struct = [
-	'config', '*common.Configuration', {},
-	'logger', '*logger.Logger', {},
+	'config', '*common.Configuration', { 'panic' => 1 },
+	'logger', '*logger.Logger', { 'panic' => 1 },
 
-	'metadataBackend', 'metadata.Backend', {},
-	'dataBackend', 'data.Backend', {},
-	'streamBackend', 'data.Backend', {},
+	'metadataBackend', 'metadata.Backend', { 'panic' => 1 },
+	'dataBackend', 'data.Backend', { 'panic' => 1 },
+	'streamBackend', 'data.Backend', { 'panic' => 1 },
 
 	'sourceIP', 'net.IP', {},
 
@@ -25,70 +25,41 @@ my $struct = [
 	'isUploadAdmin', 'bool', {},
 	'isRedirectOnFailure', 'bool', {},
 	'isQuick', 'bool', {},
-	'isPanic', 'bool', { 'no_has' => 1, 'no_set' => 1, 'no_get' => 1 },
 
 	'req', '*http.Request', {},
 	'resp', 'http.ResponseWriter', {},
 
-	#'goctx', 'gocontext.Context', { 'no_has' => 1, 'no_set' => 1, 'no_get' => 1 },
-	'mu', 'sync.RWMutex', { 'no_has' => 1, 'no_set' => 1, 'no_get' => 1 },
+    'panic', 'bool', { 'internal' => 1 },
+	'mu', 'sync.RWMutex', { 'internal' => 1 },
 ];
 
-sub genHas
-{
-    my $param = shift;
-    my $type = shift;
-    my $params = shift;
-
-    return "" if $type eq 'bool';
-    return "" if $params->{'no_has'};
-
-    my $uc = ucfirst $param;
-
-    my $str = << "EOF";
-// Has$uc return true if $param is set in the context
-func (ctx *Context) Has$uc() bool {
-    ctx.mu.RLock()
-    defer ctx.mu.RUnlock()
-
-    if ctx.$param != nil {
-        return true
-    }
-
-    return false
-}
-
-EOF
-    return $str;
-}
-
-sub genSet
-{
-    my $param = shift;
-    my $type = shift;
-    my $params = shift;
-
-    return "" if $params->{'no_set'};
-
-    my $uc = ucfirst $param;
-
-    if ( $type eq 'bool' ) {
-        $uc =~ s/^Is//
-    }
-
-    my $str = << "EOF";
-// Set$uc set $param in the context
-func (ctx *Context) Set$uc($param $type) {
-    ctx.mu.Lock()
-    ctx.mu.Unlock()
-
-    ctx.$param = $param
-}
-
-EOF
-
-    return $str;
-}
+#sub genHas
+#{
+#    my $param = shift;
+#    my $type = shift;
+#    my $params = shift;
+#
+#    return "" if $type eq 'bool';
+#    return "" if $params->{'no_has'};
+#
+#    my $uc = ucfirst $param;
+#
+#    my $str = << "EOF";
+#// Has$uc return true if $param is set in the context
+#func (ctx *Context) Has$uc() bool {
+#    ctx.mu.RLock()
+#    defer ctx.mu.RUnlock()
+#
+#    if ctx.$param != nil {
+#        return true
+#    }
+#
+#    return false
+#}
+#
+#EOF
+#    return $str;
+#}
 
 sub genGet
 {
@@ -96,7 +67,7 @@ sub genGet
     my $type = shift;
     my $params = shift;
 
-    return "" if $params->{'no_get'};
+    return "" if $params->{'internal'};
 
     my $uc = ucfirst $param;
 
@@ -119,16 +90,50 @@ func (ctx *Context) Get$uc() $type {
     ctx.mu.RLock()
     defer ctx.mu.RUnlock()
 
+EOF
+        if ( $params->{'panic'} ) {
+        $str .= << "EOF";
     if ctx.$param == nil {
-        ctx.isPanic = true
-        ctx.internalServerError(fmt.Errorf("missing $param from context"))
+        ctx.internalServerError("missing $param from context", nil)
     }
 
+EOF
+        }
+
+    $str .= << "EOF";
     return ctx.$param
 }
 
 EOF
     }
+}
+
+sub genSet
+{
+    my $param = shift;
+    my $type = shift;
+    my $params = shift;
+
+    return "" if $params->{'internal'};
+
+    my $uc = ucfirst $param;
+
+    if ( $type eq 'bool' ) {
+        $uc =~ s/^Is//
+    }
+
+    my $str = << "EOF";
+// Set$uc set $param in the context
+func (ctx *Context) Set$uc($param $type) {
+    ctx.mu.Lock()
+    ctx.mu.Unlock()
+
+    ctx.$param = $param
+}
+
+EOF
+
+    return $str;
 }
 
 sub genImports
@@ -183,9 +188,8 @@ sub genMethods
 
         my $uc = ucfirst $param;
 
-        $str .= genSet($param, $type, $params);
-        $str .= genHas($param, $type, $params);
         $str .= genGet($param, $type, $params);
+        $str .= genSet($param, $type, $params);
     }
 
     return $str;

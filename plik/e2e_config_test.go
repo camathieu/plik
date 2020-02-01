@@ -43,7 +43,7 @@ func TestMaxFileSize(t *testing.T) {
 	_, file, err := pc.UploadReader("filename", bytes.NewBufferString("data data data"))
 	require.Error(t, err, "missing error")
 	require.Contains(t, err.Error(), "Failed to upload at least one file", "invalid error message")
-	require.Contains(t, file.Error().Error(), "Unable to save file", "invalid error message")
+	require.Contains(t, file.Error().Error(), "file too big", "invalid error message")
 }
 
 func TestMaxFilePerUploadCreate(t *testing.T) {
@@ -60,7 +60,7 @@ func TestMaxFilePerUploadCreate(t *testing.T) {
 	upload.AddFileFromReader("filename", bytes.NewBufferString("data"))
 	err = upload.Create()
 	require.NotNil(t, err, "missing error")
-	require.Contains(t, err.Error(), "Maximum number file per upload reached", "invalid error message")
+	require.Contains(t, err.Error(), "too many files", "invalid error message")
 }
 
 func TestMaxFilePerUploadAdd(t *testing.T) {
@@ -79,7 +79,7 @@ func TestMaxFilePerUploadAdd(t *testing.T) {
 
 	err = upload.Upload()
 	common.RequireError(t, err, "Failed to upload at least one file")
-	common.RequireError(t, file.Error(), "Maximum number file per upload reached")
+	common.RequireError(t, file.Error(), "maximum number file per upload reached")
 
 }
 
@@ -101,7 +101,7 @@ func TestAnonymousUploadDisabled(t *testing.T) {
 
 	err = pc.NewUpload().Create()
 	require.Error(t, err, "should not be able to create anonymous upload")
-	require.Equal(t, "403 Forbidden : Unable to create upload from anonymous user. Please login or use a cli token.", err.Error(), "invalid error")
+	require.Contains(t, err.Error(), "anonymous uploads are disabled", "invalid error")
 
 	upload := pc.NewUpload()
 	upload.Token = token.Token
@@ -160,7 +160,7 @@ func TestTTLNoLimitDisabled(t *testing.T) {
 	upload.TTL = -1
 	err = upload.Create()
 	require.Error(t, err, "unable to create upload")
-	require.Contains(t, err.Error(), "Cannot set infinite ttl", "invalid error")
+	require.Contains(t, err.Error(), "cannot set infinite ttl", "invalid error")
 }
 
 func TestPasswordDisabled(t *testing.T) {
@@ -177,7 +177,7 @@ func TestPasswordDisabled(t *testing.T) {
 	upload.Password = "password"
 	err = upload.Create()
 	require.Error(t, err, "unable to create upload")
-	require.Contains(t, err.Error(), "Password protection is not enabled", "invalid error")
+	require.Contains(t, err.Error(), "password protection is not enabled", "invalid error")
 }
 
 func TestOneShotDisabled(t *testing.T) {
@@ -193,7 +193,7 @@ func TestOneShotDisabled(t *testing.T) {
 	upload.OneShot = true
 	err = upload.Create()
 	require.Error(t, err, "unable to create upload")
-	require.Contains(t, err.Error(), "One shot downloads are not enabled", "invalid error")
+	require.Contains(t, err.Error(), "one shot downloads are not enabled", "invalid error")
 }
 
 func TestRemovableDisabled(t *testing.T) {
@@ -209,7 +209,7 @@ func TestRemovableDisabled(t *testing.T) {
 	upload.Removable = true
 	err = upload.Create()
 	require.Error(t, err, "unable to create upload")
-	require.Contains(t, err.Error(), "Removable uploads are not enabled", "invalid error")
+	require.Contains(t, err.Error(), "removable uploads are not enabled", "invalid error")
 }
 
 func TestDownloadDomain(t *testing.T) {
@@ -271,7 +271,7 @@ func TestUploadWhitelistKO(t *testing.T) {
 	upload := pc.NewUpload()
 	err = upload.Create()
 	require.Error(t, err, "unable to create upload")
-	require.Contains(t, err.Error(), "Unable to create upload from untrusted source IP address", "invalid error")
+	require.Contains(t, err.Error(), "untrusted source IP address", "invalid error")
 }
 
 func TestSourceIpHeader(t *testing.T) {
@@ -292,7 +292,7 @@ func TestSourceIpHeader(t *testing.T) {
 
 	_, err = pc.MakeRequest(req)
 	require.Error(t, err, "missing error")
-	require.Contains(t, err.Error(), "Unable to create upload from untrusted source IP address", "invalid error")
+	require.Contains(t, err.Error(), "untrusted source IP address", "invalid error")
 
 	req.Header.Set("X-Remote-Ip", "1.1.1.1")
 

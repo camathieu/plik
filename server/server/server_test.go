@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/root-gg/logger"
 	"github.com/root-gg/plik/server/common"
 	data_test "github.com/root-gg/plik/server/data/testing"
 	metadata_test "github.com/root-gg/plik/server/metadata/testing"
@@ -28,13 +27,7 @@ func TestNewPlikServer(t *testing.T) {
 	config := common.NewConfiguration()
 	ps := NewPlikServer(config)
 	require.NotNil(t, ps, "invalid nil Plik server")
-	require.Equal(t, logger.INFO, ps.logger.MinLevel, "invalid logger level")
 	require.NotNil(t, ps.GetConfig(), "invalid nil configuration")
-
-	config.LogLevel = "DEBUG"
-	ps2 := NewPlikServer(config)
-	require.NotNil(t, ps2, "invalid nil Plik server")
-	require.Equal(t, logger.DEBUG, ps2.logger.MinLevel, "invalid logger level")
 }
 
 func TestStartShutdownPlikServer(t *testing.T) {
@@ -111,7 +104,7 @@ func TestClean(t *testing.T) {
 	ps.Clean()
 
 	u, err := ps.metadataBackend.GetUpload(upload.ID)
-	require.NoError(t, err, "unexpected error getting upload")
+	require.NoError(t, err, "unexpected unable to get upload")
 	require.Nil(t, u, "should be unable to get expired upload after clean")
 
 	ps.metadataBackend.(*metadata_test.Backend).SetError(errors.New("error"))
@@ -141,6 +134,6 @@ func TestAutoClean(t *testing.T) {
 	time.Sleep(2 * time.Second)
 
 	u, err := ps.metadataBackend.GetUpload(upload.ID)
-	require.NoError(t, err, "unexpected error getting upload")
+	require.NoError(t, err, "unexpected unable to get upload")
 	require.Nil(t, u, "should be unable to get expired upload after clean")
 }

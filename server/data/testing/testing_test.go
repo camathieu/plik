@@ -5,8 +5,6 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/root-gg/juliet"
-	"github.com/root-gg/logger"
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
 	"github.com/root-gg/plik/server/data"
@@ -16,10 +14,10 @@ import (
 // Ensure Testing Data Backend implements data.Backend interface
 var _ data.Backend = (*Backend)(nil)
 
-func newTestingContext(config *common.Configuration) (ctx *juliet.Context) {
-	ctx = juliet.NewContext()
-	context.SetConfig(ctx, config)
-	context.SetLogger(ctx, logger.NewLogger())
+func newTestingContext(config *common.Configuration) (ctx *context.Context) {
+	ctx = &context.Context{}
+	ctx.SetConfig(config)
+	ctx.SetLogger(config.NewLogger())
 	return ctx
 }
 

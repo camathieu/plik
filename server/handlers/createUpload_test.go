@@ -149,7 +149,7 @@ func TestCreateWithoutAnonymousUpload(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	CreateUpload(ctx, rr, req)
 
-	context.TestFail(t, rr, http.StatusForbidden, "Unable to create upload from anonymous user")
+	context.TestBadRequest(t, rr, "anonymous uploads are disabled, please authenticate first")
 }
 
 func TestCreateNotWhitelisted(t *testing.T) {
@@ -166,7 +166,7 @@ func TestCreateNotWhitelisted(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	CreateUpload(ctx, rr, req)
 
-	context.TestFail(t, rr, http.StatusForbidden, "Unable to create upload from untrusted source IP address")
+	context.TestForbidden(t, rr, "untrusted source IP address")
 }
 
 func TestCreateInvalidRequestBody(t *testing.T) {
@@ -178,7 +178,7 @@ func TestCreateInvalidRequestBody(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	CreateUpload(ctx, rr, req)
 
-	context.TestFail(t, rr, http.StatusBadRequest, "Unable to deserialize json request body")
+	context.TestBadRequest(t, rr, "unable to deserialize request body")
 }
 
 func TestCreateTooManyFiles(t *testing.T) {
@@ -203,7 +203,7 @@ func TestCreateTooManyFiles(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	CreateUpload(ctx, rr, req)
 
-	context.TestFail(t, rr, http.StatusForbidden, "Maximum number file per upload reached")
+	context.TestBadRequest(t, rr, "too many files. maximum is")
 }
 
 func TestCreateOneShotWhenOneShotIsDisabled(t *testing.T) {
@@ -221,7 +221,7 @@ func TestCreateOneShotWhenOneShotIsDisabled(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	CreateUpload(ctx, rr, req)
 
-	context.TestFail(t, rr, http.StatusForbidden, "One shot downloads are not enabled")
+	context.TestBadRequest(t, rr, "one shot downloads are not enabled")
 }
 
 func TestCreateOneShotWhenRemovableIsDisabled(t *testing.T) {
@@ -239,7 +239,7 @@ func TestCreateOneShotWhenRemovableIsDisabled(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	CreateUpload(ctx, rr, req)
 
-	context.TestFail(t, rr, http.StatusForbidden, "Removable uploads are not enabled.")
+	context.TestBadRequest(t, rr, "removable uploads are not enabled")
 }
 
 func TestCreateStreamWhenStreamIsDisabled(t *testing.T) {
@@ -257,7 +257,7 @@ func TestCreateStreamWhenStreamIsDisabled(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	CreateUpload(ctx, rr, req)
 
-	context.TestFail(t, rr, http.StatusForbidden, "Stream mode is not enabled")
+	context.TestBadRequest(t, rr, "stream mode is not enabled")
 }
 
 func TestCreateInvalidTTL(t *testing.T) {
@@ -275,7 +275,7 @@ func TestCreateInvalidTTL(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	CreateUpload(ctx, rr, req)
 
-	context.TestFail(t, rr, http.StatusBadRequest, "Cannot set ttl to 365 (maximum allowed is : 30)")
+	context.TestBadRequest(t, rr, "invalid ttl. (maximum allowed is : 30)")
 }
 
 func TestCreateInvalidNegativeTTL(t *testing.T) {
@@ -292,7 +292,7 @@ func TestCreateInvalidNegativeTTL(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	CreateUpload(ctx, rr, req)
 
-	context.TestFail(t, rr, http.StatusBadRequest, "Invalid value for ttl : -365")
+	context.TestBadRequest(t, rr, "invalid ttl")
 }
 
 func TestCreateWithPasswordWhenPasswordIsNotEnabled(t *testing.T) {
@@ -310,7 +310,7 @@ func TestCreateWithPasswordWhenPasswordIsNotEnabled(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	CreateUpload(ctx, rr, req)
 
-	context.TestFail(t, rr, http.StatusForbidden, "Password protection is not enabled")
+	context.TestBadRequest(t, rr, "password protection is not enabled")
 }
 
 func TestCreateWithPasswordAndDefaultLogin(t *testing.T) {
@@ -352,7 +352,7 @@ func TestCreateWithYubikeyWhenYubikeyIsNotEnabled(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	CreateUpload(ctx, rr, req)
 
-	context.TestFail(t, rr, http.StatusForbidden, "Yubikey are disabled on this server")
+	context.TestBadRequest(t, rr, "yubikey are disabled on this server")
 }
 
 func TestCreateWithFilenameTooLong(t *testing.T) {
@@ -376,7 +376,7 @@ func TestCreateWithFilenameTooLong(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	CreateUpload(ctx, rr, req)
 
-	context.TestFail(t, rr, http.StatusBadRequest, "File name is too long")
+	context.TestBadRequest(t, rr, "at least one file name is too long, maximum length is 1024 characters")
 }
 
 func TestCreateWithMetadataBackendError(t *testing.T) {
@@ -395,7 +395,7 @@ func TestCreateWithMetadataBackendError(t *testing.T) {
 	require.NoError(t, err, "unable to create new request")
 
 	rr := ctx.NewRecorder(req)
-	CreateUpload(ctx, rr, req)
-
-	context.TestFail(t, rr, http.StatusInternalServerError, "Unable to create new upload")
+	context.TestPanic(t, rr, "create upload error : metadata backend error", func() {
+		CreateUpload(ctx, rr, req)
+	})
 }

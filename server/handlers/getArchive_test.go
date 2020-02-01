@@ -89,7 +89,7 @@ func TestGetArchiveNoFile(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	GetArchive(ctx, rr, req)
 
-	context.TestFail(t, rr, http.StatusNotFound, "Nothing to archive")
+	context.TestBadRequest(t, rr, "nothing to archive")
 }
 
 func TestGetArchiveInvalidDownloadDomain(t *testing.T) {
@@ -116,8 +116,9 @@ func TestGetArchiveMissingUpload(t *testing.T) {
 	require.NoError(t, err, "unable to create new request")
 
 	rr := ctx.NewRecorder(req)
-	GetArchive(ctx, rr, req)
-	context.TestFail(t, rr, http.StatusInternalServerError, "Internal error")
+	context.TestPanic(t, rr, "missing upload from context", func() {
+		GetArchive(ctx, rr, req)
+	})
 }
 
 func TestGetArchiveOneShot(t *testing.T) {
@@ -173,7 +174,7 @@ func TestGetArchiveOneShot(t *testing.T) {
 	require.Error(t, err, "downloaded file still exists")
 
 	u, err := ctx.GetMetadataBackend().GetUpload(upload.ID)
-	require.Error(t, err, "unexpected error getting upload")
+	require.Error(t, err, "unexpected unable to get upload")
 	require.Nil(t, u, "downloaded upload still exists")
 }
 
@@ -198,7 +199,7 @@ func TestGetArchiveNoArchiveName(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	GetArchive(ctx, rr, req)
 
-	context.TestFail(t, rr, http.StatusBadRequest, "Missing file name")
+	context.TestBadRequest(t, rr, "missing archive name")
 }
 
 func TestGetArchiveInvalidArchiveName(t *testing.T) {
@@ -228,7 +229,7 @@ func TestGetArchiveInvalidArchiveName(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	GetArchive(ctx, rr, req)
 
-	context.TestFail(t, rr, http.StatusBadRequest, "Missing .zip extension")
+	context.TestBadRequest(t, rr, "invalid archive name, missing .zip extension")
 }
 
 func TestGetArchiveDataBackendError(t *testing.T) {
@@ -258,9 +259,9 @@ func TestGetArchiveDataBackendError(t *testing.T) {
 	ctx.GetDataBackend().(*data_test.Backend).SetError(errors.New("data backend error"))
 
 	rr := ctx.NewRecorder(req)
-	GetArchive(ctx, rr, req)
-
-	context.TestFail(t, rr, http.StatusNotFound, "Failed to read file")
+	context.TestPanic(t, rr, "unable to get file from data backend : data backend error", func() {
+		GetArchive(ctx, rr, req)
+	})
 }
 
 func TestGetArchiveMetadataBackendError(t *testing.T) {
@@ -291,7 +292,7 @@ func TestGetArchiveMetadataBackendError(t *testing.T) {
 	ctx.GetMetadataBackend().(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
 
 	rr := ctx.NewRecorder(req)
-	GetArchive(ctx, rr, req)
-
-	context.TestFail(t, rr, http.StatusInternalServerError, "Unable to update upload metadata")
+	context.TestPanic(t, rr, "unable to update upload metadata : metadata backend error", func() {
+		GetArchive(ctx, rr, req)
+	})
 }

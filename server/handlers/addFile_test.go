@@ -25,7 +25,7 @@ func getMultipartFormData(name string, in io.Reader) (out io.Reader, contentType
 
 	writer, err := multipartWriter.CreateFormFile("file", name)
 	if err != nil {
-		return nil, "", fmt.Errorf("Unable to create multipartWriter : %s", err)
+		return nil, "", fmt.Errorf("unable to create multipartWriter : %s", err)
 	}
 
 	_, err = io.Copy(writer, in)
@@ -167,7 +167,7 @@ func TestAddFileWithoutUploadInContext(t *testing.T) {
 
 	rr := ctx.NewRecorder(req)
 
-	context.TestPanic(t, rr, "missing upload from context", func(){
+	context.TestPanic(t, rr, "missing upload from context", func() {
 		AddFile(ctx, rr, req)
 	})
 }
@@ -225,7 +225,7 @@ func TestAddFileInvalidMultipartData(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	AddFile(ctx, rr, req)
 
-	context.TestFail(t, rr, http.StatusBadRequest, "invalid multipart form")
+	context.TestBadRequest(t, rr, "invalid multipart form")
 }
 
 func TestAddFileWithFilenameTooLong(t *testing.T) {
@@ -318,7 +318,7 @@ func TestAddFileWithEmptyName(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	AddFile(ctx, rr, req)
 
-	context.TestFail(t, rr, http.StatusBadRequest, "missing file name")
+	context.TestBadRequest(t, rr, "missing file name")
 }
 
 func TestAddFileWithDataBackendError(t *testing.T) {
@@ -350,7 +350,7 @@ func TestAddFileWithDataBackendError(t *testing.T) {
 
 	rr := ctx.NewRecorder(req)
 
-	context.TestPanic(t, rr, "unable to save file : data backend error", func(){
+	context.TestPanic(t, rr, "unable to save file : data backend error", func() {
 		AddFile(ctx, rr, req)
 	})
 }

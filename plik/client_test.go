@@ -259,6 +259,7 @@ func TestMultipleUploadsInParallel(t *testing.T) {
 	for i := 1; i <= 30; i++ {
 		wg.Add(1)
 		go func(i int) {
+			defer wg.Done()
 			upload := pc.NewUpload()
 
 			filename := fmt.Sprintf("file_%d", i)
@@ -280,8 +281,6 @@ func TestMultipleUploadsInParallel(t *testing.T) {
 
 			_, err = file.Download()
 			require.Error(t, err, "missing expected error")
-
-			wg.Done()
 		}(i)
 	}
 
@@ -363,9 +362,8 @@ func TestRemoveFile(t *testing.T) {
 	err = pc.removeFile(upload.Details(), file.Details())
 	require.NoError(t, err, "unable to remove file")
 
-	pc.Debug = true
 	_, err = pc.downloadFile(upload.getParams(), file.getParams())
-	common.RequireError(t, err, "not found")
+	common.RequireError(t, err, fmt.Sprintf("file %s (%s) is not available", file.Name, file.ID()))
 }
 
 func TestRemoveFileNotFound(t *testing.T) {

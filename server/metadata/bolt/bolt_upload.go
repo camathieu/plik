@@ -13,29 +13,29 @@ import (
 // CreateUpload implementation for Bolt Metadata Backend
 func (b *Backend) CreateUpload(upload *common.Upload) (err error) {
 	if upload == nil {
-		return errors.New("Unable to save upload : Missing upload")
+		return errors.New("unable to save upload : Missing upload")
 	}
 
 	// Serialize metadata to json
 	j, err := json.Marshal(upload)
 	if err != nil {
-		return fmt.Errorf("Unable to serialize metadata to json : %s", err)
+		return fmt.Errorf("unable to serialize metadata to json : %s", err)
 	}
 
 	// Save json metadata to Bolt database
 	return b.db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte("uploads"))
 		if bucket == nil {
-			return fmt.Errorf("Unable to get uploads Bolt bucket")
+			return fmt.Errorf("unable to get uploads Bolt bucket")
 		}
 
 		if bucket.Get([]byte(upload.ID)) != nil {
-			return fmt.Errorf("Upload already exists")
+			return fmt.Errorf("upload already exists")
 		}
 
 		err := bucket.Put([]byte(upload.ID), j)
 		if err != nil {
-			return fmt.Errorf("Unable save upload metadata : %s", err)
+			return fmt.Errorf("unable save upload metadata : %s", err)
 		}
 
 		// User index
@@ -56,7 +56,7 @@ func (b *Backend) CreateUpload(upload *common.Upload) (err error) {
 
 			err := bucket.Put(key, []byte(upload.Token))
 			if err != nil {
-				return fmt.Errorf("Unable to save user index : %s", err)
+				return fmt.Errorf("unable to save user index : %s", err)
 			}
 		}
 
@@ -76,7 +76,7 @@ func (b *Backend) CreateUpload(upload *common.Upload) (err error) {
 
 			err := bucket.Put(key, []byte{})
 			if err != nil {
-				return fmt.Errorf("Unable to save expire index : %s", err)
+				return fmt.Errorf("unable to save expire index : %s", err)
 			}
 		}
 
@@ -87,26 +87,26 @@ func (b *Backend) CreateUpload(upload *common.Upload) (err error) {
 // GetUpload implementation for Bolt Metadata Backend
 func (b *Backend) GetUpload(ID string) (upload *common.Upload, err error) {
 	if ID == "" {
-		return nil, errors.New("Unable to get upload : Missing upload ID")
+		return nil, errors.New("unable to get upload : Missing upload ID")
 	}
 
 	// Get json metadata from Bolt database
 	err = b.db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte("uploads"))
 		if bucket == nil {
-			return fmt.Errorf("Unable to get uploads Bolt bucket")
+			return fmt.Errorf("unable to get uploads Bolt bucket")
 		}
 
 		b := bucket.Get([]byte(ID))
 		if b == nil || len(b) == 0 {
-			return fmt.Errorf("Unable to get upload metadata from Bolt bucket")
+			return fmt.Errorf("unable to get upload metadata from Bolt bucket")
 		}
 
 		// Unserialize metadata from json
 		upload = new(common.Upload)
 		err = json.Unmarshal(b, upload)
 		if err != nil {
-			return fmt.Errorf("Unable to unserialize metadata from json \"%s\" : %s", string(b), err)
+			return fmt.Errorf("unable to unserialize metadata from json \"%s\" : %s", string(b), err)
 		}
 
 		return nil
@@ -121,14 +121,14 @@ func (b *Backend) GetUpload(ID string) (upload *common.Upload, err error) {
 // UpdateUpload implementation for Bolt Metadata Backend
 func (b *Backend) UpdateUpload(upload *common.Upload, uploadTx common.UploadTx) (u *common.Upload, err error) {
 	if upload == nil {
-		return nil, errors.New("Unable to remove upload : Missing upload")
+		return nil, errors.New("unable to remove upload : Missing upload")
 	}
 
 	// Remove upload from bolt database
 	err = b.db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte("uploads"))
 		if bucket == nil {
-			return fmt.Errorf("Unable to get uploads Bolt bucket")
+			return fmt.Errorf("unable to get uploads Bolt bucket")
 		}
 
 		b := bucket.Get([]byte(upload.ID))
@@ -139,32 +139,32 @@ func (b *Backend) UpdateUpload(upload *common.Upload, uploadTx common.UploadTx) 
 			if err != nil {
 				return err
 			}
-			return fmt.Errorf("Upload tx without an upload shoud have returned an error")
+			return fmt.Errorf("upload tx without an upload should return an error")
 		}
 
 		// Deserialize metadata from json
 		u = new(common.Upload)
 		err = json.Unmarshal(b, u)
 		if err != nil {
-			return fmt.Errorf("Unable to unserialize metadata from json \"%s\" : %s", string(b), err)
+			return fmt.Errorf("unable to unserialize metadata from json \"%s\" : %s", string(b), err)
 		}
 
 		// Mutate upload object
 		err = uploadTx(u)
 		if err != nil {
-			return fmt.Errorf("Unable to execute upload tx : %s", err)
+			return fmt.Errorf("unable to execute upload tx : %s", err)
 		}
 
 		// Serialize metadata to json
 		j, err := json.Marshal(u)
 		if err != nil {
-			return fmt.Errorf("Unable to serialize metadata to json : %s", err)
+			return fmt.Errorf("unable to serialize metadata to json : %s", err)
 		}
 
 		// Avoid the possibility to override an other upload by changing the upload.ID in the tx
 		err = bucket.Put([]byte(upload.ID), j)
 		if err != nil {
-			return fmt.Errorf("Unable save upload metadata : %s", err)
+			return fmt.Errorf("unable save upload metadata : %s", err)
 		}
 
 		return nil
@@ -180,14 +180,14 @@ func (b *Backend) UpdateUpload(upload *common.Upload, uploadTx common.UploadTx) 
 // RemoveUpload implementation for Bolt Metadata Backend
 func (b *Backend) RemoveUpload(upload *common.Upload) (err error) {
 	if upload == nil {
-		return errors.New("Unable to remove upload : Missing upload")
+		return errors.New("unable to remove upload : Missing upload")
 	}
 
 	// Remove upload from bolt database
 	return b.db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte("uploads"))
 		if bucket == nil {
-			return fmt.Errorf("Unable to get uploads Bolt bucket")
+			return fmt.Errorf("unable to get uploads Bolt bucket")
 		}
 
 		err := bucket.Delete([]byte(upload.ID))
@@ -213,7 +213,7 @@ func (b *Backend) RemoveUpload(upload *common.Upload) (err error) {
 
 			err := bucket.Delete(key)
 			if err != nil {
-				return fmt.Errorf("Unable to delete user index : %s", err)
+				return fmt.Errorf("unable to delete user index : %s", err)
 			}
 		}
 
@@ -232,7 +232,7 @@ func (b *Backend) RemoveUpload(upload *common.Upload) (err error) {
 
 			err := bucket.Delete(key)
 			if err != nil {
-				return fmt.Errorf("Unable to delete expire index : %s", err)
+				return fmt.Errorf("unable to delete expire index : %s", err)
 			}
 		}
 

@@ -5,7 +5,6 @@ import (
 	"net/http/httputil"
 	"strings"
 
-	"github.com/root-gg/logger"
 	"github.com/root-gg/plik/server/context"
 )
 
@@ -13,8 +12,9 @@ import (
 func Log(ctx *context.Context, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
 		log := ctx.GetLogger()
+		config := ctx.GetConfig()
 
-		if log.LogIf(logger.DEBUG) {
+		if config.DebugRequests {
 
 			// Don't dump request body for file upload
 			dumpBody := true

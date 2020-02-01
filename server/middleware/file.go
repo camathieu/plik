@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -14,6 +13,10 @@ func File(ctx *context.Context, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
 		// Get upload from context
 		upload := ctx.GetUpload()
+		if upload == nil {
+			ctx.InternalServerError("missing upload from context", nil)
+			return
+		}
 
 		// Get the file id from the url params
 		vars := mux.Vars(req)
@@ -33,7 +36,7 @@ func File(ctx *context.Context, next http.Handler) http.Handler {
 		// Get file object in upload metadata
 		file, ok := upload.Files[fileID]
 		if !ok {
-			ctx.NotFound(fmt.Sprintf("file %s not found", fileID))
+			ctx.NotFound("file %s not found", fileID)
 			return
 		}
 

@@ -75,7 +75,11 @@ func (b *Backend) UpdateUpload(upload *common.Upload, tx common.UploadTx) (u *co
 
 	upload, ok := b.uploads[upload.ID]
 	if !ok {
-		return nil, errors.New("upload does not exists")
+		err = tx(u)
+		if err != nil {
+			return nil, err
+		}
+		return nil, fmt.Errorf("upload tx without upload should return an error")
 	}
 
 	u, err = defCopyUpload(upload)

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 
-	"github.com/root-gg/logger"
 	"io/ioutil"
 	"net/http"
 
@@ -23,7 +22,8 @@ func newTestingContext(config *common.Configuration) (ctx *context.Context) {
 	ctx = &context.Context{}
 	config.Debug = true
 	ctx.SetConfig(config)
-	ctx.SetLogger(logger.NewLogger())
+	ctx.SetLogger(config.NewLogger())
+	ctx.SetWhitelisted(true)
 	ctx.SetMetadataBackend(metadata_test.NewBackend())
 	ctx.SetDataBackend(data_test.NewBackend())
 	ctx.SetStreamBackend(data_test.NewBackend())
@@ -117,7 +117,7 @@ func TestGetQrCodeWithInvalidSize(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	GetQrCode(ctx, rr, req)
 
-	context.TestFail(t, rr, http.StatusBadRequest, "QRCode size must be lower than 1000")
+	context.TestBadRequest(t, rr, "QRCode size must be lower than 1000")
 }
 
 func TestGetQrCodeWithInvalidSize2(t *testing.T) {
@@ -129,5 +129,5 @@ func TestGetQrCodeWithInvalidSize2(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	GetQrCode(ctx, rr, req)
 
-	context.TestFail(t, rr, http.StatusBadRequest, "QRCode size must be positive")
+	context.TestBadRequest(t, rr, "QRCode size must be positive")
 }

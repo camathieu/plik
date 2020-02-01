@@ -110,7 +110,7 @@ func TestUploadFileNoUpload(t *testing.T) {
 	file.Name = "filename"
 
 	_, err = pc.uploadFile(upload, file, bytes.NewBufferString("data"))
-	common.RequireError(t, err, "Upload "+upload.ID+" not found")
+	common.RequireError(t, err, "upload "+upload.ID+" not found")
 }
 
 func TestUploadFileReaderError(t *testing.T) {
@@ -177,6 +177,7 @@ func TestUploadFileInvalidJSON(t *testing.T) {
 
 func TestMakeRequestDebug(t *testing.T) {
 	_, pc := newPlikServerAndClient()
+	pc.Debug = true
 
 	handler := http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
 		resp.Write([]byte("display this response"))
@@ -203,7 +204,6 @@ func TestMakeRequestDebug(t *testing.T) {
 	req, err := http.NewRequest("GET", pc.URL+"/", bytes.NewBufferString("display this request"))
 	require.NoError(t, err, "unable to create request")
 
-	pc.Debug = true
 	_, err = pc.MakeRequest(req)
 	require.NoError(t, err, "missing error")
 
@@ -224,6 +224,7 @@ func TestMakeRequestDebug(t *testing.T) {
 
 func TestMakeRequestDebugFile(t *testing.T) {
 	_, pc := newPlikServerAndClient()
+	pc.Debug = true
 
 	handler := http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
 		resp.Write([]byte("display this response"))
@@ -250,7 +251,6 @@ func TestMakeRequestDebugFile(t *testing.T) {
 	req, err := http.NewRequest("POST", pc.URL+"/file", bytes.NewBufferString("display this request"))
 	require.NoError(t, err, "unable to create request")
 
-	pc.Debug = true
 	_, err = pc.MakeRequest(req)
 	require.NoError(t, err, "missing error")
 
@@ -271,6 +271,7 @@ func TestMakeRequestDebugFile(t *testing.T) {
 
 func TestMakeRequestDebugStream(t *testing.T) {
 	_, pc := newPlikServerAndClient()
+	pc.Debug = true
 
 	handler := http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
 		resp.Write([]byte("display this response"))
@@ -297,7 +298,6 @@ func TestMakeRequestDebugStream(t *testing.T) {
 	req, err := http.NewRequest("POST", pc.URL+"/stream", bytes.NewBufferString("display this request"))
 	require.NoError(t, err, "unable to create request")
 
-	pc.Debug = true
 	_, err = pc.MakeRequest(req)
 	require.NoError(t, err, "missing error")
 
@@ -317,6 +317,7 @@ func TestMakeRequestDebugStream(t *testing.T) {
 
 func TestMakeRequestDebugGetFile(t *testing.T) {
 	_, pc := newPlikServerAndClient()
+	pc.Debug = true
 
 	handler := http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
 		resp.Write([]byte("display this response"))
@@ -343,7 +344,6 @@ func TestMakeRequestDebugGetFile(t *testing.T) {
 	req, err := http.NewRequest("GET", pc.URL+"/file", bytes.NewBufferString("display this request"))
 	require.NoError(t, err, "unable to create request")
 
-	pc.Debug = true
 	_, err = pc.MakeRequest(req)
 	require.NoError(t, err, "missing error")
 
@@ -363,6 +363,7 @@ func TestMakeRequestDebugGetFile(t *testing.T) {
 
 func TestMakeRequestDebugGetArchive(t *testing.T) {
 	_, pc := newPlikServerAndClient()
+	pc.Debug = true
 
 	handler := http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
 		resp.Write([]byte("display this response"))
@@ -389,7 +390,6 @@ func TestMakeRequestDebugGetArchive(t *testing.T) {
 	req, err := http.NewRequest("GET", pc.URL+"/file", bytes.NewBufferString("display this request"))
 	require.NoError(t, err, "unable to create request")
 
-	pc.Debug = true
 	_, err = pc.MakeRequest(req)
 	require.NoError(t, err, "missing error")
 
@@ -412,7 +412,11 @@ func TestMakeRequestErrorParsing(t *testing.T) {
 	defer shutdown(ps)
 
 	handler := http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
-		context.Fail(ps.NewContext(), req, resp, "plik_api_error", http.StatusInternalServerError)
+		ctx := &context.Context{}
+		ctx.SetReq(req)
+		ctx.SetResp(resp)
+		ctx.Fail("plik_api_error", nil, http.StatusInternalServerError)
+
 	})
 
 	shutdown, err := common.StartAPIMockServer(handler)

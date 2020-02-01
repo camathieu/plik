@@ -21,7 +21,7 @@ func TestYubikeyNoUpload(t *testing.T) {
 
 	rr := ctx.NewRecorder(req)
 
-	context.TestPanic(t, rr, func() {
+	context.TestPanic(t, rr, "missing upload in yubikey middleware", func() {
 		Yubikey(ctx, common.DummyHandler).ServeHTTP(rr, req)
 	})
 }
@@ -57,7 +57,7 @@ func TestYubikeyMissingToken(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	Yubikey(ctx, common.DummyHandler).ServeHTTP(rr, req)
 
-	context.TestUnauthorized(t, rr, "missing yubikey token")
+	context.TestBadRequest(t, rr, "missing yubikey token")
 }
 
 func TestYubikeyInvalidToken(t *testing.T) {
@@ -80,7 +80,7 @@ func TestYubikeyInvalidToken(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	Yubikey(ctx, common.DummyHandler).ServeHTTP(rr, req)
 
-	context.TestUnauthorized(t, rr, "invalid yubikey token")
+	context.TestBadRequest(t, rr, "invalid yubikey token")
 }
 
 func TestYubikeyInvalidDevice(t *testing.T) {
@@ -103,5 +103,5 @@ func TestYubikeyInvalidDevice(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	Yubikey(ctx, common.DummyHandler).ServeHTTP(rr, req)
 
-	context.TestUnauthorized(t, rr, "invalid yubikey token")
+	context.TestBadRequest(t, rr, "invalid yubikey token")
 }

@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sync"
 )
 
 // File contains all relevant info needed to upload data to a Plik server
@@ -21,6 +22,8 @@ type File struct {
 
 	upload  *Upload      // Link to upload and client
 	details *common.File // File params returned by the server
+
+	lock sync.Mutex
 }
 
 // NewFileFromReader creates a File from a filename and an io.ReadCloser

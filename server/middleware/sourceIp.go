@@ -22,7 +22,7 @@ func SourceIP(ctx *context.Context, next http.Handler) http.Handler {
 			var err error
 			sourceIPstr, _, err = net.SplitHostPort(req.RemoteAddr)
 			if err != nil {
-				ctx.InternalServerError(fmt.Errorf("unable to parse source IP address : %s", err))
+				ctx.InternalServerError("unable to parse source IP address", err)
 				return
 			}
 		}

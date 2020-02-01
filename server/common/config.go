@@ -13,7 +13,9 @@ import (
 
 // Configuration object
 type Configuration struct {
-	Debug bool `json:"-"`
+	Debug         bool   `json:"-"`
+	DebugRequests bool   `json:"-"`
+	LogLevel      string `json:"-"` // DEPRECATED since 1.3
 
 	ListenAddress string `json:"-"`
 	ListenPort    int    `json:"-"`
@@ -98,7 +100,7 @@ func LoadConfiguration(file string) (config *Configuration, err error) {
 	config = NewConfiguration()
 
 	if _, err := toml.DecodeFile(file, config); err != nil {
-		return nil, fmt.Errorf("Unable to load config file %s : %s", file, err)
+		return nil, fmt.Errorf("unable to load config file %s : %s", file, err)
 	}
 
 	err = config.Initialize()
@@ -111,6 +113,13 @@ func LoadConfiguration(file string) (config *Configuration, err error) {
 
 // Initialize config internal parameters
 func (config *Configuration) Initialize() (err error) {
+
+	// For backward compatibility
+	if config.LogLevel == "DEBUG" {
+		config.Debug = true
+		config.DebugRequests = true
+	}
+
 	config.Path = strings.TrimSuffix(config.Path, "/")
 
 	// Do user specified a ApiKey and ApiSecret for Yubikey

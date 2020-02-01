@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
 
@@ -21,7 +20,7 @@ func GetUsers(ctx *context.Context, resp http.ResponseWriter, req *http.Request)
 
 	ids, err := ctx.GetMetadataBackend().GetUsers()
 	if err != nil {
-		ctx.InternalServerError(fmt.Errorf("error retreiving user IDs : %s", err))
+		ctx.InternalServerError("unable to get user IDs", err)
 		return
 	}
 
@@ -31,7 +30,7 @@ func GetUsers(ctx *context.Context, resp http.ResponseWriter, req *http.Request)
 	if sizeStr != "" {
 		size, err = strconv.Atoi(sizeStr)
 		if err != nil || size <= 0 || size > 1000 {
-			ctx.InvalidParameter("size")
+			ctx.InvalidParameter("size. must be positive integer up to 1000")
 			return
 		}
 	}
@@ -42,7 +41,7 @@ func GetUsers(ctx *context.Context, resp http.ResponseWriter, req *http.Request)
 	if offsetStr != "" {
 		offset, err = strconv.Atoi(offsetStr)
 		if err != nil || offset < 0 {
-			ctx.InvalidParameter("offset")
+			ctx.InvalidParameter("offset. must be positive integer")
 			return
 		}
 	}
@@ -74,7 +73,7 @@ func GetUsers(ctx *context.Context, resp http.ResponseWriter, req *http.Request)
 	// Print users in the json response.
 	var json []byte
 	if json, err = utils.ToJson(users); err != nil {
-		ctx.InternalServerError(fmt.Errorf("unable to serialize json response : %s", err))
+		ctx.InternalServerError("unable to serialize json response", err)
 		return
 	}
 
@@ -91,14 +90,14 @@ func GetServerStatistics(ctx *context.Context, resp http.ResponseWriter, req *ht
 	// Get server statistics
 	stats, err := ctx.GetMetadataBackend().GetServerStatistics()
 	if err != nil {
-		ctx.InternalServerError(fmt.Errorf("unable to get server statistics : %s", err))
+		ctx.InternalServerError("unable to get server statistics", err)
 		return
 	}
 
 	// Print stats in the json response.
 	var json []byte
 	if json, err = utils.ToJson(stats); err != nil {
-		ctx.InternalServerError(fmt.Errorf("unable to serialize json response : %s", err))
+		ctx.InternalServerError("unable to serialize json response", err)
 		return
 	}
 

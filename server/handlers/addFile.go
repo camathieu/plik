@@ -30,7 +30,7 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 	// Get upload from context
 	upload := ctx.GetUpload()
 	if upload == nil {
-		ctx.InternalServerError(fmt.Errorf("missing upload from context"))
+		ctx.InternalServerError("missing upload from context", nil)
 		return
 	}
 
@@ -55,7 +55,7 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 		var ok bool
 		file, ok = upload.Files[fileID]
 		if !ok {
-			ctx.NotFound(fmt.Sprintf("file %s not found", fileID))
+			ctx.NotFound("file %s not found", fileID)
 			return
 		}
 	}
@@ -76,7 +76,7 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 
 		// Limit number of files per upload
 		if len(u.Files) > config.MaxFilePerUpload {
-			return common.NewHTTPError(fmt.Sprintf("maximum number file per upload reached (%d)", config.MaxFilePerUpload), http.StatusBadRequest)
+			return common.NewHTTPError(fmt.Sprintf("maximum number file per upload reached, limit is %d", config.MaxFilePerUpload), http.StatusBadRequest)
 		}
 
 		if !(f.Status == "" || f.Status == common.FileMissing) {
@@ -103,7 +103,7 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 	var fileReader io.Reader
 	multiPartReader, err := req.MultipartReader()
 	if err != nil {
-		ctx.InvalidParameter(fmt.Sprintf("multipart form : %s", err))
+		ctx.InvalidParameter("multipart form : %s", err)
 		return
 	}
 
@@ -114,7 +114,7 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 			break
 		}
 		if errPart != nil {
-			ctx.InvalidParameter(fmt.Sprintf("multipart form : %s", errPart))
+			ctx.InvalidParameter("multipart form : %s", errPart)
 			return
 		}
 		if part.FormName() == "file" {
@@ -122,7 +122,7 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 
 			if file.Name != "" {
 				if file.Name != part.FileName() {
-					ctx.BadRequest(fmt.Sprintf("invalid filename %s, expected %s", part.FileName(), file.Name))
+					ctx.BadRequest("invalid filename %s, expected %s", part.FileName(), file.Name)
 					return
 				}
 			} else {
@@ -169,14 +169,14 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 
 	backendDetails, err := backend.AddFile(upload, file, preprocessReader)
 	if err != nil {
-		ctx.InternalServerError(fmt.Errorf("unable to save file : %s", err))
+		ctx.InternalServerError("unable to save file", err)
 		return
 	}
 
 	// Get preprocessor goroutine output
 	preprocessOutput := <-preprocessOutputCh
 	if preprocessOutput.err != nil {
-		ctx.InternalServerError(fmt.Errorf("unable to execute preprocessor : %s", preprocessOutput.err))
+		handleTxError(ctx, "unable to execute preprocessor", preprocessOutput.err)
 		return
 	}
 
@@ -218,11 +218,11 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 			return
 		}
 
-		// Paranoid double check
+		// Get updated file
 		var ok bool
 		file, ok = upload.Files[file.ID]
 		if !ok {
-			ctx.InternalServerError(fmt.Errorf("missing file from upload after metadata update"))
+			ctx.InternalServerError("missing file from upload after metadata update", nil)
 			return
 		}
 	} else {
@@ -254,7 +254,7 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 		if json, err = utils.ToJson(file); err == nil {
 			_, _ = resp.Write(json)
 		} else {
-			ctx.InternalServerError(fmt.Errorf("unable to serialize json response : %s", err))
+			ctx.InternalServerError("unable to serialize json response", err)
 			return
 		}
 	}

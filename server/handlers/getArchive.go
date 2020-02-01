@@ -23,9 +23,13 @@ func GetArchive(ctx *context.Context, resp http.ResponseWriter, req *http.Reques
 
 	// Get upload from context
 	upload := ctx.GetUpload()
+	if upload == nil {
+		ctx.InternalServerError("missing upload from context", nil)
+		return
+	}
 
 	if upload.Stream {
-		ctx.Forbidden("archive feature is not available in stream mode")
+		ctx.BadRequest("archive feature is not available in stream mode")
 		return
 	}
 
@@ -49,11 +53,18 @@ func GetArchive(ctx *context.Context, resp http.ResponseWriter, req *http.Reques
 	vars := mux.Vars(req)
 	fileName := vars["filename"]
 	if fileName == "" {
-		ctx.MissingParameter("file name")
+		ctx.MissingParameter("archive name")
+		return
+	}
+
+	if len(fileName) > 1024 {
+		ctx.InvalidParameter("archive name too long, maximum 1024 characters")
+		return
 	}
 
 	if !strings.HasSuffix(fileName, ".zip") {
-		ctx.InvalidParameter("file name, missing .zip extension")
+		ctx.InvalidParameter("archive name, missing .zip extension")
+		return
 	}
 
 	// If "dl" GET params is set
@@ -131,13 +142,13 @@ func GetArchive(ctx *context.Context, resp http.ResponseWriter, req *http.Reques
 		for _, file := range files {
 			fileReader, err := backend.GetFile(upload, file.ID)
 			if err != nil {
-				ctx.InternalServerError(fmt.Errorf("error retreiving file from data backend : %s", err))
+				ctx.InternalServerError("unable to get file from data backend", err)
 				return
 			}
 
 			fileWriter, err := archive.Create(file.Name)
 			if err != nil {
-				ctx.InternalServerError(fmt.Errorf("error while creating zip archive : %s", err))
+				ctx.InternalServerError("error while creating zip archive", err)
 				return
 			}
 

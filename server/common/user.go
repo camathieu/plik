@@ -66,13 +66,13 @@ func GenAuthCookies(user *User, config *Configuration) (sessionCookie *http.Cook
 	// Generate xsrf token
 	xsrfToken, err := uuid.NewV4()
 	if err != nil {
-		return nil, nil, fmt.Errorf("Unable to generate xsrf token")
+		return nil, nil, fmt.Errorf("unable to generate xsrf token")
 	}
 	session.Claims.(jwt.MapClaims)["xsrf"] = xsrfToken.String()
 
 	sessionString, err := session.SignedString([]byte(sig))
 	if err != nil {
-		return nil, nil, fmt.Errorf("Unable to sign session cookie : %s", err)
+		return nil, nil, fmt.Errorf("unable to sign session cookie : %s", err)
 	}
 
 	// Store session jwt in secure cookie
