@@ -25,7 +25,15 @@ func (ctx *Context) InternalServerError(err error) {
 
 func (ctx *Context) internalServerError(err error) {
 	ctx.isPanic = true
-	ctx.fail(internalServerError, err, http.StatusInternalServerError)
+
+	msg := internalServerError
+	if ctx.config != nil && ctx.config.Debug && err != nil{
+		// In DEBUG mode return the error message to the user
+		msg = err.Error()
+		err = nil // no need to print the message twice in the logs
+	}
+
+	ctx.fail(msg, err, http.StatusInternalServerError)
 }
 
 func (ctx *Context) BadRequest(message string) {
@@ -90,12 +98,14 @@ func (ctx *Context) Fail(message string, err error, status int) {
 func (ctx *Context) fail(message string, err error, status int) {
 	msg := fmt.Sprintf("%s : %v (%d)", message, err, status)
 
-	if err != nil {
-		if ctx.logger != nil {
-			ctx.logger.Warningf(msg)
+	if ctx.logger != nil {
+		if err != nil {
+			ctx.logger.Warning(msg)
 		} else {
-			log.Println(msg)
+			ctx.logger.Info(msg)
 		}
+	} else {
+		log.Println(msg)
 	}
 
 	if ctx.req != nil && ctx.resp != nil {
@@ -119,6 +129,7 @@ func (ctx *Context) fail(message string, err error, status int) {
 		}
 	}
 
+	// This will be recovered by the HTTP server
 	if ctx.isPanic {
 		panic(msg)
 	}
@@ -134,37 +145,37 @@ func (ctx *Context) NewRecorder(req *http.Request) *httptest.ResponseRecorder {
 
 // TestMissingParameter is a helper to test a httptest.ResponseRecoreder status
 func TestMissingParameter(t *testing.T, resp *httptest.ResponseRecorder, parameter string) {
-	TestFail(t,resp, http.StatusBadRequest, fmt.Sprintf("missing %s", parameter))
+	TestFail(t, resp, http.StatusBadRequest, fmt.Sprintf("missing %s", parameter))
 }
 
 // TestInvalidParameter is a helper to test a httptest.ResponseRecoreder status
 func TestInvalidParameter(t *testing.T, resp *httptest.ResponseRecorder, parameter string) {
-	TestFail(t,resp, http.StatusBadRequest, fmt.Sprintf("invalid %s", parameter))
+	TestFail(t, resp, http.StatusBadRequest, fmt.Sprintf("invalid %s", parameter))
 }
 
 // TestNotFound is a helper to test a httptest.ResponseRecoreder status
 func TestNotFound(t *testing.T, resp *httptest.ResponseRecorder, message string) {
-	TestFail(t,resp, http.StatusNotFound, message)
+	TestFail(t, resp, http.StatusNotFound, message)
 }
 
 // TestForbidden is a helper to test a httptest.ResponseRecoreder status
 func TestForbidden(t *testing.T, resp *httptest.ResponseRecorder, message string) {
-	TestFail(t,resp, http.StatusForbidden, message)
+	TestFail(t, resp, http.StatusForbidden, message)
 }
 
 // TestUnauthorized is a helper to test a httptest.ResponseRecoreder status
 func TestUnauthorized(t *testing.T, resp *httptest.ResponseRecorder, message string) {
-	TestFail(t,resp, http.StatusUnauthorized, message)
+	TestFail(t, resp, http.StatusUnauthorized, message)
 }
 
 // TestBadRequest is a helper to test a httptest.ResponseRecoreder status
 func TestBadRequest(t *testing.T, resp *httptest.ResponseRecorder, message string) {
-	TestFail(t,resp, http.StatusBadRequest, message)
+	TestFail(t, resp, http.StatusBadRequest, message)
 }
 
 // TestInternalServerError is a helper to test a httptest.ResponseRecoreder status
 func TestInternalServerError(t *testing.T, resp *httptest.ResponseRecorder) {
-	TestFail(t,resp, http.StatusInternalServerError, internalServerError)
+	TestFail(t, resp, http.StatusInternalServerError, internalServerError)
 }
 
 // TestFail is a helper to test a httptest.ResponseRecoreder status
@@ -184,13 +195,18 @@ func TestFail(t *testing.T, resp *httptest.ResponseRecorder, status int, message
 	}
 }
 
+// TestFail is a helper to test a httptest.ResponseRecoreder status
+func TestOK(t *testing.T, resp *httptest.ResponseRecorder) {
+	require.Equal(t, http.StatusOK, resp.Code, "handler returned wrong status code")
+}
+
 // TestPanic is a helper to test a httptest.ResponseRecoreder status
-func TestPanic(t *testing.T, resp *httptest.ResponseRecorder, handler func()) {
+func TestPanic(t *testing.T, resp *httptest.ResponseRecorder, message string, handler func()) {
 	defer func() {
 		if r := recover(); r == nil {
-			t.Errorf("The code did not panic")
+			t.Errorf("the code did not panic")
 		}
-		TestFail(t, resp, http.StatusInternalServerError, internalServerError)
+		TestFail(t, resp, http.StatusInternalServerError, message)
 	}()
 	handler()
 }

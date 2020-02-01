@@ -7,7 +7,7 @@ import (
 	"github.com/root-gg/logger"
 	"io/ioutil"
 	"net/http"
-	"net/http/httptest"
+
 	"net/url"
 	"testing"
 
@@ -21,6 +21,7 @@ import (
 
 func newTestingContext(config *common.Configuration) (ctx *context.Context) {
 	ctx = &context.Context{}
+	config.Debug = true
 	ctx.SetConfig(config)
 	ctx.SetLogger(logger.NewLogger())
 	ctx.SetMetadataBackend(metadata_test.NewBackend())
@@ -35,11 +36,11 @@ func TestGetVersion(t *testing.T) {
 	req, err := http.NewRequest("GET", "/version", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	GetVersion(ctx, rr, req)
 
 	// Check the status code is what we expect.
-	require.Equal(t, http.StatusOK, rr.Code, "handler returned wrong status code")
+	context.TestOK(t, rr)
 
 	respBody, err := ioutil.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
@@ -57,11 +58,11 @@ func TestGetConfiguration(t *testing.T) {
 	req, err := http.NewRequest("GET", "/version", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	GetConfiguration(ctx, rr, req)
 
 	// Check the status code is what we expect.
-	require.Equal(t, http.StatusOK, rr.Code, "handler returned wrong status code")
+	context.TestOK(t, rr)
 
 	respBody, err := ioutil.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
@@ -77,11 +78,11 @@ func TestGetQrCode(t *testing.T) {
 	req, err := http.NewRequest("GET", "/qrcode?url="+url.QueryEscape("https://root.gg"), bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	GetQrCode(ctx, rr, req)
 
 	// Check the status code is what we expect.
-	require.Equal(t, http.StatusOK, rr.Code, "handler returned wrong status code")
+	context.TestOK(t, rr)
 
 	respBody, err := ioutil.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
@@ -95,11 +96,11 @@ func TestGetQrCodeWithSize(t *testing.T) {
 	req, err := http.NewRequest("GET", "/qrcode?url="+url.QueryEscape("https://root.gg")+"&size=100", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	GetQrCode(ctx, rr, req)
 
 	// Check the status code is what we expect.
-	require.Equal(t, http.StatusOK, rr.Code, "handler returned wrong status code")
+	context.TestOK(t, rr)
 
 	respBody, err := ioutil.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
@@ -113,7 +114,7 @@ func TestGetQrCodeWithInvalidSize(t *testing.T) {
 	req, err := http.NewRequest("GET", "/qrcode?url="+url.QueryEscape("https://root.gg")+"&size=10000", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	GetQrCode(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusBadRequest, "QRCode size must be lower than 1000")
@@ -125,7 +126,7 @@ func TestGetQrCodeWithInvalidSize2(t *testing.T) {
 	req, err := http.NewRequest("GET", "/qrcode?url="+url.QueryEscape("https://root.gg")+"&size=-1", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	GetQrCode(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusBadRequest, "QRCode size must be positive")

@@ -6,7 +6,6 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"log"
 	"math/big"
 	"net/http"
 	"os"
@@ -16,7 +15,6 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/root-gg/logger"
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
 	"github.com/root-gg/plik/server/data"
@@ -36,7 +34,6 @@ import (
 // PlikServer is a Plik Server instance
 type PlikServer struct {
 	config *common.Configuration
-	logger *logger.Logger
 
 	metadataBackend metadata.Backend
 	dataBackend     data.Backend
@@ -56,13 +53,6 @@ type PlikServer struct {
 func NewPlikServer(config *common.Configuration) (ps *PlikServer) {
 	ps = new(PlikServer)
 	ps.config = config
-
-	ps.logger = logger.NewLogger().SetMinLevelFromString(config.LogLevel)
-	if ps.logger.MinLevel == logger.DEBUG {
-		ps.logger.SetFlags(logger.Fdate | logger.Flevel | logger.FfixedSizeLevel | logger.FshortFile | logger.FshortFunction)
-	} else {
-		ps.logger.SetFlags(logger.Fdate | logger.Flevel | logger.FfixedSizeLevel)
-	}
 
 	ps.cleaningRandomDelay = 3600
 	ps.cleaningMinOffset = 7200
@@ -90,7 +80,7 @@ func (ps *PlikServer) Start() (err error) {
 }
 
 func (ps *PlikServer) start() (err error) {
-	log := ps.logger
+	log := ps.config.NewLogger()
 
 	// TODO what if the server has been shutdown before ???
 
@@ -180,7 +170,7 @@ func (ps *PlikServer) ShutdownNow() (err error) {
 }
 
 func (ps *PlikServer) shutdown(timeout time.Duration) (err error) {
-	ps.logger.Info("Shutdown server at " + ps.GetConfig().GetServerURL().String())
+	ps.config.NewLogger().Info("Shutdown server at " + ps.GetConfig().GetServerURL().String())
 	ps.done = true
 
 	if ps.httpServer == nil {
@@ -253,7 +243,7 @@ func (ps *PlikServer) getHTTPHandler() (handler http.Handler) {
 	if !ps.config.NoWebInterface {
 		_, err := os.Stat("./public")
 		if err != nil {
-			log.Fatal("Public directory not found. Please set NoWebInterface to true in config file")
+			ps.config.NewLogger().Fatal("Public directory not found. Please set NoWebInterface to true in config file")
 		}
 
 		router.PathPrefix("/clients/").Handler(http.StripPrefix("/clients/", http.FileServer(http.Dir("../clients"))))
@@ -350,7 +340,7 @@ func (ps *PlikServer) initializeStreamBackend() (err error) {
 
 // UploadsCleaningRoutine periodicaly remove expired uploads
 func (ps *PlikServer) uploadsCleaningRoutine() {
-	log := ps.logger
+	log := ps.config.NewLogger()
 	for {
 		if ps.done {
 			break
@@ -369,7 +359,7 @@ func (ps *PlikServer) uploadsCleaningRoutine() {
 
 // Clean removes expired uploads from the servers
 func (ps *PlikServer) Clean() {
-	log := ps.logger
+	log := ps.config.NewLogger()
 
 	// Get uploads that needs to be removed
 	uploadIds, err := ps.metadataBackend.GetUploadsToRemove()
@@ -426,7 +416,7 @@ func (ps *PlikServer) GetStreamBackend() data.Backend {
 func (ps *PlikServer) NewContext() *context.Context {
 	ctx := &context.Context{}
 	ctx.SetConfig(ps.config)
-	ctx.SetLogger(ps.logger.Copy())
+	ctx.SetLogger(ps.config.NewLogger())
 	ctx.SetMetadataBackend(ps.metadataBackend)
 	ctx.SetDataBackend(ps.dataBackend)
 	ctx.SetStreamBackend(ps.streamBackend)

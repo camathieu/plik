@@ -16,32 +16,28 @@ import (
 
 // GetVersion return the build information.
 func GetVersion(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
-	log := ctx.GetLogger()
-
 	// Print version and build information in the json response.
 	json, err := utils.ToJson(common.GetBuildInfo())
 	if err != nil {
-		log.Warningf("Unable to serialize json response : %s", err)
-		context.Fail(ctx, req, resp, "Unable to serialize json response", http.StatusInternalServerError)
+		ctx.InternalServerError(fmt.Errorf("unable to serialize json response : %s", err))
 		return
 	}
 
-	resp.Write(json)
+	_, _ = resp.Write(json)
 }
 
 // GetConfiguration return the server configuration
 func GetConfiguration(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
-	log := ctx.GetLogger()
 	config := ctx.GetConfig()
 
 	// Print configuration in the json response.
 	json, err := utils.ToJson(config)
 	if err != nil {
-		log.Warningf("Unable to serialize response body : %s", err)
-		context.Fail(ctx, req, resp, "Unable to serialize response body", http.StatusInternalServerError)
+		ctx.InternalServerError(fmt.Errorf("unable to serialize json response : %s", err))
 		return
 	}
-	resp.Write(json)
+
+	_, _ = resp.Write(json)
 }
 
 // Logout return the server configuration
@@ -51,8 +47,6 @@ func Logout(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
 
 // GetQrCode return a QRCode for the requested URL
 func GetQrCode(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
-	log := ctx.GetLogger()
-
 	// Check params
 	urlParam := req.FormValue("url")
 	sizeParam := req.FormValue("size")
@@ -62,37 +56,34 @@ func GetQrCode(ctx *context.Context, resp http.ResponseWriter, req *http.Request
 	if err != nil {
 		sizeInt = 250
 	}
-	if sizeInt > 1000 {
-		log.Warning("QRCode size must be lower than 1000")
-		context.Fail(ctx, req, resp, "QRCode size must be lower than 1000", http.StatusBadRequest)
+	if sizeInt <= 0 {
+		ctx.BadRequest("QRCode size must be positive")
 		return
 	}
-	if sizeInt <= 0 {
-		log.Warning("QRCode size must be positive")
-		context.Fail(ctx, req, resp, "QRCode size must be positive", http.StatusBadRequest)
+	if sizeInt > 1000 {
+		ctx.BadRequest("QRCode size must be lower than 1000")
 		return
 	}
 
 	// Generate QRCode png from url
 	qrcode, err := qr.Encode(urlParam, qr.H, qr.Auto)
 	if err != nil {
-		log.Warningf("Unable to generate QRCode : %s", err)
-		context.Fail(ctx, req, resp, "Unable to generate QRCode", http.StatusInternalServerError)
+		ctx.InternalServerError(fmt.Errorf("unable to generate QRCode : %s", err))
 		return
 	}
 
 	// Scale QRCode png size
 	qrcode, err = barcode.Scale(qrcode, sizeInt, sizeInt)
 	if err != nil {
-		log.Warningf("Unable to scale QRCode : %s", err)
-		context.Fail(ctx, req, resp, "Unable to generate QRCode", http.StatusInternalServerError)
+		ctx.InternalServerError(fmt.Errorf("unable to scale QRCode : %s", err))
 		return
 	}
 
 	resp.Header().Add("Content-Type", "image/png")
 	err = png.Encode(resp, qrcode)
 	if err != nil {
-		log.Warningf("Unable to encode png : %s", err)
+		ctx.InternalServerError(fmt.Errorf("unable to encore png : %s", err))
+		return
 	}
 }
 
@@ -109,7 +100,7 @@ func DeleteRemovedFile(ctx *context.Context, upload *common.Upload, file *common
 
 	tx := func(u *common.Upload) error {
 		if u == nil {
-			return fmt.Errorf("missing upload from transaction")
+			return common.NewHTTPError("upload does not exist anymore", http.StatusNotFound)
 		}
 
 		f, ok := u.Files[file.ID]
@@ -157,4 +148,34 @@ func RemoveEmptyUpload(ctx *context.Context, upload *common.Upload) {
 	}
 
 	return
+}
+
+// If a download domain is specified verify that the request comes from this specific domain
+func checkDownloadDomain(ctx *context.Context) bool {
+	log := ctx.GetLogger()
+	config := ctx.GetConfig()
+	req := ctx.GetReq()
+	resp := ctx.GetResp()
+
+	if config.GetDownloadDomain() != nil {
+		if req.Host != config.GetDownloadDomain().Host {
+			downloadURL := fmt.Sprintf("%s://%s%s",
+				config.GetDownloadDomain().Scheme,
+				config.GetDownloadDomain().Host,
+				req.RequestURI)
+			log.Warningf("Invalid download domain %s, expected %s", req.Host, config.GetDownloadDomain().Host)
+			http.Redirect(resp, req, downloadURL, http.StatusMovedPermanently)
+			return false
+		}
+	}
+
+	return true
+}
+
+func handleTxError(ctx *context.Context, message string, err error) {
+	if txError, ok := err.(common.HTTPError); ok {
+		ctx.Fail(txError.Error(), nil, txError.GetStatusCode())
+	} else {
+		ctx.InternalServerError(fmt.Errorf("%s : %s", message, err))
+	}
 }

@@ -1,9 +1,9 @@
 package handlers
 
 import (
+	"fmt"
 	"github.com/root-gg/plik/server/common"
 	"net/http"
-
 
 	"github.com/root-gg/plik/server/context"
 )
@@ -14,22 +14,19 @@ func RemoveUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Requ
 
 	// Get upload from context
 	upload := ctx.GetUpload()
-	if upload == nil {
-		// This should never append
-		log.Critical("Missing upload in removeUploadHandler")
-		context.Fail(ctx, req, resp, "Internal error", http.StatusInternalServerError)
-		return
-	}
 
 	// Check authorization
 	if !upload.Removable && !ctx.IsUploadAdmin() {
-		log.Warningf("Unable to remove upload : unauthorized")
-		context.Fail(ctx, req, resp, "You are not allowed to remove this upload", http.StatusForbidden)
+		ctx.Forbidden("you are not allowed to remove this upload")
 		return
 	}
 
 	var files []*common.File
 	tx := func(u *common.Upload) error {
+		if u == nil {
+			return common.NewHTTPError("upload does not exist anymore", http.StatusNotFound)
+		}
+
 		files = []*common.File{}
 		for _, f := range u.Files {
 			if f.Status == common.FileUploaded {
@@ -45,8 +42,7 @@ func RemoveUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Requ
 
 	upload, err := ctx.GetMetadataBackend().UpdateUpload(upload, tx)
 	if err != nil {
-		log.Warningf("Unable to update upload metadata : %s", err)
-		context.Fail(ctx, req, resp, "Unable to update upload metadata", http.StatusInternalServerError)
+		handleTxError(ctx, "unable to update upload metadata", err)
 		return
 	}
 
@@ -55,12 +51,12 @@ func RemoveUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Requ
 		err = DeleteRemovedFile(ctx, upload, file)
 		if err != nil {
 			// Don't block here
-			log.Warningf("Unable to delete file %s (%s) : %s", file.Name, file.ID, err)
+			log.Warningf("unable to delete file %s (%s) : %s", file.Name, file.ID, err)
 		}
 	}
 
 	if err != nil {
-		context.Fail(ctx, req, resp, "Unable to remove all files", http.StatusInternalServerError)
+		ctx.InternalServerError(fmt.Errorf("unable to remove all files : %s", err))
 		return
 	}
 }

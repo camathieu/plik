@@ -5,9 +5,8 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
-	"net/http/httptest"
-	"testing"
 
+	"testing"
 
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
@@ -25,7 +24,7 @@ func addTestUserAdmin(ctx *context.Context) (user *common.User, err error) {
 	user.Email = "admin@root.gg"
 	user.Login = "admin"
 	ctx.SetUser(user)
-	context.SetAdmin(ctx, true)
+	ctx.SetAdmin(true)
 	return user, addTestUser(ctx, user)
 }
 
@@ -54,10 +53,10 @@ func TestGetUsers(t *testing.T) {
 	req, err := http.NewRequest("GET", "/admin/users", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	GetUsers(ctx, rr, req)
 
-	require.Equal(t, http.StatusOK, rr.Code, "handler returned wrong status code")
+	context.TestOK(t, rr)
 
 	respBody, err := ioutil.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
@@ -75,7 +74,7 @@ func TestGetUsersNoUser(t *testing.T) {
 	req, err := http.NewRequest("GET", "/admin/users", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	GetUsers(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusUnauthorized, "Missing user, Please login first")
@@ -86,12 +85,12 @@ func TestGetUsersNotAdmin(t *testing.T) {
 
 	_, err := addTestUserAdmin(ctx)
 	require.NoError(t, err, "unable to add admin")
-	context.SetAdmin(ctx, false)
+	ctx.SetAdmin(false)
 
 	req, err := http.NewRequest("GET", "/admin/users", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	GetUsers(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusForbidden, "You need administrator privileges")
@@ -132,10 +131,10 @@ func TestGetServerStatistics(t *testing.T) {
 	req, err := http.NewRequest("GET", "/admin/stats", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	GetServerStatistics(ctx, rr, req)
 
-	require.Equal(t, http.StatusOK, rr.Code, "handler returned wrong status code")
+	context.TestOK(t, rr)
 
 	respBody, err := ioutil.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
@@ -162,9 +161,9 @@ func TestGetServerStatisticsNoUser(t *testing.T) {
 
 	req, err := http.NewRequest("GET", "/admin/users", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
-	ctx.Delete("user")
+	ctx.SetUser(nil)
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	GetServerStatistics(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusUnauthorized, "Missing user, Please login first")
@@ -175,12 +174,12 @@ func TestGetServerStatisticsNotAdmin(t *testing.T) {
 
 	_, err := addTestUserAdmin(ctx)
 	require.NoError(t, err, "unable to add admin")
-	context.SetAdmin(ctx, false)
+	ctx.SetAdmin(false)
 
 	req, err := http.NewRequest("GET", "/admin/users", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	GetServerStatistics(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusForbidden, "You need administrator privileges")

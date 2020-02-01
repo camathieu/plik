@@ -9,7 +9,6 @@ import (
 	"io/ioutil"
 	"mime/multipart"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/gorilla/mux"
@@ -68,11 +67,11 @@ func TestAddFileWithID(t *testing.T) {
 	}
 	req = mux.SetURLVars(req, vars)
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	AddFile(ctx, rr, req)
 
 	// Check the status code is what we expect.
-	require.Equal(t, http.StatusOK, rr.Code, "handler returned wrong status code")
+	context.TestOK(t, rr)
 
 	respBody, err := ioutil.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
@@ -116,10 +115,10 @@ func TestAddFileWithInvalidID(t *testing.T) {
 	}
 	req = mux.SetURLVars(req, vars)
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	AddFile(ctx, rr, req)
 
-	context.TestFail(t, rr, http.StatusNotFound, "Invalid file id")
+	context.TestNotFound(t, rr, fmt.Sprintf("file %s not found", file.ID))
 }
 
 func TestAddFileWithoutID(t *testing.T) {
@@ -140,10 +139,10 @@ func TestAddFileWithoutID(t *testing.T) {
 
 	req.Header.Set("Content-Type", contentType)
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	AddFile(ctx, rr, req)
 
-	require.Equal(t, http.StatusOK, rr.Code, "handler returned wrong status code")
+	context.TestOK(t, rr)
 
 	respBody, err := ioutil.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
@@ -166,28 +165,11 @@ func TestAddFileWithoutUploadInContext(t *testing.T) {
 	req, err := http.NewRequest("POST", "/file/uploadID", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
-	AddFile(ctx, rr, req)
+	rr := ctx.NewRecorder(req)
 
-	context.TestFail(t, rr, http.StatusInternalServerError, "Internal error")
-}
-
-func TestAddFileWithoutAnonymousUploads(t *testing.T) {
-	ctx := newTestingContext(common.NewConfiguration())
-	ctx.GetConfig().NoAnonymousUploads = true
-	ctx.SetUploadAdmin(true)
-
-	upload := common.NewUpload()
-	createTestUpload(ctx, upload)
-	ctx.SetUpload(upload)
-
-	req, err := http.NewRequest("POST", "/file/uploadID", bytes.NewBuffer([]byte{}))
-	require.NoError(t, err, "unable to create new request")
-
-	rr := httptest.NewRecorder()
-	AddFile(ctx, rr, req)
-
-	context.TestFail(t, rr, http.StatusForbidden, "Unable to add file from anonymous user")
+	context.TestPanic(t, rr, "missing upload from context", func(){
+		AddFile(ctx, rr, req)
+	})
 }
 
 func TestAddFileNotAdmin(t *testing.T) {
@@ -200,10 +182,10 @@ func TestAddFileNotAdmin(t *testing.T) {
 	req, err := http.NewRequest("POST", "/file/uploadID", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	AddFile(ctx, rr, req)
 
-	context.TestFail(t, rr, http.StatusForbidden, "You are not allowed to add file to this upload")
+	context.TestForbidden(t, rr, "you are not allowed to add file to this upload")
 }
 
 func TestAddFileTooManyFiles(t *testing.T) {
@@ -223,10 +205,10 @@ func TestAddFileTooManyFiles(t *testing.T) {
 	req, err := http.NewRequest("POST", "/file/uploadID", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	AddFile(ctx, rr, req)
 
-	context.TestFail(t, rr, http.StatusBadRequest, "Maximum number file per upload reached")
+	context.TestBadRequest(t, rr, "maximum number file per upload reached")
 }
 
 func TestAddFileInvalidMultipartData(t *testing.T) {
@@ -240,10 +222,10 @@ func TestAddFileInvalidMultipartData(t *testing.T) {
 	req, err := http.NewRequest("POST", "/file/"+upload.ID, bytes.NewBuffer([]byte("invalid multipart data")))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	AddFile(ctx, rr, req)
 
-	context.TestFail(t, rr, http.StatusBadRequest, "Failed to get file from multipart request")
+	context.TestFail(t, rr, http.StatusBadRequest, "invalid multipart form")
 }
 
 func TestAddFileWithFilenameTooLong(t *testing.T) {
@@ -277,10 +259,10 @@ func TestAddFileWithFilenameTooLong(t *testing.T) {
 	}
 	req = mux.SetURLVars(req, vars)
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	AddFile(ctx, rr, req)
 
-	context.TestFail(t, rr, http.StatusBadRequest, "File name is too long")
+	context.TestBadRequest(t, rr, "file name is too long")
 }
 
 func TestAddFileWithNoFile(t *testing.T) {
@@ -302,10 +284,10 @@ func TestAddFileWithNoFile(t *testing.T) {
 
 	req.Header.Set("Content-Type", multipartWriter.FormDataContentType())
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	AddFile(ctx, rr, req)
 
-	context.TestFail(t, rr, http.StatusBadRequest, "Unable to read file")
+	context.TestBadRequest(t, rr, "invalid multipart form")
 }
 
 func TestAddFileWithEmptyName(t *testing.T) {
@@ -333,10 +315,10 @@ func TestAddFileWithEmptyName(t *testing.T) {
 	}
 	req = mux.SetURLVars(req, vars)
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	AddFile(ctx, rr, req)
 
-	context.TestFail(t, rr, http.StatusBadRequest, "Missing file name from multipart request")
+	context.TestFail(t, rr, http.StatusBadRequest, "missing file name")
 }
 
 func TestAddFileWithDataBackendError(t *testing.T) {
@@ -366,10 +348,11 @@ func TestAddFileWithDataBackendError(t *testing.T) {
 	}
 	req = mux.SetURLVars(req, vars)
 
-	rr := httptest.NewRecorder()
-	AddFile(ctx, rr, req)
+	rr := ctx.NewRecorder(req)
 
-	context.TestFail(t, rr, http.StatusInternalServerError, "Unable to save file")
+	context.TestPanic(t, rr, "unable to save file : data backend error", func(){
+		AddFile(ctx, rr, req)
+	})
 }
 
 func TestAddFileWithMetadataBackendError(t *testing.T) {
@@ -399,8 +382,9 @@ func TestAddFileWithMetadataBackendError(t *testing.T) {
 	}
 	req = mux.SetURLVars(req, vars)
 
-	rr := httptest.NewRecorder()
-	AddFile(ctx, rr, req)
+	rr := ctx.NewRecorder(req)
 
-	context.TestFail(t, rr, http.StatusInternalServerError, "Unable to add file")
+	context.TestPanic(t, rr, "metadata backend error", func() {
+		AddFile(ctx, rr, req)
+	})
 }

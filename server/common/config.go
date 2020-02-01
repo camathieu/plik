@@ -2,6 +2,7 @@ package common
 
 import (
 	"fmt"
+	"github.com/root-gg/logger"
 	"net"
 	"net/url"
 	"strings"
@@ -12,7 +13,7 @@ import (
 
 // Configuration object
 type Configuration struct {
-	LogLevel string `json:"-"`
+	Debug bool `json:"-"`
 
 	ListenAddress string `json:"-"`
 	ListenPort    int    `json:"-"`
@@ -65,15 +66,13 @@ type Configuration struct {
 	yubiAuth          *yubigo.YubiAuth
 	downloadDomainURL *url.URL
 	uploadWhitelist   []*net.IPNet
-
-	clean             bool `json:"-"`
+	clean             bool
 }
 
 // NewConfiguration creates a new configuration
 // object with default values
 func NewConfiguration() (config *Configuration) {
 	config = new(Configuration)
-	config.LogLevel = "INFO"
 	config.ListenAddress = "0.0.0.0"
 	config.ListenPort = 8080
 	config.DataBackend = "file"
@@ -161,6 +160,15 @@ func (config *Configuration) Initialize() (err error) {
 	}
 
 	return nil
+}
+
+// NewLogger returns a new logger instance
+func (config *Configuration) NewLogger() (log *logger.Logger) {
+	level := "INFO"
+	if config.Debug {
+		level = "DEBUG"
+	}
+	return logger.NewLogger().SetMinLevelFromString(level).SetFlags(logger.Fdate | logger.Flevel | logger.FfixedSizeLevel)
 }
 
 // GetUploadWhitelist return the parsed IP upload whitelist

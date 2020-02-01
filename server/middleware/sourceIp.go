@@ -5,7 +5,6 @@ import (
 	"net"
 	"net/http"
 
-
 	"github.com/root-gg/plik/server/context"
 )
 
@@ -38,10 +37,37 @@ func SourceIP(ctx *context.Context, next http.Handler) http.Handler {
 		// Save source IP address in the context
 		ctx.SetSourceIP(sourceIP)
 
+		// Check if IP is whitelisted
+		setWhitelisted(ctx)
+
 		// Update request logger prefix
 		prefix := fmt.Sprintf("%s[%s]", log.Prefix, sourceIP.String())
 		log.SetPrefix(prefix)
 
 		next.ServeHTTP(resp, req)
 	})
+}
+
+// IsWhitelisted return true if the IP address in the request context is whitelisted
+// TODO : This could be evaluated lazily
+func setWhitelisted(ctx *context.Context) {
+	uploadWhitelist := ctx.GetConfig().GetUploadWhitelist()
+
+	// Check if the source IP address is in whitelist
+	whitelisted := false
+	if len(uploadWhitelist) > 0 {
+		sourceIP := ctx.GetSourceIP()
+		if sourceIP != nil {
+			for _, subnet := range uploadWhitelist {
+				if subnet.Contains(sourceIP) {
+					whitelisted = true
+					break
+				}
+			}
+		}
+	} else {
+		whitelisted = true
+	}
+
+	ctx.SetWhitelisted(whitelisted)
 }

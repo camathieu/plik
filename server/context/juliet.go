@@ -18,8 +18,8 @@ type ContextBuilder func() *Context
 // Chain link context middlewares to each other.
 // Chain are immutable and any operation on them returns a new Chain object.
 type Chain struct {
-	parent     	*Chain
-	middleware ContextMiddleware
+	parent         *Chain
+	middleware     ContextMiddleware
 	contextBuilder ContextBuilder
 }
 

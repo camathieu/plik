@@ -3,8 +3,6 @@ package middleware
 import (
 	"net/http"
 
-
-
 	"github.com/root-gg/plik/server/context"
 )
 

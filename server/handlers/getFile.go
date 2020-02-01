@@ -15,48 +15,26 @@ import (
 // GetFile download a file
 func GetFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
 	log := ctx.GetLogger()
-	config := ctx.GetConfig()
 
-	// If a download domain is specified verify that the request comes from this specific domain
-	if config.GetDownloadDomain() != nil {
-		if req.Host != config.GetDownloadDomain().Host {
-			downloadURL := fmt.Sprintf("%s://%s%s",
-				config.GetDownloadDomain().Scheme,
-				config.GetDownloadDomain().Host,
-				req.RequestURI)
-			log.Warningf("Invalid download domain %s, expected %s", req.Host, config.GetDownloadDomain().Host)
-			http.Redirect(resp, req, downloadURL, http.StatusMovedPermanently)
-			return
-		}
+	if !checkDownloadDomain(ctx) {
+		return
 	}
 
 	// Get upload from context
 	upload := ctx.GetUpload()
-	if upload == nil {
-		// This should never append
-		log.Critical("Missing upload in getFileHandler")
-		context.Fail(ctx, req, resp, "Internal error", http.StatusInternalServerError)
-		return
-	}
 
 	// Get file from context
 	file := ctx.GetFile()
-	if file == nil {
-		// This should never append
-		log.Critical("Missing file in getFileHandler")
-		context.Fail(ctx, req, resp, "Internal error", http.StatusInternalServerError)
-		return
-	}
 
 	// File status pre-check
 	if upload.Stream {
 		if file.Status != common.FileUploading {
-			context.Fail(ctx, req, resp, fmt.Sprintf("file %s (%s) status is not %s", file.Name, file.ID, common.FileUploading), http.StatusNotFound)
+			ctx.NotFound(fmt.Sprintf("file %s (%s) is not available : %s", file.Name, file.ID, file.Status))
 			return
 		}
 	} else {
 		if file.Status != common.FileUploaded {
-			context.Fail(ctx, req, resp, fmt.Sprintf("file %s (%s) status is not %s", file.Name, file.ID, common.FileUploaded), http.StatusNotFound)
+			ctx.NotFound(fmt.Sprintf("file %s (%s) is not available : %s", file.Name, file.ID, file.Status))
 			return
 		}
 	}
@@ -65,7 +43,7 @@ func GetFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 		// If this is a one shot or stream upload we have to ensure it's downloaded only once.
 		tx := func(u *common.Upload) error {
 			if u == nil {
-				return fmt.Errorf("missing upload from transaction")
+				return common.NewHTTPError("upload does not exist anymore", http.StatusNotFound)
 			}
 
 			f, ok := u.Files[file.ID]
@@ -76,12 +54,12 @@ func GetFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 			// File status double-check
 			if upload.Stream {
 				if f.Status != common.FileUploading {
-					return common.NewTxError(fmt.Sprintf("invalid file %s (%s) status %s, expected %s", file.Name, file.ID, file.Status, common.FileUploading), http.StatusBadRequest)
+					return common.NewHTTPError(fmt.Sprintf("invalid file %s (%s) status %s, expected %s", file.Name, file.ID, file.Status, common.FileUploading), http.StatusBadRequest)
 				}
 				f.Status = common.FileDeleted
 			} else if upload.OneShot {
 				if f.Status != common.FileUploaded {
-					return common.NewTxError(fmt.Sprintf("invalid file %s (%s) status %s, expected %s", file.Name, file.ID, file.Status, common.FileUploaded), http.StatusBadRequest)
+					return common.NewHTTPError(fmt.Sprintf("invalid file %s (%s) status %s, expected %s", file.Name, file.ID, file.Status, common.FileUploaded), http.StatusBadRequest)
 				}
 				f.Status = common.FileRemoved
 			}
@@ -91,12 +69,7 @@ func GetFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 
 		upload, err := ctx.GetMetadataBackend().UpdateUpload(upload, tx)
 		if err != nil {
-			if txError, ok := err.(common.TxError); ok {
-				context.Fail(ctx, req, resp, txError.Error(), txError.GetStatusCode())
-			} else {
-				log.Warningf("Unable to update upload metadata : %s", err)
-				context.Fail(ctx, req, resp, "Unable to update upload metadata", http.StatusInternalServerError)
-			}
+			handleTxError(ctx, "unable to update upload metadata", err)
 			return
 		}
 
@@ -105,7 +78,7 @@ func GetFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 			defer func() {
 				err = DeleteRemovedFile(ctx, upload, file)
 				if err != nil {
-					log.Warningf("Unable to delete file %s (%s) : %s", file.Name, file.ID, err)
+					log.Warningf("enable to delete file %s (%s) : %s", file.Name, file.ID, err)
 				}
 			}()
 		}
@@ -164,8 +137,7 @@ func GetFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 
 		fileReader, err := backend.GetFile(upload, file.ID)
 		if err != nil {
-			log.Warningf("Failed to get file %s in upload %s : %s", file.Name, upload.ID, err)
-			context.Fail(ctx, req, resp, fmt.Sprintf("Failed to read file %s", file.Name), http.StatusNotFound)
+			ctx.InternalServerError(fmt.Errorf("error retreiving file from data backend : %s", err))
 			return
 		}
 		defer func() { _ = fileReader.Close() }()
@@ -173,7 +145,7 @@ func GetFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 		// File is piped directly to http response body without buffering
 		_, err = io.Copy(resp, fileReader)
 		if err != nil {
-			log.Warningf("Error while copying file to response : %s", err)
+			log.Warningf("error while copying file to response : %s", err)
 		}
 	}
 }

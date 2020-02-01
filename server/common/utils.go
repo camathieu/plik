@@ -5,28 +5,28 @@ import (
 	"strings"
 )
 
-// Ensure TxError implements error
-var _ error = (*TxError)(nil)
+// Ensure HTTPError implements error
+var _ error = (*HTTPError)(nil)
 
-// TxError allows to return an error and a HTTP status code
-type TxError struct {
+// HTTPError allows to return an error and a HTTP status code
+type HTTPError struct {
 	error      string
 	statusCode int
 }
 
-// NewTxError return a new TxError
-func NewTxError(message string, code int) TxError {
-	return TxError{message, code}
+// NewHTTPError return a new HTTPError
+func NewHTTPError(message string, code int) HTTPError {
+	return HTTPError{message, code}
 }
 
 // Error return the error
-func (txe TxError) Error() string {
-	return txe.error
+func (e HTTPError) Error() string {
+	return e.error
 }
 
 // GetStatusCode return the http status code
-func (txe TxError) GetStatusCode() int {
-	return txe.statusCode
+func (e HTTPError) GetStatusCode() int {
+	return e.statusCode
 }
 
 // StripPrefix returns a handler that serves HTTP requests

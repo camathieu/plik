@@ -19,25 +19,21 @@ var googeleEndpointContextKey = "google_endpoint"
 
 // GoogleLogin return google api user consent URL.
 func GoogleLogin(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
-	log := ctx.GetLogger()
 	config := ctx.GetConfig()
 
 	if !config.Authentication {
-		log.Warning("Authentication is disabled")
-		context.Fail(ctx, req, resp, "Authentication is disabled", http.StatusBadRequest)
+		ctx.Forbidden("authentication is disabled")
 		return
 	}
 
 	if !config.GoogleAuthentication {
-		log.Warning("Missing google api credentials")
-		context.Fail(ctx, req, resp, "Missing google API credentials", http.StatusInternalServerError)
+		ctx.Forbidden("Google authentication is disabled")
 		return
 	}
 
 	origin := req.Header.Get("referer")
 	if origin == "" {
-		log.Warning("Missing referer header")
-		context.Fail(ctx, req, resp, "Missing referer header", http.StatusBadRequest)
+		ctx.MissingParameter("referer")
 		return
 	}
 
@@ -60,8 +56,7 @@ func GoogleLogin(ctx *context.Context, resp http.ResponseWriter, req *http.Reque
 	/* Sign state */
 	b64state, err := state.SignedString([]byte(config.GoogleAPISecret))
 	if err != nil {
-		log.Warningf("Unable to sign state : %s", err)
-		context.Fail(ctx, req, resp, "Unable to sign state", http.StatusInternalServerError)
+		ctx.InternalServerError(fmt.Errorf("unable to sign state : %s", err))
 		return
 	}
 
@@ -69,37 +64,37 @@ func GoogleLogin(ctx *context.Context, resp http.ResponseWriter, req *http.Reque
 	// for the scopes specified above.
 	url := conf.AuthCodeURL(b64state)
 
-	resp.Write([]byte(url))
+	_, _ = resp.Write([]byte(url))
 }
 
 // GoogleCallback authenticate google user.
 func GoogleCallback(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
-	log := ctx.GetLogger()
 	config := ctx.GetConfig()
 
 	if !config.Authentication {
-		log.Warning("Authentication is disabled")
-		context.Fail(ctx, req, resp, "Authentication is disabled", http.StatusBadRequest)
+		ctx.Forbidden("authentication is disabled")
+		return
+	}
+
+	if !config.GoogleAuthentication {
+		ctx.Forbidden("Google authentication is disabled")
 		return
 	}
 
 	if config.GoogleAPIClientID == "" || config.GoogleAPISecret == "" {
-		log.Warning("Missing google api credentials")
-		context.Fail(ctx, req, resp, "Missing google API credentials", http.StatusInternalServerError)
+		ctx.InternalServerError(fmt.Errorf("missing Google API credentials"))
 		return
 	}
 
 	code := req.URL.Query().Get("code")
 	if code == "" {
-		log.Warning("Missing oauth2 authorization code")
-		context.Fail(ctx, req, resp, "Missing oauth2 authorization code", http.StatusBadRequest)
+		ctx.MissingParameter("oauth2 authorization code")
 		return
 	}
 
 	b64state := req.URL.Query().Get("state")
 	if b64state == "" {
-		log.Warning("Missing oauth2 state")
-		context.Fail(ctx, req, resp, "Missing oauth2 state", http.StatusBadRequest)
+		ctx.MissingParameter("oauth2 authorization state")
 		return
 	}
 
@@ -126,20 +121,17 @@ func GoogleCallback(ctx *context.Context, resp http.ResponseWriter, req *http.Re
 		return []byte(config.GoogleAPISecret), nil
 	})
 	if err != nil {
-		log.Warningf("Invalid oauth2 state : %s", err)
-		context.Fail(ctx, req, resp, "Invalid oauth2 state", http.StatusBadRequest)
+		ctx.InvalidParameter(fmt.Sprintf("oauth2 state : %s", err))
 		return
 	}
 
 	if _, ok := state.Claims.(jwt.MapClaims)["origin"]; !ok {
-		log.Warning("Invalid oauth2 state : missing origin")
-		context.Fail(ctx, req, resp, "Invalid oauth2 state", http.StatusBadRequest)
+		ctx.InvalidParameter("oauth2 state : missing origin")
 		return
 	}
 
 	if _, ok := state.Claims.(jwt.MapClaims)["origin"].(string); !ok {
-		log.Warning("Invalid oauth2 state : invalid origin")
-		context.Fail(ctx, req, resp, "Invalid oauth2 state", http.StatusBadRequest)
+		ctx.InvalidParameter("oauth2 state : invalid origin")
 		return
 	}
 
@@ -156,32 +148,31 @@ func GoogleCallback(ctx *context.Context, resp http.ResponseWriter, req *http.Re
 		Endpoint: google.Endpoint,
 	}
 
-	if customEndpoint, ok := ctx.Get(googeleEndpointContextKey); ok {
+	// For testing purpose
+	if customEndpoint := req.Context().Value(googeleEndpointContextKey); customEndpoint != nil {
 		conf.Endpoint = customEndpoint.(oauth2.Endpoint)
 	}
 
 	token, err := conf.Exchange(oauth2.NoContext, code)
 	if err != nil {
-		log.Warningf("Unable to create google API token : %s", err)
-		context.Fail(ctx, req, resp, "Unable to get user info from google API", http.StatusInternalServerError)
+		ctx.InternalServerError(fmt.Errorf("unable to get user info from Google API : %s", err))
 		return
 	}
 
 	client, err := api_oauth2.New(conf.Client(oauth2.NoContext, token))
 	if err != nil {
-		log.Warningf("Unable to create google API client : %s", err)
-		context.Fail(ctx, req, resp, "Unable to get user info from google API", http.StatusInternalServerError)
+		ctx.InternalServerError(fmt.Errorf("unable to get user info from Google API : %s", err))
 		return
 	}
 
-	if customEndpoint, ok := ctx.Get(googeleEndpointContextKey); ok {
+	// For testing purpose
+	if customEndpoint := req.Context().Value(googeleEndpointContextKey); customEndpoint != nil {
 		client.BasePath = customEndpoint.(oauth2.Endpoint).AuthURL
 	}
 
 	userInfo, err := client.Userinfo.Get().Do()
 	if err != nil {
-		log.Warningf("Unable to get userinfo from google API : %s", err)
-		context.Fail(ctx, req, resp, "Unable to get user info from google API", http.StatusInternalServerError)
+		ctx.InternalServerError(fmt.Errorf("unable to get user info from Google API : %s", err))
 		return
 	}
 	userID := "google:" + userInfo.Id
@@ -189,8 +180,7 @@ func GoogleCallback(ctx *context.Context, resp http.ResponseWriter, req *http.Re
 	// Get user from metadata backend
 	user, err := ctx.GetMetadataBackend().GetUser(userID)
 	if err != nil {
-		log.Warningf("Unable to get user : %s", err)
-		context.Fail(ctx, req, resp, "Unable to get user", http.StatusInternalServerError)
+		ctx.InternalServerError(fmt.Errorf("unable to get user from metadata backend : %s", err))
 		return
 	}
 
@@ -218,21 +208,18 @@ func GoogleCallback(ctx *context.Context, resp http.ResponseWriter, req *http.Re
 
 			if !goodDomain {
 				// User not from accepted google domains list
-				log.Warningf("Unacceptable user domain : %s", components[1])
-				context.Fail(ctx, req, resp, fmt.Sprintf("Authentication error : Unauthorized domain %s", components[1]), http.StatusForbidden)
+				ctx.Forbidden("unauthorized domain name")
 				return
 			}
 
 			// Save user to metadata backend
 			err = ctx.GetMetadataBackend().CreateUser(user)
 			if err != nil {
-				log.Warningf("Unable to save user to metadata backend : %s", err)
-				context.Fail(ctx, req, resp, "Authentication error", http.StatusForbidden)
+				ctx.InternalServerError(fmt.Errorf("unable to create user in metadata backend : %s", err))
 				return
 			}
 		} else {
-			log.Warning("Unable to create user from untrusted source IP address")
-			context.Fail(ctx, req, resp, "Unable to create user from untrusted source IP address", http.StatusForbidden)
+			ctx.Forbidden("unable to create user from untrusted source IP address")
 			return
 		}
 	}
@@ -240,8 +227,7 @@ func GoogleCallback(ctx *context.Context, resp http.ResponseWriter, req *http.Re
 	// Set Plik session cookie and xsrf cookie
 	sessionCookie, xsrfCookie, err := common.GenAuthCookies(user, ctx.GetConfig())
 	if err != nil {
-		log.Warningf("Unable to generate session cookies : %s", err)
-		context.Fail(ctx, req, resp, "Authentication error", http.StatusForbidden)
+		ctx.InternalServerError(fmt.Errorf("unable to generate session cookies : %s", err))
 	}
 	http.SetCookie(resp, sessionCookie)
 	http.SetCookie(resp, xsrfCookie)

@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"net/http"
 
-
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
 	"github.com/root-gg/utils"
@@ -21,12 +20,10 @@ func CreateUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Requ
 	user := ctx.GetUser()
 	if user == nil {
 		if config.NoAnonymousUploads {
-			log.Warning("Unable to create upload from anonymous user")
-			context.Fail(ctx, req, resp, "Unable to create upload from anonymous user. Please login or use a cli token.", http.StatusForbidden)
+			ctx.Forbidden("unable to create upload from anonymous user")
 			return
 		} else if !ctx.IsWhitelisted() {
-			log.Warning("Unable to create upload from untrusted source IP address")
-			context.Fail(ctx, req, resp, "Unable to create upload from untrusted source IP address. Please login or use a cli token.", http.StatusForbidden)
+			ctx.Forbidden("unable to create upload from untrusted source IP address")
 			return
 		}
 	}
@@ -38,8 +35,7 @@ func CreateUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Requ
 	req.Body = http.MaxBytesReader(resp, req.Body, 1048576)
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
-		log.Warningf("Unable to read request body : %s", err)
-		context.Fail(ctx, req, resp, "Unable to read request body", http.StatusInternalServerError)
+		ctx.BadRequest(fmt.Sprintf("unable to read request body : %s", err))
 		return
 	}
 
@@ -47,25 +43,15 @@ func CreateUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Requ
 	if len(body) > 0 {
 		err = json.Unmarshal(body, upload)
 		if err != nil {
-			log.Warningf("Unable to deserialize request body : %s", err)
-			context.Fail(ctx, req, resp, "Unable to deserialize json request body", http.StatusBadRequest)
+			ctx.BadRequest(fmt.Sprintf("unable to deserialize request body : %s", err))
 			return
 		}
 	}
 
 	// Limit number of files per upload
 	if len(upload.Files) > config.MaxFilePerUpload {
-		err := log.EWarningf("Unable to create upload : Maximum number file per upload reached (%d)", config.MaxFilePerUpload)
-		context.Fail(ctx, req, resp, err.Error(), http.StatusForbidden)
+		ctx.Forbidden(fmt.Sprintf("unable to create upload : Maximum number file per upload reached (%d)", config.MaxFilePerUpload))
 		return
-	}
-
-	// Check files name length
-	for _, file := range upload.Files {
-		if len(file.Name) > 1024 {
-			context.Fail(ctx, req, resp, "File name is too long. Maximum length is 1024 characters", http.StatusBadRequest)
-			return
-		}
 	}
 
 	// Set upload id, creation date, upload token, ...
@@ -89,21 +75,18 @@ func CreateUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Requ
 	}
 
 	if upload.OneShot && !config.OneShot {
-		log.Warning("One shot downloads are not enabled.")
-		context.Fail(ctx, req, resp, "One shot downloads are not enabled.", http.StatusForbidden)
+		ctx.Forbidden("one shot downloads are not enabled")
 		return
 	}
 
 	if upload.Removable && !config.Removable {
-		log.Warning("Removable uploads are not enabled.")
-		context.Fail(ctx, req, resp, "Removable uploads are not enabled.", http.StatusForbidden)
+		ctx.Forbidden("removable uploads are not enabled")
 		return
 	}
 
 	if upload.Stream {
 		if !config.StreamMode {
-			log.Warning("Stream mode is not enabled")
-			context.Fail(ctx, req, resp, "Stream mode is not enabled", http.StatusForbidden)
+			ctx.Forbidden("stream mode is not enabled")
 			return
 		}
 		upload.OneShot = true
@@ -117,19 +100,16 @@ func CreateUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Requ
 		upload.TTL = config.DefaultTTL
 	case -1:
 		if config.MaxTTL != -1 {
-			log.Warningf("Cannot set infinite ttl (maximum allowed is : %d)", config.MaxTTL)
-			context.Fail(ctx, req, resp, fmt.Sprintf("Cannot set infinite ttl (maximum allowed is : %d)", config.MaxTTL), http.StatusBadRequest)
+			ctx.BadRequest(fmt.Sprintf("cannot set infinite ttl (maximum allowed is : %d)", config.MaxTTL))
 			return
 		}
 	default:
 		if upload.TTL <= 0 {
-			log.Warningf("Invalid value for ttl : %d", upload.TTL)
-			context.Fail(ctx, req, resp, fmt.Sprintf("Invalid value for ttl : %d", upload.TTL), http.StatusBadRequest)
+			ctx.InvalidParameter("ttl")
 			return
 		}
 		if config.MaxTTL > 0 && upload.TTL > config.MaxTTL {
-			log.Warningf("Cannot set ttl to %d (maximum allowed is : %d)", upload.TTL, config.MaxTTL)
-			context.Fail(ctx, req, resp, fmt.Sprintf("Cannot set ttl to %d (maximum allowed is : %d)", upload.TTL, config.MaxTTL), http.StatusBadRequest)
+			ctx.InvalidParameter(fmt.Sprintf("ttl. (maximum allowed is : %d)", config.MaxTTL))
 			return
 		}
 	}
@@ -139,8 +119,7 @@ func CreateUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Requ
 	// So clients can just copy this header into the next request
 	if upload.Password != "" {
 		if !config.ProtectedByPassword {
-			log.Warning("Password protection is not enabled")
-			context.Fail(ctx, req, resp, "Password protection is not enabled", http.StatusForbidden)
+			ctx.Forbidden("password protection is not enabled")
 			return
 		}
 
@@ -154,8 +133,7 @@ func CreateUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Requ
 		b64str := base64.StdEncoding.EncodeToString([]byte(upload.Login + ":" + upload.Password))
 		upload.Password, err = utils.Md5sum(b64str)
 		if err != nil {
-			log.Warningf("Unable to generate password hash : %s", err)
-			context.Fail(ctx, req, resp, common.NewResult("Unable to generate password hash", nil).ToJSONString(), http.StatusInternalServerError)
+			ctx.Forbidden(fmt.Sprintf("unable to generate password hash : %s", err))
 			return
 		}
 		resp.Header().Add("Authorization", "Basic "+b64str)
@@ -169,21 +147,18 @@ func CreateUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Requ
 		upload.ProtectedByYubikey = true
 
 		if !config.YubikeyEnabled {
-			log.Warningf("Got a Yubikey upload but Yubikey backend is disabled")
-			context.Fail(ctx, req, resp, "Yubikey are disabled on this server", http.StatusForbidden)
+			ctx.Forbidden("yubikey are disabled on this server")
 			return
 		}
 
 		_, ok, err := config.GetYubiAuth().Verify(upload.Yubikey)
 		if err != nil {
-			log.Warningf("Unable to validate yubikey token : %s", err)
-			context.Fail(ctx, req, resp, "Unable to validate yubikey token", http.StatusInternalServerError)
+			ctx.InternalServerError(fmt.Errorf("unable to validate yubikey token : %s", err))
 			return
 		}
 
 		if !ok {
-			log.Warningf("Invalid yubikey token")
-			context.Fail(ctx, req, resp, "Invalid yubikey token", http.StatusBadRequest)
+			ctx.InvalidParameter("yubikey token")
 			return
 		}
 
@@ -195,8 +170,7 @@ func CreateUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Requ
 
 		// Check file name length
 		if len(file.Name) > 1024 {
-			log.Warning("File name is too long")
-			context.Fail(ctx, req, resp, "File name is too long. Maximum length is 1024 characters", http.StatusBadRequest)
+			ctx.Forbidden("at least one file name is too long, maximum length is 1024 characters")
 			return
 		}
 
@@ -209,8 +183,7 @@ func CreateUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Requ
 	// Save the metadata
 	err = ctx.GetMetadataBackend().CreateUpload(upload)
 	if err != nil {
-		log.Warningf("Create new upload error : %s", err)
-		context.Fail(ctx, req, resp, "Unable to create new upload", http.StatusInternalServerError)
+		ctx.InternalServerError(fmt.Errorf("create upload error : %s", err))
 		return
 	}
 
@@ -225,12 +198,10 @@ func CreateUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Requ
 	upload.Admin = true
 
 	// Print upload metadata in the json response.
-	var json []byte
-	if json, err = utils.ToJson(upload); err != nil {
-		log.Warningf("Unable to serialize json response : %s", err)
-		context.Fail(ctx, req, resp, "Unable to serialize json response", http.StatusInternalServerError)
-		return
+	var bytes []byte
+	if bytes, err = utils.ToJson(upload); err != nil {
+		ctx.InternalServerError(fmt.Errorf("unable to serialize json response : %s", err))
 	}
 
-	resp.Write(json)
+	_, _ = resp.Write(bytes)
 }

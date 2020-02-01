@@ -6,10 +6,9 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"net/http/httptest"
+
 	"strconv"
 	"testing"
-
 
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
@@ -48,9 +47,9 @@ func TestGetFile(t *testing.T) {
 	req, err := http.NewRequest("GET", "/file/"+upload.ID+"/"+file.ID+"/"+file.Name, bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	GetFile(ctx, rr, req)
-	require.Equal(t, http.StatusOK, rr.Code, "handler returned wrong status code")
+	context.TestOK(t, rr)
 
 	require.Equal(t, file.Type, rr.Header().Get("Content-Type"), "invalid response content type")
 	require.Equal(t, strconv.Itoa(int(file.CurrentSize)), rr.Header().Get("Content-Length"), "invalid response content length")
@@ -82,10 +81,10 @@ func TestGetOneShotFile(t *testing.T) {
 	req, err := http.NewRequest("GET", "/file/"+upload.ID+"/"+file.ID+"/"+file.Name, bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	GetFile(ctx, rr, req)
 
-	require.Equal(t, http.StatusOK, rr.Code, "handler returned wrong status code")
+	context.TestOK(t, rr)
 
 	respBody, err := ioutil.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
@@ -114,7 +113,7 @@ func TestGetRemovedFile(t *testing.T) {
 	req, err := http.NewRequest("GET", "/file/"+upload.ID+"/"+file.ID+"/"+file.Name, bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	GetFile(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusNotFound, "status is not uploaded")
@@ -138,7 +137,7 @@ func TestGetDeletedFile(t *testing.T) {
 	req, err := http.NewRequest("GET", "/file/"+upload.ID+"/"+file.ID+"/"+file.Name, bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	GetFile(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusNotFound, "status is not uploaded")
@@ -155,7 +154,7 @@ func TestGetFileInvalidDownloadDomain(t *testing.T) {
 	req, err := http.NewRequest("GET", "/file/", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	GetFile(ctx, rr, req)
 	require.Equal(t, 301, rr.Code, "handler returned wrong status code")
 }
@@ -167,7 +166,7 @@ func TestGetFileMissingUpload(t *testing.T) {
 	req, err := http.NewRequest("GET", "/file/", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	GetFile(ctx, rr, req)
 	context.TestFail(t, rr, http.StatusInternalServerError, "Internal error")
 }
@@ -180,7 +179,7 @@ func TestGetFileMissingFile(t *testing.T) {
 	req, err := http.NewRequest("GET", "/file/", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	GetFile(ctx, rr, req)
 	context.TestFail(t, rr, http.StatusInternalServerError, "Internal error")
 }
@@ -204,9 +203,9 @@ func TestGetHtmlFile(t *testing.T) {
 	req, err := http.NewRequest("GET", "/file/", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	GetFile(ctx, rr, req)
-	require.Equal(t, http.StatusOK, rr.Code, "handler returned wrong status code")
+	context.TestOK(t, rr)
 
 	require.Equal(t, "text/plain", rr.Header().Get("Content-Type"), "invalid content type")
 }
@@ -229,9 +228,9 @@ func TestGetFileNoType(t *testing.T) {
 	req, err := http.NewRequest("GET", "/file/", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	GetFile(ctx, rr, req)
-	require.Equal(t, http.StatusOK, rr.Code, "handler returned wrong status code")
+	context.TestOK(t, rr)
 
 	require.Equal(t, "application/octet-stream", rr.Header().Get("Content-Type"), "invalid content type")
 }
@@ -256,7 +255,7 @@ func TestGetFileDataBackendError(t *testing.T) {
 	req, err := http.NewRequest("GET", "/file/", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	GetFile(ctx, rr, req)
 	context.TestFail(t, rr, http.StatusNotFound, "Failed to read file file")
 }
@@ -281,7 +280,7 @@ func TestGetFileMetadataBackendError(t *testing.T) {
 	req, err := http.NewRequest("GET", "/file/", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	GetFile(ctx, rr, req)
 	require.Equal(t, http.StatusInternalServerError, rr.Code, "handler returned wrong status code")
 }

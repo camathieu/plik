@@ -16,32 +16,16 @@ import (
 // GetArchive download all file of the upload in a zip archive
 func GetArchive(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
 	log := ctx.GetLogger()
-	config := ctx.GetConfig()
 
-	// If a download domain is specified verify that the request comes from this specific domain
-	if config.GetDownloadDomain() != nil {
-		if req.Host != config.GetDownloadDomain().Host {
-			downloadURL := fmt.Sprintf("%s://%s%s",
-				config.GetDownloadDomain().Scheme,
-				config.GetDownloadDomain().Host,
-				req.RequestURI)
-			log.Warningf("Invalid download domain %s, expected %s", req.Host, config.GetDownloadDomain().Host)
-			http.Redirect(resp, req, downloadURL, http.StatusMovedPermanently)
-			return
-		}
+	if !checkDownloadDomain(ctx) {
+		return
 	}
 
 	// Get upload from context
 	upload := ctx.GetUpload()
-	if upload == nil {
-		// This should never append
-		log.Critical("Missing upload in getFileHandler")
-		context.Fail(ctx, req, resp, "Internal error", http.StatusInternalServerError)
-		return
-	}
 
 	if upload.Stream {
-		context.Fail(ctx, req, resp, "Archive feature is not available in stream mode", 404)
+		ctx.Forbidden("archive feature is not available in stream mode")
 		return
 	}
 
@@ -65,15 +49,11 @@ func GetArchive(ctx *context.Context, resp http.ResponseWriter, req *http.Reques
 	vars := mux.Vars(req)
 	fileName := vars["filename"]
 	if fileName == "" {
-		log.Warning("Missing file name")
-		context.Fail(ctx, req, resp, "Missing file name", 400)
-		return
+		ctx.MissingParameter("file name")
 	}
 
 	if !strings.HasSuffix(fileName, ".zip") {
-		log.Warningf("Invalid file name %s. Missing .zip extension", fileName)
-		context.Fail(ctx, req, resp, fmt.Sprintf("Invalid file name %s. Missing .zip extension", fileName), 400)
-		return
+		ctx.InvalidParameter("file name, missing .zip extension")
 	}
 
 	// If "dl" GET params is set
@@ -96,7 +76,7 @@ func GetArchive(ctx *context.Context, resp http.ResponseWriter, req *http.Reques
 			// If this is a one shot upload we have to ensure it's downloaded only once now
 			tx := func(u *common.Upload) error {
 				if u == nil {
-					return fmt.Errorf("missing upload from transaction")
+					return common.NewHTTPError("upload does not exist anymore", http.StatusNotFound)
 				}
 
 				for _, f := range u.Files {
@@ -113,8 +93,7 @@ func GetArchive(ctx *context.Context, resp http.ResponseWriter, req *http.Reques
 
 			upload, err := ctx.GetMetadataBackend().UpdateUpload(upload, tx)
 			if err != nil {
-				log.Warningf("Unable to update upload metadata : %s", err)
-				context.Fail(ctx, req, resp, "Unable to update upload metadata", http.StatusInternalServerError)
+				handleTxError(ctx, "unable to update upload metadata", err)
 				return
 			}
 
@@ -140,7 +119,7 @@ func GetArchive(ctx *context.Context, resp http.ResponseWriter, req *http.Reques
 		}
 
 		if len(files) == 0 {
-			context.Fail(ctx, req, resp, "Nothing to archive", 404)
+			ctx.BadRequest("nothing to archive")
 			return
 		}
 
@@ -152,33 +131,31 @@ func GetArchive(ctx *context.Context, resp http.ResponseWriter, req *http.Reques
 		for _, file := range files {
 			fileReader, err := backend.GetFile(upload, file.ID)
 			if err != nil {
-				log.Warningf("Failed to get file %s in upload %s : %s", file.Name, upload.ID, err)
-				context.Fail(ctx, req, resp, fmt.Sprintf("Failed to read file %s", file.Name), 404)
+				ctx.InternalServerError(fmt.Errorf("error retreiving file from data backend : %s", err))
 				return
 			}
 
 			fileWriter, err := archive.Create(file.Name)
 			if err != nil {
-				log.Warningf("Failed to add file %s to the archive : %s", file.Name, err)
-				context.Fail(ctx, req, resp, fmt.Sprintf("Failed to add file %s to the archive", file.Name), 500)
+				ctx.InternalServerError(fmt.Errorf("error while creating zip archive : %s", err))
 				return
 			}
 
 			// File is piped directly to zip archive thus to the http response body without buffering
 			_, err = io.Copy(fileWriter, fileReader)
 			if err != nil {
-				log.Warningf("Error while copying file to response : %s", err)
+				log.Warningf("error while copying zip archive to response body : %s", err)
 			}
 
 			err = fileReader.Close()
 			if err != nil {
-				log.Warningf("Error while closing file reader : %s", err)
+				log.Warningf("error while closing zip archive reader : %s", err)
 			}
 		}
 
 		err := archive.Close()
 		if err != nil {
-			log.Warningf("Failed to close zip archive : %s", err)
+			log.Warningf("error while closing zip archive : %s", err)
 			return
 		}
 	}

@@ -16,6 +16,7 @@ func newPlikServer() (ps *PlikServer) {
 	ps = NewPlikServer(common.NewConfiguration())
 	ps.config.ListenAddress = "127.0.0.1"
 	ps.config.ListenPort = common.APIMockServerDefaultPort
+	ps.config.NoWebInterface = true
 	ps.config.AutoClean(false)
 	ps.WithMetadataBackend(metadata_test.NewBackend())
 	ps.WithDataBackend(data_test.NewBackend())

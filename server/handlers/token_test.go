@@ -6,7 +6,7 @@ import (
 	"errors"
 	"io/ioutil"
 	"net/http"
-	"net/http/httptest"
+
 	"testing"
 
 	"github.com/gorilla/mux"
@@ -35,11 +35,11 @@ func TestCreateToken(t *testing.T) {
 	req, err := http.NewRequest("POST", "/me/token", bytes.NewBuffer(reqBody))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	CreateToken(ctx, rr, req)
 
 	// Check the status code is what we expect.
-	require.Equal(t, http.StatusOK, rr.Code, "handler returned wrong status code")
+	context.TestOK(t, rr)
 
 	respBody, err := ioutil.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
@@ -74,11 +74,11 @@ func TestCreateTokenWithForbiddenOptions(t *testing.T) {
 	req, err := http.NewRequest("POST", "/me/token", bytes.NewBuffer(reqBody))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	CreateToken(ctx, rr, req)
 
 	// Check the status code is what we expect.
-	require.Equal(t, http.StatusOK, rr.Code, "handler returned wrong status code")
+	context.TestOK(t, rr)
 
 	respBody, err := ioutil.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
@@ -99,7 +99,7 @@ func TestCreateTokenMissingUser(t *testing.T) {
 	req, err := http.NewRequest("GET", "/me/token", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	CreateToken(ctx, rr, req)
 	context.TestFail(t, rr, http.StatusUnauthorized, "Please login first")
 }
@@ -126,7 +126,7 @@ func TestCreateTokenMetadataBackendError(t *testing.T) {
 
 	ctx.GetMetadataBackend().(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	CreateToken(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusInternalServerError, "Unable to update user metadata")
@@ -156,11 +156,11 @@ func TestRemoveToken(t *testing.T) {
 	}
 	req = mux.SetURLVars(req, vars)
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	RevokeToken(ctx, rr, req)
 
 	// Check the status code is what we expect.
-	require.Equal(t, http.StatusOK, rr.Code, "handler returned wrong status code")
+	context.TestOK(t, rr)
 
 	respBody, err := ioutil.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
@@ -195,7 +195,7 @@ func TestRemoveMissingToken(t *testing.T) {
 	}
 	req = mux.SetURLVars(req, vars)
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	RevokeToken(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusNotFound, "unable to get token")
@@ -208,7 +208,7 @@ func TestRevokeTokenMissingUser(t *testing.T) {
 	req, err := http.NewRequest("DELETE", "/me/token", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	RevokeToken(ctx, rr, req)
 	context.TestFail(t, rr, http.StatusUnauthorized, "Please login first")
 }
@@ -240,7 +240,7 @@ func TestRevokeTokenMetadataBackendError(t *testing.T) {
 
 	ctx.GetMetadataBackend().(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	RevokeToken(ctx, rr, req)
 	context.TestFail(t, rr, http.StatusInternalServerError, "Unable to update upload metadata")
 }

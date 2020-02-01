@@ -133,7 +133,13 @@ func (b *Backend) UpdateUpload(upload *common.Upload, uploadTx common.UploadTx) 
 
 		b := bucket.Get([]byte(upload.ID))
 		if b == nil || len(b) == 0 {
-			return fmt.Errorf("Unable to get upload metadata from Bolt bucket")
+			// Upload not found ( maybe it has been removed in the mean time )
+			// Let the upload tx set the (HTTP) error and forward it
+			err = uploadTx(nil)
+			if err != nil {
+				return err
+			}
+			return fmt.Errorf("Upload tx without an upload shoud have returned an error")
 		}
 
 		// Deserialize metadata from json

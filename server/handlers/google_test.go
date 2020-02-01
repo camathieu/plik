@@ -2,10 +2,11 @@ package handlers
 
 import (
 	"bytes"
+	gocontext "context"
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
-	"net/http/httptest"
+
 	"net/url"
 	"strconv"
 	"testing"
@@ -38,10 +39,10 @@ func TestGoogleLogin(t *testing.T) {
 	origin := "https://plik.root.gg"
 	req.Header.Set("referer", origin)
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	GoogleLogin(ctx, rr, req)
 
-	require.Equal(t, http.StatusOK, rr.Code, "handler returned wrong status code")
+	context.TestOK(t, rr)
 
 	respBody, err := ioutil.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
@@ -86,7 +87,7 @@ func TestGoogleLoginAuthDisabled(t *testing.T) {
 	req, err := http.NewRequest("GET", "/auth/google/login", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	GoogleLogin(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusBadRequest, "Authentication is disabled")
@@ -103,7 +104,7 @@ func TestGoogleLoginGoogleAuthDisabled(t *testing.T) {
 
 	req.Header.Set("referer", "http://plik.root.gg")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	GoogleLogin(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusInternalServerError, "Missing google API credentials")
@@ -118,7 +119,7 @@ func TestGoogleLoginMissingReferer(t *testing.T) {
 	req, err := http.NewRequest("GET", "/auth/google/login", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	GoogleLogin(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusBadRequest, "Missing referer header")
@@ -136,8 +137,6 @@ func TestGoogleCallback(t *testing.T) {
 	state := jwt.New(jwt.SigningMethodHS256)
 	state.Claims.(jwt.MapClaims)["origin"] = "origin"
 	state.Claims.(jwt.MapClaims)["expire"] = time.Now().Add(time.Minute * 5).Unix()
-
-	ctx.Set(googeleEndpointContextKey, oauth2TestEndpoint)
 
 	oauthToken := struct {
 		AccessToken  string `json:"access_token"`
@@ -194,7 +193,9 @@ func TestGoogleCallback(t *testing.T) {
 	req, err := http.NewRequest("GET", "/auth/google/login?code=code&state="+url.QueryEscape(b64state), bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	req.WithContext(gocontext.WithValue(gocontext.TODO(), googeleEndpointContextKey, oauth2TestEndpoint))
+
+	rr := ctx.NewRecorder(req)
 	GoogleCallback(ctx, rr, req)
 
 	// Check the status code is what we expect.
@@ -231,7 +232,7 @@ func TestGoogleCallbackAuthDisabled(t *testing.T) {
 
 	req.Header.Set("referer", "http://plik.root.gg")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	GoogleCallback(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusBadRequest, "Authentication is disabled")
@@ -247,7 +248,7 @@ func TestGoogleCallbackMissingGoogleAuthParams(t *testing.T) {
 
 	req.Header.Set("referer", "http://plik.root.gg")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	GoogleCallback(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusInternalServerError, "Missing google API credentials")
@@ -264,7 +265,7 @@ func TestGoogleCallbackMissingCode(t *testing.T) {
 	req, err := http.NewRequest("GET", "/auth/google/login", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	GoogleCallback(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusBadRequest, "Missing oauth2 authorization code")
@@ -281,7 +282,7 @@ func TestGoogleCallbackMissingState(t *testing.T) {
 	req, err := http.NewRequest("GET", "/auth/google/login?code=code", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	GoogleCallback(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusBadRequest, "Missing oauth2 state")
@@ -298,7 +299,7 @@ func TestGoogleCallbackInvalidState(t *testing.T) {
 	req, err := http.NewRequest("GET", "/auth/google/login?code=code&state=state", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	GoogleCallback(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusBadRequest, "Invalid oauth2 state")
@@ -323,7 +324,7 @@ func TestGoogleCallbackExpiredState(t *testing.T) {
 	req, err := http.NewRequest("GET", "/auth/google/login?code=code&state="+url.QueryEscape(b64state), bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	GoogleCallback(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusBadRequest, "Invalid oauth2 state")
@@ -348,7 +349,7 @@ func TestGoogleCallbackInvalidStateExpirationDate(t *testing.T) {
 	req, err := http.NewRequest("GET", "/auth/google/login?code=code&state="+url.QueryEscape(b64state), bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	GoogleCallback(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusBadRequest, "Invalid oauth2 state")
@@ -372,7 +373,7 @@ func TestGoogleCallbackMissingStateExpirationDate(t *testing.T) {
 	req, err := http.NewRequest("GET", "/auth/google/login?code=code&state="+url.QueryEscape(b64state), bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	GoogleCallback(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusBadRequest, "Invalid oauth2 state")
@@ -397,7 +398,7 @@ func TestGoogleCallbackMissingOrigin(t *testing.T) {
 	req, err := http.NewRequest("GET", "/auth/google/login?code=code&state="+url.QueryEscape(b64state), bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	GoogleCallback(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusBadRequest, "Invalid oauth2 state")
@@ -423,7 +424,7 @@ func TestGoogleCallbackInvalidOrigin(t *testing.T) {
 	req, err := http.NewRequest("GET", "/auth/google/login?code=code&state="+url.QueryEscape(b64state), bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	GoogleCallback(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusBadRequest, "Invalid oauth2 state")
@@ -442,8 +443,6 @@ func TestGoogleCallbackNoApi(t *testing.T) {
 	state.Claims.(jwt.MapClaims)["origin"] = "origin"
 	state.Claims.(jwt.MapClaims)["expire"] = time.Now().Add(time.Minute * 5).Unix()
 
-	ctx.Set(googeleEndpointContextKey, oauth2TestEndpoint)
-
 	/* Sign state */
 	b64state, err := state.SignedString([]byte(ctx.GetConfig().GoogleAPISecret))
 	require.NoError(t, err, "unable to sign state")
@@ -451,7 +450,9 @@ func TestGoogleCallbackNoApi(t *testing.T) {
 	req, err := http.NewRequest("GET", "/auth/google/login?code=code&state="+url.QueryEscape(b64state), bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	req.WithContext(gocontext.WithValue(gocontext.TODO(), googeleEndpointContextKey, oauth2TestEndpoint))
+
+	rr := ctx.NewRecorder(req)
 	GoogleCallback(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusInternalServerError, "Unable to get user info from google API")
@@ -469,8 +470,6 @@ func TestGoogleCallbackCreateUser(t *testing.T) {
 	state := jwt.New(jwt.SigningMethodHS256)
 	state.Claims.(jwt.MapClaims)["origin"] = "origin"
 	state.Claims.(jwt.MapClaims)["expire"] = time.Now().Add(time.Minute * 5).Unix()
-
-	ctx.Set(googeleEndpointContextKey, oauth2TestEndpoint)
 
 	oauthToken := struct {
 		AccessToken  string `json:"access_token"`
@@ -519,7 +518,9 @@ func TestGoogleCallbackCreateUser(t *testing.T) {
 	req, err := http.NewRequest("GET", "/auth/google/login?code=code&state="+url.QueryEscape(b64state), bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	req.WithContext(gocontext.WithValue(gocontext.TODO(), googeleEndpointContextKey, oauth2TestEndpoint))
+
+	rr := ctx.NewRecorder(req)
 	GoogleCallback(ctx, rr, req)
 
 	// Check the status code is what we expect.
@@ -552,7 +553,7 @@ func TestGoogleCallbackCreateUser(t *testing.T) {
 }
 func TestGoogleCallbackCreateUserNotWhitelisted(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	context.SetWhitelisted(ctx, false)
+	ctx.SetWhitelisted(false)
 
 	ctx.GetConfig().Authentication = true
 	ctx.GetConfig().GoogleAuthentication = true
@@ -563,8 +564,6 @@ func TestGoogleCallbackCreateUserNotWhitelisted(t *testing.T) {
 	state := jwt.New(jwt.SigningMethodHS256)
 	state.Claims.(jwt.MapClaims)["origin"] = "origin"
 	state.Claims.(jwt.MapClaims)["expire"] = time.Now().Add(time.Minute * 5).Unix()
-
-	ctx.Set(googeleEndpointContextKey, oauth2TestEndpoint)
 
 	oauthToken := struct {
 		AccessToken  string `json:"access_token"`
@@ -613,7 +612,9 @@ func TestGoogleCallbackCreateUserNotWhitelisted(t *testing.T) {
 	req, err := http.NewRequest("GET", "/auth/google/login?code=code&state="+url.QueryEscape(b64state), bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	req.WithContext(gocontext.WithValue(gocontext.TODO(), googeleEndpointContextKey, oauth2TestEndpoint))
+
+	rr := ctx.NewRecorder(req)
 	GoogleCallback(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusForbidden, "Unable to create user from untrusted source IP address")

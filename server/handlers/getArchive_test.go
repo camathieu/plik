@@ -6,7 +6,7 @@ import (
 	"errors"
 	"io/ioutil"
 	"net/http"
-	"net/http/httptest"
+
 	"testing"
 
 	"github.com/gorilla/mux"
@@ -46,10 +46,10 @@ func TestGetArchive(t *testing.T) {
 	}
 	req = mux.SetURLVars(req, vars)
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	GetArchive(ctx, rr, req)
 
-	require.Equal(t, http.StatusOK, rr.Code, "handler returned wrong status code")
+	context.TestOK(t, rr)
 
 	require.Equal(t, "application/zip", rr.Header().Get("Content-Type"), "invalid response content type")
 	require.Equal(t, "", rr.Header().Get("Content-Length"), "invalid response content length")
@@ -86,7 +86,7 @@ func TestGetArchiveNoFile(t *testing.T) {
 	}
 	req = mux.SetURLVars(req, vars)
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	GetArchive(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusNotFound, "Nothing to archive")
@@ -103,7 +103,7 @@ func TestGetArchiveInvalidDownloadDomain(t *testing.T) {
 	req, err := http.NewRequest("GET", "/archive/", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	GetArchive(ctx, rr, req)
 	require.Equal(t, 301, rr.Code, "handler returned wrong status code")
 }
@@ -115,7 +115,7 @@ func TestGetArchiveMissingUpload(t *testing.T) {
 	req, err := http.NewRequest("GET", "/archive/", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	GetArchive(ctx, rr, req)
 	context.TestFail(t, rr, http.StatusInternalServerError, "Internal error")
 }
@@ -145,10 +145,10 @@ func TestGetArchiveOneShot(t *testing.T) {
 	}
 	req = mux.SetURLVars(req, vars)
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	GetArchive(ctx, rr, req)
 
-	require.Equal(t, http.StatusOK, rr.Code, "handler returned wrong status code")
+	context.TestOK(t, rr)
 
 	require.Equal(t, "application/zip", rr.Header().Get("Content-Type"), "invalid response content type")
 	require.Equal(t, "", rr.Header().Get("Content-Length"), "invalid response content length")
@@ -195,7 +195,7 @@ func TestGetArchiveNoArchiveName(t *testing.T) {
 	req, err := http.NewRequest("GET", "/archive/"+upload.ID+"/"+"archive.zip", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	GetArchive(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusBadRequest, "Missing file name")
@@ -225,7 +225,7 @@ func TestGetArchiveInvalidArchiveName(t *testing.T) {
 	}
 	req = mux.SetURLVars(req, vars)
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	GetArchive(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusBadRequest, "Missing .zip extension")
@@ -257,7 +257,7 @@ func TestGetArchiveDataBackendError(t *testing.T) {
 
 	ctx.GetDataBackend().(*data_test.Backend).SetError(errors.New("data backend error"))
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	GetArchive(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusNotFound, "Failed to read file")
@@ -290,7 +290,7 @@ func TestGetArchiveMetadataBackendError(t *testing.T) {
 
 	ctx.GetMetadataBackend().(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	GetArchive(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusInternalServerError, "Unable to update upload metadata")

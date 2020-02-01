@@ -1,9 +1,9 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
-
 
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
@@ -14,22 +14,14 @@ import (
 func GetUsers(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
 	log := ctx.GetLogger()
 
-	// Get user from context
-	user := ctx.GetUser()
-	if user == nil {
-		context.Fail(ctx, req, resp, "Missing user, Please login first", http.StatusUnauthorized)
-		return
-	}
-
 	if !ctx.IsAdmin() {
-		context.Fail(ctx, req, resp, "You need administrator privileges", http.StatusForbidden)
+		ctx.Forbidden("you need administrator privileges")
 		return
 	}
 
 	ids, err := ctx.GetMetadataBackend().GetUsers()
 	if err != nil {
-		log.Warningf("Unable to get users : %s", err)
-		context.Fail(ctx, req, resp, "Unable to get users", http.StatusInternalServerError)
+		ctx.InternalServerError(fmt.Errorf("error retreiving user IDs : %s", err))
 		return
 	}
 
@@ -39,8 +31,7 @@ func GetUsers(ctx *context.Context, resp http.ResponseWriter, req *http.Request)
 	if sizeStr != "" {
 		size, err = strconv.Atoi(sizeStr)
 		if err != nil || size <= 0 || size > 1000 {
-			log.Warningf("Invalid size parameter : %s", sizeStr)
-			context.Fail(ctx, req, resp, "Invalid size parameter", http.StatusBadRequest)
+			ctx.InvalidParameter("size")
 			return
 		}
 	}
@@ -51,8 +42,7 @@ func GetUsers(ctx *context.Context, resp http.ResponseWriter, req *http.Request)
 	if offsetStr != "" {
 		offset, err = strconv.Atoi(offsetStr)
 		if err != nil || offset < 0 {
-			log.Warningf("Invalid offset parameter : %s", offsetStr)
-			context.Fail(ctx, req, resp, "Invalid offset parameter", http.StatusBadRequest)
+			ctx.InvalidParameter("offset")
 			return
 		}
 	}
@@ -84,45 +74,33 @@ func GetUsers(ctx *context.Context, resp http.ResponseWriter, req *http.Request)
 	// Print users in the json response.
 	var json []byte
 	if json, err = utils.ToJson(users); err != nil {
-		log.Warningf("Unable to serialize json response : %s", err)
-		context.Fail(ctx, req, resp, "Unable to serialize json response", http.StatusInternalServerError)
+		ctx.InternalServerError(fmt.Errorf("unable to serialize json response : %s", err))
 		return
 	}
 
-	resp.Write(json)
+	_, _ = resp.Write(json)
 }
 
 // GetServerStatistics return the server statistics
 func GetServerStatistics(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
-	log := ctx.GetLogger()
-
-	// Get user from context
-	user := ctx.GetUser()
-	if user == nil {
-		context.Fail(ctx, req, resp, "Missing user, Please login first", http.StatusUnauthorized)
-		return
-	}
-
 	if !ctx.IsAdmin() {
-		context.Fail(ctx, req, resp, "You need administrator privileges", http.StatusForbidden)
+		ctx.Forbidden("you need administrator privileges")
 		return
 	}
 
 	// Get server statistics
 	stats, err := ctx.GetMetadataBackend().GetServerStatistics()
 	if err != nil {
-		log.Warningf("Unable to get server statistics : %s", err)
-		context.Fail(ctx, req, resp, "Unable to get server statistics", http.StatusInternalServerError)
+		ctx.InternalServerError(fmt.Errorf("unable to get server statistics : %s", err))
 		return
 	}
 
 	// Print stats in the json response.
 	var json []byte
 	if json, err = utils.ToJson(stats); err != nil {
-		log.Warningf("Unable to serialize json response : %s", err)
-		context.Fail(ctx, req, resp, "Unable to serialize json response", http.StatusInternalServerError)
+		ctx.InternalServerError(fmt.Errorf("unable to serialize json response : %s", err))
 		return
 	}
 
-	resp.Write(json)
+	_, _ = resp.Write(json)
 }

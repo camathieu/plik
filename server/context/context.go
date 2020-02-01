@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"sync"
 
-	gocontext "context"
+	//gocontext "context"
 	"github.com/root-gg/logger"
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/data"

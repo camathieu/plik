@@ -5,7 +5,7 @@ import (
 	"errors"
 	"io/ioutil"
 	"net/http"
-	"net/http/httptest"
+
 	"testing"
 
 	"github.com/root-gg/plik/server/common"
@@ -38,9 +38,9 @@ func TestRemoveUpload(t *testing.T) {
 	req, err := http.NewRequest("DELETE", "/file/"+upload.ID+"/"+file1.ID+"/"+file1.Name, bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	RemoveUpload(ctx, rr, req)
-	require.Equal(t, http.StatusOK, rr.Code, "handler returned wrong status code")
+	context.TestOK(t, rr)
 
 	respBody, err := ioutil.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
@@ -72,12 +72,12 @@ func TestRemoveUploadNotAdmin(t *testing.T) {
 	createTestUpload(ctx, upload)
 
 	ctx.SetUpload(upload)
-	context.SetFile(ctx, file1)
+	ctx.SetFile(file1)
 
 	req, err := http.NewRequest("DELETE", "/file/"+upload.ID+"/"+file1.ID+"/"+file1.Name, bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	RemoveUpload(ctx, rr, req)
 	context.TestFail(t, rr, http.StatusForbidden, "You are not allowed to remove this upload")
 }
@@ -88,7 +88,7 @@ func TestRemoveUploadNoUpload(t *testing.T) {
 	req, err := http.NewRequest("DELETE", "/upload/uploadID", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	RemoveUpload(ctx, rr, req)
 	context.TestFail(t, rr, http.StatusInternalServerError, "Internal error")
 }
@@ -109,7 +109,7 @@ func TestRemoveUploadMetadataBackendError(t *testing.T) {
 
 	ctx.GetMetadataBackend().(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	RemoveUpload(ctx, rr, req)
 	context.TestFail(t, rr, http.StatusInternalServerError, "Unable to update upload metadata")
 }
@@ -129,7 +129,7 @@ func TestRemoveUploadDataBackendError(t *testing.T) {
 
 	ctx.GetDataBackend().(*data_test.Backend).SetError(errors.New("data backend error"))
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	RemoveUpload(ctx, rr, req)
-	require.Equal(t, http.StatusOK, rr.Code, "handler returned wrong status code")
+	context.TestOK(t, rr)
 }

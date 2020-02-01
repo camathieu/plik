@@ -36,7 +36,7 @@ type ovhUserResponse struct {
 func decodeOVHResponse(resp *http.Response) ([]byte, error) {
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to read response body : %s", err)
+		return nil, fmt.Errorf("unable to read response body : %s", err)
 	}
 
 	if resp.StatusCode > 399 {
@@ -47,7 +47,7 @@ func decodeOVHResponse(resp *http.Response) ([]byte, error) {
 			if err == nil {
 				return nil, fmt.Errorf("%s : %s", resp.Status, ovhErr.Message)
 			}
-			return nil, fmt.Errorf("%s : %s : %s", resp.Status, "Unable to unserialize ovh error", string(body))
+			return nil, fmt.Errorf("%s : %s : %s", resp.Status, "unable to unserialize ovh error", string(body))
 		}
 		return nil, fmt.Errorf("%s", resp.Status)
 	}
@@ -57,25 +57,21 @@ func decodeOVHResponse(resp *http.Response) ([]byte, error) {
 
 // OvhLogin return ovh api user consent URL.
 func OvhLogin(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
-	log := ctx.GetLogger()
 	config := ctx.GetConfig()
 
 	if !config.Authentication {
-		log.Warning("Authentication is disabled")
-		context.Fail(ctx, req, resp, "Authentication is disabled", http.StatusBadRequest)
+		ctx.Forbidden("authentication is disabled")
 		return
 	}
 
 	if !config.OvhAuthentication {
-		log.Warning("Missing ovh api credentials")
-		context.Fail(ctx, req, resp, "Missing OVH API credentials", http.StatusInternalServerError)
+		ctx.Forbidden("OVH authentication is disabled")
 		return
 	}
 
 	origin := req.Header.Get("referer")
 	if origin == "" {
-		log.Warning("Missing referer header")
-		context.Fail(ctx, req, resp, "Missing referer header", http.StatusBadRequest)
+		ctx.MissingParameter("referer")
 		return
 	}
 
@@ -93,23 +89,20 @@ func OvhLogin(ctx *context.Context, resp http.ResponseWriter, req *http.Request)
 	client := &http.Client{}
 	ovhResp, err := client.Do(ovhReq)
 	if err != nil {
-		log.Warningf("Error with ovh API %s : %s", url, err)
-		context.Fail(ctx, req, resp, "Error with OVH API ", http.StatusInternalServerError)
+		ctx.InternalServerError(fmt.Errorf("error with ovh API %s : %s", url, err))
 		return
 	}
 	defer ovhResp.Body.Close()
 	ovhRespBody, err := decodeOVHResponse(ovhResp)
 	if err != nil {
-		log.Warningf("Error with ovh API %s : %s", url, err)
-		context.Fail(ctx, req, resp, fmt.Sprintf("Error with OVH API : %s", err), http.StatusInternalServerError)
+		ctx.InternalServerError(fmt.Errorf("error with ovh API %s : %s", url, err))
 		return
 	}
 
 	var userConsentResponse ovhUserConsentResponse
 	err = json.Unmarshal(ovhRespBody, &userConsentResponse)
 	if err != nil {
-		log.Warningf("Unable to unserialize OVH API response : %s", err)
-		context.Fail(ctx, req, resp, "Unable to unserialize OVH API response", http.StatusInternalServerError)
+		ctx.InternalServerError(fmt.Errorf("error with ovh API %s : %s", url, err))
 		return
 	}
 
@@ -120,8 +113,7 @@ func OvhLogin(ctx *context.Context, resp http.ResponseWriter, req *http.Request)
 
 	sessionString, err := session.SignedString([]byte(config.OvhAPISecret))
 	if err != nil {
-		log.Warningf("Unable to sign OVH session cookie : %s", err)
-		context.Fail(ctx, req, resp, "Unable to sign OVH session cookie", http.StatusInternalServerError)
+		ctx.InternalServerError(fmt.Errorf("unable to sign OVH session cookie : %s", err))
 		return
 	}
 
@@ -135,7 +127,7 @@ func OvhLogin(ctx *context.Context, resp http.ResponseWriter, req *http.Request)
 	ovhAuthCookie.Path = "/"
 	http.SetCookie(resp, ovhAuthCookie)
 
-	resp.Write([]byte(userConsentResponse.ValidationURL))
+	_, _ = resp.Write([]byte(userConsentResponse.ValidationURL))
 }
 
 // Remove temporary session cookie
@@ -152,29 +144,25 @@ func cleanOvhAuthSessionCookie(resp http.ResponseWriter) {
 
 // OvhCallback authenticate ovh user.
 func OvhCallback(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
-	log := ctx.GetLogger()
 	config := ctx.GetConfig()
 
 	// Remove temporary ovh auth session cookie
 	cleanOvhAuthSessionCookie(resp)
 
 	if !config.Authentication {
-		log.Warning("Authentication is disabled")
-		context.Fail(ctx, req, resp, "Authentication is disabled", http.StatusBadRequest)
+		ctx.Forbidden("authentication is disabled")
 		return
 	}
 
 	if config.OvhAPIKey == "" || config.OvhAPISecret == "" || config.OvhAPIEndpoint == "" {
-		log.Warning("Missing ovh api credentials")
-		context.Fail(ctx, req, resp, "Missing OVH API credentials", http.StatusInternalServerError)
+		ctx.InternalServerError(fmt.Errorf("missing OVH API credentials"))
 		return
 	}
 
 	// Get state from secure cookie
 	ovhSessionCookie, err := req.Cookie("plik-ovh-session")
 	if err != nil || ovhSessionCookie == nil {
-		log.Warning("Missing OVH session cookie")
-		context.Fail(ctx, req, resp, "Missing OVH session cookie", http.StatusBadRequest)
+		ctx.MissingParameter("ovh session cookie")
 		return
 	}
 
@@ -182,30 +170,28 @@ func OvhCallback(ctx *context.Context, resp http.ResponseWriter, req *http.Reque
 	ovhAuthCookie, err := jwt.Parse(ovhSessionCookie.Value, func(t *jwt.Token) (interface{}, error) {
 		// Verify signing algorithm
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("Unexpected siging method : %v", t.Header["alg"])
+			return nil, fmt.Errorf("unexpected siging method : %v", t.Header["alg"])
 		}
 
 		return []byte(config.OvhAPISecret), nil
 	})
 	if err != nil {
-		log.Warningf("Invalid OVH session cookie : %s", err)
-		context.Fail(ctx, req, resp, "Invalid OVH session cookie", http.StatusBadRequest)
+		ctx.InvalidParameter(fmt.Sprintf("ovh session cookie : %s", err))
 		return
 	}
 
 	// Get OVH consumer key from session
 	ovhConsumerKey, ok := ovhAuthCookie.Claims.(jwt.MapClaims)["ovh-consumer-key"]
 	if !ok {
-		log.Warning("Invalid OVH session cookie : missing ovh-consumer-key")
-		context.Fail(ctx, req, resp, "Invalid OVH session cookie : missing ovh-consumer-key", http.StatusBadRequest)
+		ctx.InvalidParameter("ovh session cookie :  missing ovh-consumer-key")
+
 		return
 	}
 
 	// Get OVH API endpoint
 	endpoint, ok := ovhAuthCookie.Claims.(jwt.MapClaims)["ovh-api-endpoint"]
 	if !ok {
-		log.Warning("Invalid OVH session cookie : missing ovh-api-endpoint")
-		context.Fail(ctx, req, resp, "Invalid OVH session cookie : missing ovh-api-endpoint", http.StatusBadRequest)
+		ctx.InvalidParameter("ovh session cookie :  missing ovh-api-endpoint")
 		return
 	}
 
@@ -213,8 +199,7 @@ func OvhCallback(ctx *context.Context, resp http.ResponseWriter, req *http.Reque
 	url := endpoint.(string) + "/me"
 	ovhReq, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		log.Warningf("Unable to create new http GET request to %s : %s", url, err)
-		context.Fail(ctx, req, resp, "Unable to create new http GET request to OVH API", http.StatusInternalServerError)
+		ctx.InternalServerError(fmt.Errorf("error with ovh API %s : %s", url, err))
 		return
 	}
 
@@ -239,15 +224,13 @@ func OvhCallback(ctx *context.Context, resp http.ResponseWriter, req *http.Reque
 	client := &http.Client{}
 	ovhResp, err := client.Do(ovhReq)
 	if err != nil {
-		log.Warningf("Error with ovh API %s : %s", url, err)
-		context.Fail(ctx, req, resp, "Error with ovh API", http.StatusInternalServerError)
+		ctx.InternalServerError(fmt.Errorf("error with ovh API %s : %s", url, err))
 		return
 	}
 	defer ovhResp.Body.Close()
 	ovhRespBody, err := decodeOVHResponse(ovhResp)
 	if err != nil {
-		log.Warningf("Error with ovh API %s : %s", url, err)
-		context.Fail(ctx, req, resp, fmt.Sprintf("Error with OVH API : %s", err), http.StatusInternalServerError)
+		ctx.InternalServerError(fmt.Errorf("error with ovh API %s : %s", url, err))
 		return
 	}
 
@@ -255,8 +238,7 @@ func OvhCallback(ctx *context.Context, resp http.ResponseWriter, req *http.Reque
 	var userInfo ovhUserResponse
 	err = json.Unmarshal(ovhRespBody, &userInfo)
 	if err != nil {
-		log.Warningf("Unable to unserialize OVH API response : %s", err)
-		context.Fail(ctx, req, resp, "Unable to unserialize OVH API response", http.StatusInternalServerError)
+		ctx.InternalServerError(fmt.Errorf("error with ovh API %s : %s", url, err))
 		return
 	}
 
@@ -265,8 +247,7 @@ func OvhCallback(ctx *context.Context, resp http.ResponseWriter, req *http.Reque
 	// Get user from metadata backend
 	user, err := ctx.GetMetadataBackend().GetUser(userID)
 	if err != nil {
-		log.Warningf("Unable to get user from metadata backend : %s", err)
-		context.Fail(ctx, req, resp, "Unable to get user from metadata backend", http.StatusInternalServerError)
+		ctx.InternalServerError(fmt.Errorf("unable to get user from metadata backend : %s", err))
 		return
 	}
 
@@ -282,13 +263,11 @@ func OvhCallback(ctx *context.Context, resp http.ResponseWriter, req *http.Reque
 			// Save user to metadata backend
 			err = ctx.GetMetadataBackend().CreateUser(user)
 			if err != nil {
-				log.Warningf("Unable to save user to metadata backend : %s", err)
-				context.Fail(ctx, req, resp, "Authentication error", http.StatusForbidden)
+				ctx.InternalServerError(fmt.Errorf("unable to create user in metadata backend : %s", err))
 				return
 			}
 		} else {
-			log.Warning("Unable to create user from untrusted source IP address")
-			context.Fail(ctx, req, resp, "Unable to create user from untrusted source IP address", http.StatusForbidden)
+			ctx.Forbidden("unable to create user from untrusted source IP address")
 			return
 		}
 	}
@@ -296,8 +275,7 @@ func OvhCallback(ctx *context.Context, resp http.ResponseWriter, req *http.Reque
 	// Set Plik session cookie and xsrf cookie
 	sessionCookie, xsrfCookie, err := common.GenAuthCookies(user, ctx.GetConfig())
 	if err != nil {
-		log.Warningf("Unable to generate session cookies : %s", err)
-		context.Fail(ctx, req, resp, "Authentication error", http.StatusForbidden)
+		ctx.InternalServerError(fmt.Errorf("unable to generate session cookies : %s", err))
 	}
 	http.SetCookie(resp, sessionCookie)
 	http.SetCookie(resp, xsrfCookie)

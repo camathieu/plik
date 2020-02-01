@@ -8,9 +8,9 @@ import (
 	"github.com/root-gg/plik/server/metadata"
 	"github.com/root-gg/utils"
 
-	"go.mongodb.org/mongo-driver/mongo/readpref"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo/readpref"
 )
 
 /*
@@ -97,7 +97,7 @@ func NewBackend(config *Config) (b *Backend, err error) {
 }
 
 func (b *Backend) newContext() (context.Context, func()) {
-	return context.WithTimeout(context.Background(), time.Duration(b.config.TimeoutInSeconds) * time.Second)
+	return context.WithTimeout(context.Background(), time.Duration(b.config.TimeoutInSeconds)*time.Second)
 }
 
 func runTransactionWithRetry(sctx mongo.SessionContext, txnFn func(mongo.SessionContext) error) error {
@@ -115,7 +115,7 @@ func runTransactionWithRetry(sctx mongo.SessionContext, txnFn func(mongo.Session
 	}
 }
 
-func commitWithRetry (sctx mongo.SessionContext) error {
+func commitWithRetry(sctx mongo.SessionContext) error {
 	for {
 		err := sctx.CommitTransaction(sctx)
 		switch e := err.(type) {

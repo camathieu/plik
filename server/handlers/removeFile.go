@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 
-
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
 )
@@ -15,45 +14,31 @@ func RemoveFile(ctx *context.Context, resp http.ResponseWriter, req *http.Reques
 
 	// Get upload from context
 	upload := ctx.GetUpload()
-	if upload == nil {
-		// This should never append
-		log.Critical("Missing upload in removeFileHandler")
-		context.Fail(ctx, req, resp, "Internal error", http.StatusInternalServerError)
-		return
-	}
 
 	// Check authorization
 	if !upload.Removable && !ctx.IsUploadAdmin() {
-		log.Warningf("Unable to remove file : unauthorized")
-		context.Fail(ctx, req, resp, "You are not allowed to remove file from this upload", http.StatusForbidden)
+		ctx.Forbidden("you are not allowed to remove this upload")
 		return
 	}
 
 	// Get file from context
 	file := ctx.GetFile()
-	if file == nil {
-		// This should never append
-		log.Critical("Missing file in removeFileHandler")
-		context.Fail(ctx, req, resp, "Internal error", http.StatusInternalServerError)
-		return
-	}
 
 	// Check if file is not already removed
-	if file.Status == "removed" {
-		log.Warning("Can't remove an already removed file")
-		context.Fail(ctx, req, resp, fmt.Sprintf("File %s has already been removed", file.Name), http.StatusNotFound)
+	if file.Status != common.FileUploaded {
+		ctx.NotFound(fmt.Sprintf("file %s (%s) is not removable : %s", file.Name, file.ID, file.Status))
 		return
 	}
 
 	remove := true
 	tx := func(u *common.Upload) error {
 		if u == nil {
-			return fmt.Errorf("missing upload from transaction")
+			return common.NewHTTPError("upload does not exist anymore", http.StatusNotFound)
 		}
 
 		f, ok := u.Files[file.ID]
 		if !ok {
-			return common.NewTxError(fmt.Sprintf("File %s (%s) not found", file.Name, file.ID), http.StatusNotFound)
+			return common.NewHTTPError(fmt.Sprintf("file %s (%s) is not available anymore", file.Name, file.ID), http.StatusNotFound)
 		}
 
 		if f.Status == common.FileRemoved || f.Status == common.FileDeleted {
@@ -68,20 +53,14 @@ func RemoveFile(ctx *context.Context, resp http.ResponseWriter, req *http.Reques
 
 	upload, err := ctx.GetMetadataBackend().UpdateUpload(upload, tx)
 	if err != nil {
-		if txError, ok := err.(common.TxError); ok {
-			context.Fail(ctx, req, resp, txError.Error(), txError.GetStatusCode())
-		} else {
-			log.Warningf("Unable to update upload : %s", err)
-			context.Fail(ctx, req, resp, "Unable to remove file", http.StatusInternalServerError)
-		}
+		handleTxError(ctx, "unable to update upload metadata", err)
 		return
 	}
 
 	if remove {
 		err := DeleteRemovedFile(ctx, upload, file)
 		if err != nil {
-			log.Warningf("Unable to delete file %s (%s) : %s", file.Name, file.ID, err)
-			// Do not block here
+			log.Warningf("unable to delete file %s (%s) : %s", file.Name, file.ID, err)
 		}
 	}
 

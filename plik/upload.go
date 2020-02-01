@@ -13,19 +13,19 @@ import (
 // UploadParams store the different options available when uploading file to a Plik server
 // One should add files to the upload before calling Create or Upload
 type UploadParams struct {
-	Stream    bool 	// Don't store the file on the server
-	OneShot   bool 	// Force deletion of the file from the server after the first download
-	Removable bool 	// Allow upload and upload files to be removed from the server at any time
+	Stream    bool // Don't store the file on the server
+	OneShot   bool // Force deletion of the file from the server after the first download
+	Removable bool // Allow upload and upload files to be removed from the server at any time
 
 	TTL      int    // Time in second before automatic deletion of the file from the server
 	Comments string // Arbitrary comment to attach to the upload ( the web interface support markdown language )
 
-	Token string 	// Authentication token to link an upload to a Plik user
+	Token string // Authentication token to link an upload to a Plik user
 
 	Login    string // HttpBasic protection for the upload
 	Password string // Login and Password
 
-	Yubikey string 	// Yubikey OTP
+	Yubikey string // Yubikey OTP
 }
 
 // Upload store the necessary data to upload files to a Plik server

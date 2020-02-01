@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
-	"net/http/httptest"
+
 	"testing"
 
 	"github.com/root-gg/plik/server/common"
@@ -26,10 +26,10 @@ func TestGetUpload(t *testing.T) {
 	req, err := http.NewRequest("GET", "/upload/"+upload.ID, bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	GetUpload(ctx, rr, req)
 
-	require.Equal(t, http.StatusOK, rr.Code, "handler returned wrong status code")
+	context.TestOK(t, rr)
 
 	respBody, err := ioutil.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
@@ -51,7 +51,7 @@ func TestGetUploadMissingUpload(t *testing.T) {
 	req, err := http.NewRequest("GET", "/upload/uploadID", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	GetUpload(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusInternalServerError, "Internal error")

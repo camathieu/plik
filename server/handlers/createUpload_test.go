@@ -6,10 +6,9 @@ import (
 	"errors"
 	"io/ioutil"
 	"net/http"
-	"net/http/httptest"
+
 	"strconv"
 	"testing"
-
 
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
@@ -28,10 +27,10 @@ func TestCreateUploadWithoutOptions(t *testing.T) {
 	req, err := http.NewRequest("POST", "/upload", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	CreateUpload(ctx, rr, req)
 
-	require.Equal(t, http.StatusOK, rr.Code, "handler returned wrong status code")
+	context.TestOK(t, rr)
 
 	respBody, err := ioutil.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
@@ -69,10 +68,10 @@ func TestCreateUploadWithOptions(t *testing.T) {
 	req, err := http.NewRequest("POST", "/upload", bytes.NewBuffer(reqBody))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	CreateUpload(ctx, rr, req)
 
-	require.Equal(t, http.StatusOK, rr.Code, "handler returned wrong status code")
+	context.TestOK(t, rr)
 
 	respBody, err := ioutil.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
@@ -117,10 +116,10 @@ func TestCreateWithForbiddenOptions(t *testing.T) {
 	req, err := http.NewRequest("POST", "/upload", bytes.NewBuffer(reqBody))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	CreateUpload(ctx, rr, req)
 
-	require.Equal(t, http.StatusOK, rr.Code, "handler returned wrong status code")
+	context.TestOK(t, rr)
 
 	respBody, err := ioutil.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
@@ -147,7 +146,7 @@ func TestCreateWithoutAnonymousUpload(t *testing.T) {
 	req, err := http.NewRequest("POST", "/upload", bytes.NewBuffer(reqBody))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	CreateUpload(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusForbidden, "Unable to create upload from anonymous user")
@@ -155,7 +154,7 @@ func TestCreateWithoutAnonymousUpload(t *testing.T) {
 
 func TestCreateNotWhitelisted(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	context.SetWhitelisted(ctx, false)
+	ctx.SetWhitelisted(false)
 
 	uploadToCreate := &common.Upload{}
 	reqBody, err := json.Marshal(uploadToCreate)
@@ -164,7 +163,7 @@ func TestCreateNotWhitelisted(t *testing.T) {
 	req, err := http.NewRequest("POST", "/upload", bytes.NewBuffer(reqBody))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	CreateUpload(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusForbidden, "Unable to create upload from untrusted source IP address")
@@ -176,7 +175,7 @@ func TestCreateInvalidRequestBody(t *testing.T) {
 	req, err := http.NewRequest("POST", "/upload", bytes.NewBuffer([]byte("invalid request body")))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	CreateUpload(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusBadRequest, "Unable to deserialize json request body")
@@ -201,7 +200,7 @@ func TestCreateTooManyFiles(t *testing.T) {
 	req, err := http.NewRequest("POST", "/upload", bytes.NewBuffer(reqBody))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	CreateUpload(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusForbidden, "Maximum number file per upload reached")
@@ -219,7 +218,7 @@ func TestCreateOneShotWhenOneShotIsDisabled(t *testing.T) {
 	req, err := http.NewRequest("POST", "/upload", bytes.NewBuffer(reqBody))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	CreateUpload(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusForbidden, "One shot downloads are not enabled")
@@ -237,7 +236,7 @@ func TestCreateOneShotWhenRemovableIsDisabled(t *testing.T) {
 	req, err := http.NewRequest("POST", "/upload", bytes.NewBuffer(reqBody))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	CreateUpload(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusForbidden, "Removable uploads are not enabled.")
@@ -255,7 +254,7 @@ func TestCreateStreamWhenStreamIsDisabled(t *testing.T) {
 	req, err := http.NewRequest("POST", "/upload", bytes.NewBuffer(reqBody))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	CreateUpload(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusForbidden, "Stream mode is not enabled")
@@ -273,7 +272,7 @@ func TestCreateInvalidTTL(t *testing.T) {
 	req, err := http.NewRequest("POST", "/upload", bytes.NewBuffer(reqBody))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	CreateUpload(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusBadRequest, "Cannot set ttl to 365 (maximum allowed is : 30)")
@@ -290,7 +289,7 @@ func TestCreateInvalidNegativeTTL(t *testing.T) {
 	req, err := http.NewRequest("POST", "/upload", bytes.NewBuffer(reqBody))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	CreateUpload(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusBadRequest, "Invalid value for ttl : -365")
@@ -308,7 +307,7 @@ func TestCreateWithPasswordWhenPasswordIsNotEnabled(t *testing.T) {
 	req, err := http.NewRequest("POST", "/upload", bytes.NewBuffer(reqBody))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	CreateUpload(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusForbidden, "Password protection is not enabled")
@@ -325,11 +324,11 @@ func TestCreateWithPasswordAndDefaultLogin(t *testing.T) {
 	req, err := http.NewRequest("POST", "/upload", bytes.NewBuffer(reqBody))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	CreateUpload(ctx, rr, req)
 
 	// Check the status code is what we expect.
-	require.Equal(t, http.StatusOK, rr.Code, "handler returned wrong status code")
+	context.TestOK(t, rr)
 
 	respBody, err := ioutil.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
@@ -350,7 +349,7 @@ func TestCreateWithYubikeyWhenYubikeyIsNotEnabled(t *testing.T) {
 	req, err := http.NewRequest("POST", "/upload", bytes.NewBuffer(reqBody))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	CreateUpload(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusForbidden, "Yubikey are disabled on this server")
@@ -374,7 +373,7 @@ func TestCreateWithFilenameTooLong(t *testing.T) {
 	req, err := http.NewRequest("POST", "/upload", bytes.NewBuffer(reqBody))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	CreateUpload(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusBadRequest, "File name is too long")
@@ -395,7 +394,7 @@ func TestCreateWithMetadataBackendError(t *testing.T) {
 	req, err := http.NewRequest("POST", "/upload", bytes.NewBuffer(reqBody))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	CreateUpload(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusInternalServerError, "Unable to create new upload")

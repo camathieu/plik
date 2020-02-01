@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"net/http/httptest"
+
 	"net/url"
 	"strconv"
 	"testing"
@@ -50,11 +50,11 @@ func TestOVHLogin(t *testing.T) {
 	defer shutdown()
 	require.NoError(t, err, "unable to start ovh api mock server")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	OvhLogin(ctx, rr, req)
 
 	// Check the status code is what we expect.
-	require.Equal(t, http.StatusOK, rr.Code, "handler returned wrong status code")
+	context.TestOK(t, rr)
 
 	respBody, err := ioutil.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
@@ -115,7 +115,7 @@ func TestOVHLoginInvalidOVHResponse(t *testing.T) {
 	defer shutdown()
 	require.NoError(t, err, "unable to start ovh api mock server")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	OvhLogin(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusInternalServerError, "Error with OVH API : 500 Internal Server Error")
@@ -142,7 +142,7 @@ func TestOVHLoginInvalidOVHResponse2(t *testing.T) {
 	defer shutdown()
 	require.NoError(t, err, "unable to start ovh api mock server")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	OvhLogin(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusInternalServerError, "Unable to unserialize OVH API response")
@@ -159,7 +159,7 @@ func TestOVHLoginAuthDisabled(t *testing.T) {
 
 	req.Header.Set("referer", "http://plik.root.gg")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	OvhLogin(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusBadRequest, "Authentication is disabled")
@@ -176,7 +176,7 @@ func TestOVHLoginOVHAuthDisabled(t *testing.T) {
 
 	req.Header.Set("referer", "http://plik.root.gg")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	OvhLogin(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusInternalServerError, "Missing OVH API credentials")
@@ -191,7 +191,7 @@ func TestOVHLoginMissingReferer(t *testing.T) {
 	req, err := http.NewRequest("GET", "/auth/ovh/login", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	OvhLogin(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusBadRequest, "Missing referer header")
@@ -259,7 +259,7 @@ func TestOVHCallback(t *testing.T) {
 	defer shutdown()
 	require.NoError(t, err, "unable to start ovh api mock server")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	OvhCallback(ctx, rr, req)
 
 	// Check the status code is what we expect.
@@ -341,7 +341,7 @@ func TestOVHCallbackCreateUser(t *testing.T) {
 	defer shutdown()
 	require.NoError(t, err, "unable to start ovh api mock server")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	OvhCallback(ctx, rr, req)
 
 	// Check the status code is what we expect.
@@ -375,7 +375,7 @@ func TestOVHCallbackCreateUser(t *testing.T) {
 
 func TestOVHCallbackCreateUserNotWhitelisted(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	context.SetWhitelisted(ctx, false)
+	ctx.SetWhitelisted(false)
 
 	ctx.GetConfig().Authentication = true
 	ctx.GetConfig().OvhAuthentication = true
@@ -427,7 +427,7 @@ func TestOVHCallbackCreateUserNotWhitelisted(t *testing.T) {
 	defer shutdown()
 	require.NoError(t, err, "unable to start ovh api mock server")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	OvhCallback(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusForbidden, "Unable to create user from untrusted source IP address")
@@ -441,7 +441,7 @@ func TestOVHCallbackAuthDisabled(t *testing.T) {
 	req, err := http.NewRequest("GET", "/auth/ovh/callback", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	OvhCallback(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusBadRequest, "Authentication is disabled")
@@ -455,7 +455,7 @@ func TestOVHCallbackMissingOvhAPIConfigParam(t *testing.T) {
 	req, err := http.NewRequest("GET", "/auth/ovh/callback", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	OvhCallback(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusInternalServerError, "Missing OVH API credentials")
@@ -473,7 +473,7 @@ func TestOVHCallbackMissingOvhSessionCookie(t *testing.T) {
 	req, err := http.NewRequest("GET", "/auth/ovh/callback", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	OvhCallback(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusBadRequest, "Missing OVH session cookie")
@@ -505,7 +505,7 @@ func TestOVHCallbackMissingSessionString(t *testing.T) {
 	ovhAuthCookie.Path = "/"
 	req.AddCookie(ovhAuthCookie)
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	OvhCallback(ctx, rr, req)
 
 	// Check the status code is what we expect.
@@ -538,7 +538,7 @@ func TestOVHCallbackMissingOvhApiEndpoint(t *testing.T) {
 	ovhAuthCookie.Path = "/"
 	req.AddCookie(ovhAuthCookie)
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	OvhCallback(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusBadRequest, "Invalid OVH session cookie : missing ovh-api-endpoint")
@@ -571,7 +571,7 @@ func TestOVHCallbackMissingOvhApi(t *testing.T) {
 	ovhAuthCookie.Path = "/"
 	req.AddCookie(ovhAuthCookie)
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	OvhCallback(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusInternalServerError, "Error with ovh API")
@@ -598,7 +598,7 @@ func TestOVHCallbackInvalidOvhSessionCookie(t *testing.T) {
 	ovhAuthCookie.Path = "/"
 	req.AddCookie(ovhAuthCookie)
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	OvhCallback(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusBadRequest, "Invalid OVH session cookie")
@@ -640,7 +640,7 @@ func TestOVHCallbackInvalidOvhApiResponse(t *testing.T) {
 	defer shutdown()
 	require.NoError(t, err, "unable to start ovh api mock server")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	OvhCallback(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusInternalServerError, "Error with OVH API")
@@ -683,7 +683,7 @@ func TestOVHCallbackInvalidOvhApiResponseJson(t *testing.T) {
 	defer shutdown()
 	require.NoError(t, err, "unable to start ovh api mock server")
 
-	rr := httptest.NewRecorder()
+	rr := ctx.NewRecorder(req)
 	OvhCallback(ctx, rr, req)
 
 	context.TestFail(t, rr, http.StatusInternalServerError, "Error with OVH API")

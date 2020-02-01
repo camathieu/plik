@@ -36,8 +36,16 @@ func (b *Backend) GetUpload(ID string) (upload *common.Upload, err error) {
 	ctx, cancel := b.newContext()
 	defer cancel()
 
+	result := b.uploadCollection.FindOne(ctx, bson.M{"id": ID})
+	if result.Err() != nil {
+		if result.Err() == mongo.ErrNoDocuments {
+			return nil, nil
+		}
+		return nil, result.Err()
+	}
+
 	upload = &common.Upload{}
-	err = b.uploadCollection.FindOne(ctx, bson.M{"id": ID}).Decode(&upload)
+	err = result.Decode(&upload)
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +57,7 @@ func (b *Backend) GetUpload(ID string) (upload *common.Upload, err error) {
 func (b *Backend) UpdateUpload(upload *common.Upload, uploadTx common.UploadTx) (u *common.Upload, err error) {
 	ctx, cancel := b.newContext()
 	defer cancel()
-	
+
 	// Prepare upload update transaction
 	updateUploadTx := func(sctx mongo.SessionContext) error {
 		err := sctx.StartTransaction(options.Transaction().
@@ -60,37 +68,46 @@ func (b *Backend) UpdateUpload(upload *common.Upload, uploadTx common.UploadTx) 
 			return err
 		}
 
+		// Abort transaction
+		defer func() { _ = sctx.AbortTransaction(sctx) }()
+
+		upload = &common.Upload{}
+		result := b.uploadCollection.FindOne(ctx, bson.M{"id": upload.ID})
+		if result.Err() != nil {
+			if result.Err() == mongo.ErrNoDocuments {
+				// Upload not found ( maybe it has been removed in the mean time )
+				// Let the upload tx set the (HTTP) error and forward it
+				err = uploadTx(nil)
+				if err != nil {
+					return err
+				}
+				return fmt.Errorf("Upload tx without an upload shoud have returned an error")
+			}
+			return result.Err()
+		}
+
 		// Get upload
 		u = &common.Upload{}
-		err = b.uploadCollection.FindOne(sctx, bson.M{"id": upload.ID}).Decode(&u)
+		err = result.Decode(&upload)
 		if err != nil {
-			err2 := sctx.AbortTransaction(sctx)
-			if err2 != nil {
-				return fmt.Errorf("%s : %s", err, err2)
-			}
 			return err
 		}
 
 		// Apply transaction ( mutate )
 		err = uploadTx(u)
 		if err != nil {
-			err2 := sctx.AbortTransaction(sctx)
-			if err2 != nil {
-				return fmt.Errorf("%s : %s", err, err2)
-			}
 			return err
 		}
 
 		// Avoid the possibility to override an other upload by changing the upload.ID in the tx
-		_, err = b.uploadCollection.ReplaceOne(sctx, bson.M{"id": upload.ID}, u)
+		replaceResult, err := b.uploadCollection.ReplaceOne(sctx, bson.M{"id": upload.ID}, u)
 		if err != nil {
-			err2 := sctx.AbortTransaction(sctx)
-			if err2 != nil {
-				return fmt.Errorf("%s : %s", err, err2)
-			}
 			return err
 		}
-		
+		if replaceResult.ModifiedCount != 1 {
+			return fmt.Errorf("ReplaceOne should have updated exactly one mongodb document but has updated %d", replaceResult.ModifiedCount)
+		}
+
 		return commitWithRetry(sctx)
 	}
 

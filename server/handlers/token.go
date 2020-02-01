@@ -15,25 +15,24 @@ import (
 
 // CreateToken create a new token
 func CreateToken(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
-	log := ctx.GetLogger()
-
 	// Get user from context
-	user := ctx.GetUser()
-	if user == nil {
-		context.Fail(ctx, req, resp, "Missing user, Please login first", http.StatusUnauthorized)
+	if !ctx.HasUser() {
+		ctx.Unauthorized("missing user, Please login first")
 		return
 	}
+
+	user := ctx.GetUser()
 
 	// Create token
 	token := common.NewToken()
 
 	// Read request body
-	defer req.Body.Close()
+	defer func() { _ = req.Body.Close() }()
+
 	req.Body = http.MaxBytesReader(resp, req.Body, 1048576)
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
-		log.Warningf("Unable to read request body : %s", err)
-		context.Fail(ctx, req, resp, "Unable to read request body", http.StatusForbidden)
+		ctx.BadRequest(fmt.Sprintf("unable to read request body : %s", err))
 		return
 	}
 
@@ -41,17 +40,22 @@ func CreateToken(ctx *context.Context, resp http.ResponseWriter, req *http.Reque
 	if len(body) > 0 {
 		err = json.Unmarshal(body, token)
 		if err != nil {
-			log.Warningf("Unable to deserialize json request body : %s", err)
-			context.Fail(ctx, req, resp, "Unable to deserialize json request body", http.StatusBadRequest)
+			ctx.BadRequest(fmt.Sprintf("unable to deserialize request body : %s", err))
 			return
 		}
 	}
 
 	// Initialize token
-	token.Create()
+	err = token.Create()
+	if err != nil {
+		ctx.InternalServerError(fmt.Errorf("unable to generate token : %s", err))
+	}
 
 	// Add token to user
 	tx := func(u *common.User) error {
+		if u == nil {
+			return common.NewHTTPError("user does not exist anymore", http.StatusNotFound)
+		}
 		u.Tokens = append(u.Tokens, token)
 		return nil
 	}
@@ -59,41 +63,44 @@ func CreateToken(ctx *context.Context, resp http.ResponseWriter, req *http.Reque
 	// Save user
 	user, err = ctx.GetMetadataBackend().UpdateUser(user, tx)
 	if err != nil {
-		log.Warningf("Unable update user metadata : %s", err)
-		context.Fail(ctx, req, resp, "Unable to update user metadata", http.StatusInternalServerError)
+		handleTxError(ctx, "unable to update user metadata", err)
 		return
 	}
 
 	// Print token in the json response.
-	var json []byte
-	if json, err = utils.ToJson(token); err != nil {
-		log.Warningf("Unable to serialize json response : %s", err)
-		context.Fail(ctx, req, resp, "Unable to serialize json response", http.StatusInternalServerError)
+	var bytes []byte
+	if bytes, err = utils.ToJson(token); err != nil {
+		ctx.InternalServerError(fmt.Errorf("unable to serialize json response : %s", err))
 		return
 	}
-	resp.Write(json)
+
+	_, _ = resp.Write(bytes)
 }
 
 // RevokeToken remove a token
 func RevokeToken(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
-	log := ctx.GetLogger()
-
 	// Get user from context
-	user := ctx.GetUser()
-	if user == nil {
-		context.Fail(ctx, req, resp, "Missing user, Please login first", http.StatusUnauthorized)
+	if !ctx.HasUser() {
+		ctx.Unauthorized("missing user, Please login first")
 		return
 	}
+
+	user := ctx.GetUser()
 
 	// Get token to remove from URL params
 	vars := mux.Vars(req)
 	tokenStr, ok := vars["token"]
 	if !ok || tokenStr == "" {
-		context.Fail(ctx, req, resp, "Missing token", http.StatusBadRequest)
+		ctx.MissingParameter("token")
+		return
 	}
 
 	// Remove token from user
 	tx := func(u *common.User) error {
+		if u == nil {
+			return common.NewHTTPError("user does not exist anymore", http.StatusNotFound)
+		}
+
 		// Get token index
 		index := -1
 		for i, t := range u.Tokens {
@@ -103,7 +110,7 @@ func RevokeToken(ctx *context.Context, resp http.ResponseWriter, req *http.Reque
 			}
 		}
 		if index < 0 {
-			return common.NewTxError(fmt.Sprintf("unable to get token %s from user %s", tokenStr, user.ID), http.StatusNotFound)
+			return common.NewHTTPError(fmt.Sprintf("unable to get token %s from user %s", tokenStr, user.ID), http.StatusNotFound)
 		}
 
 		// Delete token
@@ -115,12 +122,7 @@ func RevokeToken(ctx *context.Context, resp http.ResponseWriter, req *http.Reque
 	// Save user
 	user, err := ctx.GetMetadataBackend().UpdateUser(user, tx)
 	if err != nil {
-		if txError, ok := err.(common.TxError); ok {
-			context.Fail(ctx, req, resp, txError.Error(), txError.GetStatusCode())
-		} else {
-			log.Warningf("Unable to update upload metadata : %s", err)
-			context.Fail(ctx, req, resp, "Unable to update upload metadata", http.StatusInternalServerError)
-		}
+		handleTxError(ctx, "unable to update user metadata", err)
 		return
 	}
 
