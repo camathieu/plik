@@ -9,6 +9,7 @@ source ./utils.sh
 check_docker_connectivity
 
 BACKENDS=(
+    bolt
     mongodb
     swift
     weedfs
@@ -16,6 +17,10 @@ BACKENDS=(
 
 if [[ -n "$1" ]]; then
     BACKENDS=( "$1" )
+fi
+
+if [[ -n "$2" ]]; then
+    TEST=$2
 fi
 
 # Cleaning shutdown hook
@@ -44,7 +49,12 @@ do
     PLIKD_CONFIG=$(realpath "$BACKEND/plikd.cfg")
     export PLIKD_CONFIG
 
-    #GORACE="halt_on_error=1" go test -v -count=1 -race ../plik/...
+    if [[ -z "$TEST" ]]; then
+        GORACE="halt_on_error=1" go test -count=1 -v -race ../plik/...
+    else
+        ( cd ../plik && GORACE="halt_on_error=1" go test -count=1 -v -race -run $TEST )
+    fi
+
     #../client/test.sh
     #( cd .. && echo "$PWD" && make docker-make-test )
 

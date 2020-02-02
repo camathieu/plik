@@ -149,10 +149,10 @@ func (b *Backend) UpdateUpload(upload *common.Upload, uploadTx common.UploadTx) 
 			return fmt.Errorf("unable to unserialize metadata from json \"%s\" : %s", string(b), err)
 		}
 
-		// Mutate upload object
+		// Apply transaction ( mutate )
 		err = uploadTx(u)
 		if err != nil {
-			return fmt.Errorf("unable to execute upload tx : %s", err)
+			return err
 		}
 
 		// Serialize metadata to json

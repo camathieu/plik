@@ -160,7 +160,7 @@ func (b *Backend) UpdateUser(user *common.User, userTx common.UserTx) (u *common
 			return fmt.Errorf("unable to unserialize user from json \"%s\" : %s", string(b), err)
 		}
 
-		// Apply UserTx
+		// Apply transaction ( mutate )
 		err = userTx(u)
 		if err != nil {
 			return err

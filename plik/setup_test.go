@@ -102,7 +102,7 @@ func TestMain(m *testing.M) {
 			fmt.Printf("Unable to setup bolt metadata backend : %s\n", err)
 			os.Exit(1)
 		}
-		fmt.Println("running tests with bold metadata backend")
+		fmt.Println("running tests with bolt metadata backend")
 	case "mongo":
 		mongoConfig := mongo.NewConfig(testConfig.MetadataBackendConfig)
 		metadataBackend, err = mongo.NewBackend(mongoConfig)
