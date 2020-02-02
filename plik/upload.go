@@ -33,7 +33,12 @@ type Upload struct {
 	UploadParams
 	client  *Client        // Client that makes the actual HTTP calls
 	files   []*File        // Files to upload
-	details *common.Upload // Upload metadata ( once created )
+
+	lock     sync.Mutex     // The following fields need to be protected
+	metadata *common.Upload // Upload metadata ( once created )
+
+	done     chan struct{}
+	err      error
 }
 
 // newUpload create and initialize a new Upload object
@@ -54,7 +59,7 @@ func newUploadFromParams(client *Client, params *common.Upload) (upload *Upload)
 	upload.Removable = params.Removable
 	upload.TTL = params.TTL
 	upload.Comments = params.Comments
-	upload.details = params
+	upload.metadata = params
 
 	for _, file := range params.Files {
 		upload.add(newFileFromParams(upload, file))
@@ -65,6 +70,9 @@ func newUploadFromParams(client *Client, params *common.Upload) (upload *Upload)
 
 // AddFiles add one or several files to be uploaded
 func (upload *Upload) add(file *File) {
+	upload.lock.Lock()
+	defer upload.lock.Unlock()
+
 	upload.files = append(upload.files, file)
 }
 
@@ -92,9 +100,12 @@ func (upload *Upload) AddFileFromReadCloser(name string, reader io.ReadCloser) (
 	return file
 }
 
-// Details return the upload details returned by the server
-func (upload *Upload) Details() (details *common.Upload) {
-	return upload.details
+// Metadata return the upload metadata returned by the server
+func (upload *Upload) Metadata() (details *common.Upload) {
+	upload.lock.Lock()
+	defer upload.lock.Unlock()
+
+	return upload.metadata
 }
 
 // getParams returns a common.Upload to be passed to internal methods
@@ -109,12 +120,13 @@ func (upload *Upload) getParams() (params *common.Upload) {
 	params.Login = upload.Login
 	params.Password = upload.Password
 
+	metadata := upload.Metadata()
 	if upload.HasBeenCreated() {
-		params.ID = upload.details.ID
-		params.UploadToken = upload.details.UploadToken
+		params.ID = metadata.ID
+		params.UploadToken = metadata.UploadToken
 	}
 
-	for i, file := range upload.files {
+	for i, file := range upload.Files() {
 		fileParams := file.getParams()
 		if fileParams.ID == "" {
 			reference := strconv.Itoa(i)
@@ -129,60 +141,88 @@ func (upload *Upload) getParams() (params *common.Upload) {
 
 // Files Return the upload files
 func (upload *Upload) Files() (files []*File) {
+	upload.lock.Lock()
+	defer upload.lock.Unlock()
+
 	return upload.files
 }
 
 // HasBeenCreated return true if the upload has been created server side ( has an ID )
 func (upload *Upload) HasBeenCreated() bool {
-	return upload.details != nil
+	return upload.Metadata() != nil
 }
 
 // ID returns the upload ID if the upload has been created server side
 func (upload *Upload) ID() string {
-	if upload.details == nil {
+	metadata := upload.Metadata()
+	if metadata == nil {
 		return ""
 	}
-	return upload.details.ID
+	return metadata.ID
 }
 
-// GetURL returns the URL page of the upload
-func (upload *Upload) GetURL() (u *url.URL, err error) {
-	if !upload.HasBeenCreated() {
-		return nil, fmt.Errorf("Upload has not been created yet")
+func (upload *Upload) ready() (done chan struct{}) {
+	upload.lock.Lock()
+	defer upload.lock.Unlock()
+
+	if upload.done != nil {
+		return upload.done
 	}
 
-	fileURL := fmt.Sprintf("%s/?id=%s", upload.client.URL, upload.ID())
+	// Grab the lock by setting this channel
+	upload.done = make(chan struct{})
 
-	// Parse to get a nice escaped url
-	return url.Parse(fileURL)
+	return nil
 }
 
 // Create a new empty upload on a Plik Server
 func (upload *Upload) Create() (err error) {
+
+	done := upload.ready()
+	if done != nil {
+		<- done
+		upload.lock.Lock()
+		defer upload.lock.Unlock()
+		return upload.err
+	}
+
 	uploadParams := upload.getParams()
 
 	// Crate the upload on the Plik server
-	uploadInfo, err := upload.client.create(uploadParams)
-	if err != nil {
-		return err
+	uploadMetadata, err := upload.client.create(uploadParams)
+	if err == nil {
+		// Keep all the uploadMetadata but we are mostly interested in the upload ID
+		upload.lock.Lock()
+		upload.metadata = uploadMetadata
+		err = upload.updateMetadata(uploadMetadata)
+		upload.lock.Unlock()
 	}
 
-	// Keep all the uploadInfo but we are mostly interested in the upload ID
-	upload.details = uploadInfo
+	upload.lock.Lock()
+	upload.err = err
+	upload.lock.Unlock()
 
+	close(upload.done)
+
+	return err
+}
+
+func (upload *Upload) updateMetadata(uploadMetadata *common.Upload) (err error){
 	// Here also we keep all the file info but we are also mostly interested in the file ID
 	// We use the reference system to avoid problems if uploading several files with the same filename
 LOOP:
-	for _, file := range upload.details.Files {
+	for _, file := range uploadMetadata.Files {
 		for i, f := range upload.files {
 			reference := strconv.Itoa(i)
 
 			if file.Reference == reference {
-				f.details = file // Update the file info
+				f.lock.Lock()
+				f.metadata = file // Update the file metadata
+				f.lock.Unlock()
 				continue LOOP
 			}
 		}
-		return fmt.Errorf("No file match for file reference %s", file.Reference)
+		return fmt.Errorf("no file match for file reference %s", file.Reference)
 	}
 
 	return nil
@@ -190,32 +230,22 @@ LOOP:
 
 // Upload uploads all files of the upload in parallel
 func (upload *Upload) Upload() (err error) {
-	if !upload.HasBeenCreated() {
-		err = upload.Create()
-		if err != nil {
-			return err
-		}
+	err = upload.Create()
+	if err != nil {
+		return err
 	}
 
-	ok := true
-	var mu sync.Mutex
-	fail := func() {
-		mu.Lock()
-		defer mu.Unlock()
-		ok = false
-	}
+	files := upload.Files()
+	errors := make(chan error, len(files))
 
 	var wg sync.WaitGroup
-	for _, file := range upload.files {
-		if file.HasBeenUploaded() {
-			continue
-		}
+	for _, file := range files {
 		wg.Add(1)
 		go func(file *File) {
 			defer wg.Done()
 			err := file.Upload()
 			if err != nil {
-				fail()
+				errors <- err
 				return
 			}
 		}(file)
@@ -223,11 +253,25 @@ func (upload *Upload) Upload() (err error) {
 
 	wg.Wait()
 
-	if !ok {
-		return fmt.Errorf("Failed to upload at least one file. Check each file status for more details")
+	close(errors)
+	for err := range errors {
+		fmt.Println(err)
+		return fmt.Errorf("failed to upload at least one file. Check each file status for more details")
 	}
 
 	return nil
+}
+
+// GetURL returns the URL page of the upload
+func (upload *Upload) GetURL() (u *url.URL, err error) {
+	if !upload.HasBeenCreated() {
+		return nil, fmt.Errorf("upload has not been created yet")
+	}
+
+	fileURL := fmt.Sprintf("%s/?id=%s", upload.client.URL, upload.ID())
+
+	// Parse to get a nice escaped url
+	return url.Parse(fileURL)
 }
 
 // DownloadZipArchive downloads all the upload files in a zip archive

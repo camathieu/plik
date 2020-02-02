@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"sync"
 	"testing"
 
 	"github.com/root-gg/plik/server/common"
@@ -39,7 +38,7 @@ func TestDefaultUploadParams(t *testing.T) {
 	err = upload.Create()
 	require.NoError(t, err, "unable to create upload")
 	require.True(t, upload.HasBeenCreated(), "upload has not been created")
-	require.True(t, upload.details.OneShot, "upload is not oneshot")
+	require.True(t, upload.Metadata().OneShot, "upload is not oneshot")
 
 	uploadResult, err := pc.GetUpload(upload.ID())
 	require.NoError(t, err, "unable to get upload")
@@ -62,7 +61,7 @@ func TestUploadParamsOverride(t *testing.T) {
 	err = upload.Create()
 	require.NoError(t, err, "unable to create upload")
 	require.True(t, upload.HasBeenCreated(), "upload has not been created")
-	require.False(t, upload.Details().OneShot, "upload is not oneshot")
+	require.False(t, upload.Metadata().OneShot, "upload is not oneshot")
 
 	uploadResult, err := pc.GetUpload(upload.ID())
 	require.NoError(t, err, "unable to get upload")
@@ -116,14 +115,14 @@ func TestAddFileToExistingUpload2(t *testing.T) {
 	upload, _, err := pc.UploadReader("filename", bytes.NewBufferString("data"))
 	require.NoError(t, err, "unable to create upload")
 
-	uploadToken := upload.details.UploadToken
+	uploadToken := upload.Metadata().UploadToken
 
 	upload, err = pc.GetUpload(upload.ID())
 	require.NoError(t, err, "unable to get upload")
 
 	file2 := upload.AddFileFromReader("filename", bytes.NewBufferString("data"))
 
-	upload.details.UploadToken = uploadToken
+	upload.Metadata().UploadToken = uploadToken
 	err = upload.Upload()
 	require.NoError(t, err, "unable to upload file")
 	require.NoError(t, file2.Error(), "invalid file error")
@@ -144,7 +143,7 @@ func TestUploadReader(t *testing.T) {
 	data := "data data data"
 	upload, file, err := pc.UploadReader("filename", ioutil.NopCloser(bytes.NewBufferString(data)))
 	require.NoError(t, err, "unable to upload file")
-	require.Len(t, upload.Details().Files, 1, "invalid file count")
+	require.Len(t, upload.Metadata().Files, 1, "invalid file count")
 
 	reader, err := pc.downloadFile(upload.getParams(), file.getParams())
 	require.NoError(t, err, "unable to download file")
@@ -163,7 +162,7 @@ func TestUploadReadCloser(t *testing.T) {
 	data := "data data data"
 	upload, file, err := pc.UploadReader("filename", ioutil.NopCloser(bytes.NewBufferString(data)))
 	require.NoError(t, err, "unable to upload file")
-	require.Len(t, upload.Details().Files, 1, "invalid file count")
+	require.Len(t, upload.Metadata().Files, 1, "invalid file count")
 
 	reader, err := pc.downloadFile(upload.getParams(), file.getParams())
 	require.NoError(t, err, "unable to download file")
@@ -208,10 +207,10 @@ func TestUploadFiles(t *testing.T) {
 
 	err = upload.Upload()
 	require.NoError(t, err, "unable to upload file")
-	require.Len(t, upload.Details().Files, 2, "invalid file count")
+	require.Len(t, upload.Metadata().Files, 2, "invalid file count")
 
-	for _, file := range upload.Details().Files {
-		reader, err := pc.downloadFile(upload.Details(), file)
+	for _, file := range upload.Metadata().Files {
+		reader, err := pc.downloadFile(upload.Metadata(), file)
 		require.NoError(t, err, "unable to download file")
 		content, err := ioutil.ReadAll(reader)
 		require.NoError(t, err, "unable to read file")
@@ -240,93 +239,13 @@ func TestUploadMultipleFiles(t *testing.T) {
 		require.True(t, file.HasBeenUploaded(), "file has not been uploaded")
 		require.NoError(t, file.Error(), "unexpected file error")
 
-		reader, err := pc.downloadFile(upload.Details(), file.Details())
+		reader, err := pc.downloadFile(upload.Metadata(), file.Metadata())
 		require.NoError(t, err, "unable to download file")
 		content, err := ioutil.ReadAll(reader)
 		require.NoError(t, err, "unable to read file")
 		require.Equal(t, fmt.Sprintf("data data data %s", file.Name), string(content), "invalid file content")
 	}
 }
-
-func TestMultipleUploadsInParallel(t *testing.T) {
-	ps, pc := newPlikServerAndClient()
-	defer shutdown(ps)
-
-	err := start(ps)
-	require.NoError(t, err, "unable to start plik server")
-
-	var wg sync.WaitGroup
-	for i := 1; i <= 30; i++ {
-		wg.Add(1)
-		go func(i int) {
-			defer wg.Done()
-			upload := pc.NewUpload()
-
-			filename := fmt.Sprintf("file_%d", i)
-			data := fmt.Sprintf("data data data %s", filename)
-			file := upload.AddFileFromReader(filename, bytes.NewBufferString(data))
-
-			err := upload.Upload()
-			require.NoError(t, err, "unable to upload file")
-
-			reader, err := file.Download()
-			require.NoError(t, err, "unable to download file")
-
-			content, err := ioutil.ReadAll(reader)
-			require.NoError(t, err, "unable to read file")
-			require.Equal(t, fmt.Sprintf("data data data %s", file.Name), string(content), "invalid file content")
-
-			err = file.Delete()
-			require.NoError(t, err, "unable to delete file")
-
-			_, err = file.Download()
-			require.Error(t, err, "missing expected error")
-		}(i)
-	}
-
-	wg.Wait()
-}
-
-// TODO This is full of races !!!
-//func TestMultipleFilesInParallel(t *testing.T) {
-//	ps, pc := newPlikServerAndClient()
-//	defer shutdown(ps)
-//
-//	err := start(ps)
-//	require.NoError(t, err, "unable to start plik server")
-//
-//	upload := pc.NewUpload()
-//
-//	var wg sync.WaitGroup
-//	for i := 1; i <= 30; i++ {
-//		wg.Add(1)
-//		go func(i int) {
-//			filename := fmt.Sprintf("file_%d", i)
-//			data := fmt.Sprintf("data data data %s", filename)
-//			file := upload.AddFileFromReader(filename, bytes.NewBufferString(data))
-//
-//			err := upload.Upload()
-//			require.NoError(t, err, "unable to upload file")
-//
-//			reader, err := file.Download()
-//			require.NoError(t, err, "unable to download file")
-//
-//			content, err := ioutil.ReadAll(reader)
-//			require.NoError(t, err, "unable to read file")
-//			require.Equal(t, fmt.Sprintf("data data data %s", file.Name), string(content), "invalid file content")
-//
-//			err = file.Delete()
-//			require.NoError(t, err, "unable to delete file")
-//
-//			_, err = file.Download()
-//			require.Error(t, err, "missing expected error")
-//
-//			wg.Done()
-//		}(i)
-//	}
-//
-//	wg.Wait()
-//}
 
 func TestUploadFileNotFound(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
@@ -341,7 +260,7 @@ func TestUploadFileNotFound(t *testing.T) {
 
 	_, _, err = pc.UploadFile(".")
 	require.Error(t, err, "unable to upload file")
-	require.Contains(t, err.Error(), "Unhandled file mode", "unable to upload file")
+	require.Contains(t, err.Error(), "unhandled file mode", "unable to upload file")
 }
 
 func TestRemoveFile(t *testing.T) {
@@ -354,12 +273,12 @@ func TestRemoveFile(t *testing.T) {
 	data := "data data data"
 	upload, file, err := pc.UploadReader("filename", ioutil.NopCloser(bytes.NewBufferString(data)))
 	require.NoError(t, err, "unable to upload file")
-	require.Len(t, upload.Details().Files, 1, "invalid file count")
+	require.Len(t, upload.Metadata().Files, 1, "invalid file count")
 
 	_, err = pc.downloadFile(upload.getParams(), file.getParams())
 	require.NoError(t, err, "unable to download file")
 
-	err = pc.removeFile(upload.Details(), file.Details())
+	err = pc.removeFile(upload.Metadata(), file.Metadata())
 	require.NoError(t, err, "unable to remove file")
 
 	_, err = pc.downloadFile(upload.getParams(), file.getParams())
@@ -403,7 +322,7 @@ func TestDeleteUpload(t *testing.T) {
 	data := "data data data"
 	upload, file, err := pc.UploadReader("filename", ioutil.NopCloser(bytes.NewBufferString(data)))
 	require.NoError(t, err, "unable to upload file")
-	require.Len(t, upload.Details().Files, 1, "invalid file count")
+	require.Len(t, upload.Metadata().Files, 1, "invalid file count")
 
 	_, err = file.Download()
 	require.NoError(t, err, "unable to download file")
@@ -455,7 +374,7 @@ func TestDownloadArchive(t *testing.T) {
 	data := "data data data"
 	upload, _, err := pc.UploadReader("filename", ioutil.NopCloser(bytes.NewBufferString(data)))
 	require.NoError(t, err, "unable to upload file")
-	require.Len(t, upload.Details().Files, 1, "invalid file count")
+	require.Len(t, upload.Metadata().Files, 1, "invalid file count")
 
 	reader, err := upload.DownloadZipArchive()
 	require.NoError(t, err, "unable to download archive")

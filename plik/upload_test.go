@@ -17,7 +17,7 @@ func TestGetUploadURL(t *testing.T) {
 	upload := pc.NewUpload()
 
 	_, err = upload.GetURL()
-	common.RequireError(t, err, "Upload has not been created yet")
+	common.RequireError(t, err, "upload has not been created yet")
 
 	err = upload.Create()
 	require.NoError(t, err, "unable to create upload")

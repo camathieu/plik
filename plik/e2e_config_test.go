@@ -42,7 +42,7 @@ func TestMaxFileSize(t *testing.T) {
 
 	_, file, err := pc.UploadReader("filename", bytes.NewBufferString("data data data"))
 	require.Error(t, err, "missing error")
-	require.Contains(t, err.Error(), "Failed to upload at least one file", "invalid error message")
+	require.Contains(t, err.Error(), "failed to upload at least one file", "invalid error message")
 	require.Contains(t, file.Error().Error(), "file too big", "invalid error message")
 }
 
@@ -78,7 +78,7 @@ func TestMaxFilePerUploadAdd(t *testing.T) {
 	file := upload.AddFileFromReader("filename", bytes.NewBufferString("data"))
 
 	err = upload.Upload()
-	common.RequireError(t, err, "Failed to upload at least one file")
+	common.RequireError(t, err, "failed to upload at least one file")
 	common.RequireError(t, file.Error(), "maximum number file per upload reached")
 
 }
@@ -127,7 +127,7 @@ func TestDefaultTTL(t *testing.T) {
 	err = upload.Create()
 	require.NoError(t, err, "unable to create upload")
 	require.True(t, upload.HasBeenCreated(), "upload has not been created")
-	require.Equal(t, 26, upload.Details().TTL, "invalid upload ttl")
+	require.Equal(t, 26, upload.Metadata().TTL, "invalid upload ttl")
 }
 
 func TestTTLNoLimit(t *testing.T) {
@@ -144,7 +144,7 @@ func TestTTLNoLimit(t *testing.T) {
 	err = upload.Create()
 	require.NoError(t, err, "unable to create upload")
 	require.True(t, upload.HasBeenCreated(), "upload has not been created")
-	require.Equal(t, -1, upload.Details().TTL, "invalid upload ttl")
+	require.Equal(t, -1, upload.Metadata().TTL, "invalid upload ttl")
 }
 
 func TestTTLNoLimitDisabled(t *testing.T) {
@@ -233,7 +233,7 @@ func TestDownloadDomain(t *testing.T) {
 	upload, file, err := pc.UploadReader("filename", bytes.NewBufferString("data"))
 	require.NoError(t, err, "unable to create upload")
 	require.True(t, upload.HasBeenCreated(), "upload has not been created")
-	require.Equal(t, ps.GetConfig().DownloadDomain, upload.Details().DownloadDomain, "invalid upload ttl")
+	require.Equal(t, ps.GetConfig().DownloadDomain, upload.Metadata().DownloadDomain, "invalid upload ttl")
 
 	_, err = file.Download()
 	require.Error(t, err, "unable to download file")

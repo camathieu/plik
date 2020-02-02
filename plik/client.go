@@ -41,6 +41,7 @@ func NewClient(url string) (c *Client) {
 	transport := &http.Transport{
 		Proxy:           http.ProxyFromEnvironment,
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
+
 	c.HTTPClient = &http.Client{Transport: transport}
 
 	return c

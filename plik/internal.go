@@ -12,13 +12,14 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"strings"
+	"sync"
 
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/utils"
 )
 
 // Create creates a new empty upload on the Plik Server and return the upload metadata
-func (c *Client) create(uploadParams *common.Upload) (uploadInfo *common.Upload, err error) {
+func (c *Client) create(uploadParams *common.Upload) (uploadMetadata *common.Upload, err error) {
 	if uploadParams == nil {
 		return nil, errors.New("missing upload params")
 	}
@@ -48,21 +49,35 @@ func (c *Client) create(uploadParams *common.Upload) (uploadInfo *common.Upload,
 	}
 
 	// Parse json response
-	uploadInfo = &common.Upload{}
-	err = json.Unmarshal(body, uploadInfo)
+	uploadMetadata = &common.Upload{}
+	err = json.Unmarshal(body, uploadMetadata)
 	if err != nil {
 		return nil, err
 	}
 
 	if c.Debug {
-		fmt.Printf("Upload created : %s\n", utils.Sdump(uploadInfo))
+		fmt.Printf("upload created : %s\n", utils.Sdump(uploadMetadata))
 	}
 
-	return uploadInfo, nil
+	return uploadMetadata, nil
 }
+
+var mu sync.Mutex
+var readers []io.Reader
 
 // UploadFile uploads a data stream to the Plik Server and return the file metadata
 func (c *Client) uploadFile(upload *common.Upload, fileParams *common.File, reader io.Reader) (fileInfo *common.File, err error) {
+
+	mu.Lock()
+	//fmt.Printf("---> %s %v\n", fileParams.Name, reader)
+	for _, r := range readers {
+		if reader == r {
+			panic("dafix")
+		}
+	}
+	readers = append(readers, reader)
+	mu.Unlock()
+
 	pipeReader, pipeWriter := io.Pipe()
 	multipartWriter := multipart.NewWriter(pipeWriter)
 
@@ -74,7 +89,7 @@ func (c *Client) uploadFile(upload *common.Upload, fileParams *common.File, read
 	go func(errCh chan error) {
 		writer, err := multipartWriter.CreateFormFile("file", fileParams.Name)
 		if err != nil {
-			err = fmt.Errorf("Unable to create multipartWriter : %s", err)
+			err = fmt.Errorf("unable to create multipartWriter : %s", err)
 			pipeWriter.CloseWithError(err)
 			errCh <- err
 			return
@@ -89,7 +104,7 @@ func (c *Client) uploadFile(upload *common.Upload, fileParams *common.File, read
 
 		err = multipartWriter.Close()
 		if err != nil {
-			err = fmt.Errorf("Unable to close multipartWriter : %s", err)
+			err = fmt.Errorf("unable to close multipartWriter : %s", err)
 			errCh <- err
 			return
 		}
@@ -109,7 +124,7 @@ func (c *Client) uploadFile(upload *common.Upload, fileParams *common.File, read
 	} else {
 		// Old method without file id that can also be used to add files to an existing upload
 		if upload.Stream {
-			return nil, fmt.Errorf("Files must be added to upload before creation for stream mode to work")
+			return nil, fmt.Errorf("files must be added to upload before creation for stream mode to work")
 		}
 		URL, err = url.Parse(c.URL + "/" + mode + "/" + upload.ID)
 	}
@@ -301,7 +316,7 @@ func (c *Client) MakeRequest(req *http.Request) (resp *http.Response, err error)
 		if err == nil {
 			fmt.Println(string(dump))
 		} else {
-			return nil, fmt.Errorf("Unable to dump HTTP request : %s", err)
+			return nil, fmt.Errorf("unable to dump HTTP request : %s", err)
 		}
 	}
 
@@ -325,7 +340,7 @@ func (c *Client) MakeRequest(req *http.Request) (resp *http.Response, err error)
 		if err == nil {
 			fmt.Println(string(dump))
 		} else {
-			return nil, fmt.Errorf("Unable to dump HTTP response : %s", err)
+			return nil, fmt.Errorf("unable to dump HTTP response : %s", err)
 		}
 	}
 

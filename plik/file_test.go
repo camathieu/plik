@@ -45,13 +45,13 @@ func TestNotUploadedGetFileURL(t *testing.T) {
 	file := upload.AddFileFromReader("filename", bytes.NewBufferString("data"))
 
 	_, err := file.GetURL()
-	common.RequireError(t, err, "Upload has not been created yet")
+	common.RequireError(t, err, "upload has not been created yet")
 
-	upload.details = &common.Upload{}
-	upload.details.Create()
+	upload.metadata = &common.Upload{}
+	upload.metadata.Create()
 
 	_, err = file.GetURL()
-	common.RequireError(t, err, "File has not been uploaded yet")
+	common.RequireError(t, err, "file has not been uploaded yet")
 }
 
 func TestFileHasBeenUploaded(t *testing.T) {
@@ -59,12 +59,12 @@ func TestFileHasBeenUploaded(t *testing.T) {
 
 	require.False(t, file.HasBeenUploaded(), "invalid file has uploaded status")
 
-	file.details = &common.File{}
+	file.metadata = &common.File{}
 	require.False(t, file.HasBeenUploaded(), "invalid file has uploaded status")
 
-	file.details.Status = "missing"
+	file.Metadata().Status = common.FileMissing
 	require.False(t, file.HasBeenUploaded(), "invalid file has uploaded status")
 
-	file.details.Status = "uploaded"
+	file.Metadata().Status = common.FileUploaded
 	require.True(t, file.HasBeenUploaded(), "invalid file has uploaded status")
 }

@@ -42,7 +42,7 @@ func TestTokenAuthentication(t *testing.T) {
 	data := "data data data"
 	upload, file, err := pc.UploadReader("filename", ioutil.NopCloser(bytes.NewBufferString(data)))
 	require.NoError(t, err, "unable to upload file")
-	require.Len(t, upload.Details().Files, 1, "invalid file count")
+	require.Len(t, upload.Metadata().Files, 1, "invalid file count")
 
 	reader, err := file.Download()
 	require.NoError(t, err, "unable to download file")
@@ -79,19 +79,19 @@ func TestTokenMultipleToken(t *testing.T) {
 	err = upload.Upload()
 	require.NoError(t, err, "unable to upload")
 
-	upload.Details().UploadToken = ""
+	upload.Metadata().UploadToken = ""
 
 	// try to add file to upload with the good token
 	upload.AddFileFromReader("filename", bytes.NewBufferString("data"))
 	err = upload.Upload()
-	require.NoError(t, err, "Unable to upload file")
+	require.NoError(t, err, "unable to upload file")
 
 	upload.Token = t2.Token
 
 	// try to add file to upload with the wrong token
 	f2 := upload.AddFileFromReader("filename", bytes.NewBufferString("data"))
 	err = upload.Upload()
-	common.RequireError(t, err, "Failed to upload at least one file")
+	common.RequireError(t, err, "failed to upload at least one file")
 	common.RequireError(t, f2.Error(), "you are not allowed to add file to this upload")
 
 	// try to remove file to upload with the wrong token
@@ -106,7 +106,7 @@ func TestTokenMultipleToken(t *testing.T) {
 
 	// try to remove file with the good token
 	err = file.Delete()
-	require.NoError(t, err, "Unable to remove file")
+	require.NoError(t, err, "unable to remove file")
 }
 
 // An admin user authenticated with a token should not have more power than a classical user authenticated with a token
@@ -137,19 +137,19 @@ func TestTokenMultipleTokenAdmin(t *testing.T) {
 	err = upload.Upload()
 	require.NoError(t, err, "unable to upload")
 
-	upload.Details().UploadToken = ""
+	upload.Metadata().UploadToken = ""
 
 	// try to add file to upload with the good token
 	upload.AddFileFromReader("filename", bytes.NewBufferString("data"))
 	err = upload.Upload()
-	require.NoError(t, err, "Unable to upload file")
+	require.NoError(t, err, "unable to upload file")
 
 	upload.Token = t2.Token
 
 	// try to add file to upload with the wrong token
 	f2 := upload.AddFileFromReader("filename", bytes.NewBufferString("data"))
 	err = upload.Upload()
-	common.RequireError(t, err, "Failed to upload at least one file")
+	common.RequireError(t, err, "failed to upload at least one file")
 	common.RequireError(t, f2.Error(), "you are not allowed to add file to this upload")
 
 	// try to remove file to upload with the wrong token

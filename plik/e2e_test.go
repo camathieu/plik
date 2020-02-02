@@ -76,11 +76,11 @@ func TestDownloadDuringUpload(t *testing.T) {
 
 	err = upload.Create()
 	require.NoError(t, err, "unable to create upload")
-	require.True(t, upload.Details().OneShot, "invalid upload non oneshot")
-	require.Len(t, upload.Details().Files, 1, "invalid file count")
+	require.True(t, upload.Metadata().OneShot, "invalid upload non oneshot")
+	require.Len(t, upload.Metadata().Files, 1, "invalid file count")
 
 	// The file has not been uploaded
-	_, err = pc.downloadFile(upload.Details(), file.Details())
+	_, err = pc.downloadFile(upload.Metadata(), file.Metadata())
 	require.Error(t, err, "unable to download file")
 	require.Contains(t, err.Error(), fmt.Sprintf("file %s (%s) is not available : missing", file.Name, file.ID()), "invalid error")
 
@@ -95,7 +95,7 @@ func TestDownloadDuringUpload(t *testing.T) {
 	time.Sleep(time.Second)
 
 	// The file is being uploaded
-	_, err = pc.downloadFile(upload.Details(), file.Details())
+	_, err = pc.downloadFile(upload.Metadata(), file.Metadata())
 	require.Error(t, err, "unable to download file")
 	require.Contains(t, err.Error(), fmt.Sprintf("file %s (%s) is not available : uploading", file.Name, file.ID()), "invalid error")
 
@@ -103,7 +103,7 @@ func TestDownloadDuringUpload(t *testing.T) {
 	wg.Wait()
 
 	// The file has been uploaded
-	reader, err := pc.downloadFile(upload.Details(), file.Details())
+	reader, err := pc.downloadFile(upload.Metadata(), file.Metadata())
 	require.NoError(t, err, "unable to download file")
 	content, err := ioutil.ReadAll(reader)
 	require.NoError(t, err, "unable to read file")
@@ -123,16 +123,16 @@ func TestOneShot(t *testing.T) {
 	upload, file, err := pc.UploadReader("filename", bytes.NewBufferString(data))
 	require.NoError(t, err, "unable to upload file")
 
-	require.True(t, upload.Details().OneShot, "invalid upload non oneshot")
-	require.Len(t, upload.Details().Files, 1, "invalid file count")
+	require.True(t, upload.Metadata().OneShot, "invalid upload non oneshot")
+	require.Len(t, upload.Metadata().Files, 1, "invalid file count")
 
-	reader, err := pc.downloadFile(upload.Details(), file.Details())
+	reader, err := pc.downloadFile(upload.Metadata(), file.Metadata())
 	require.NoError(t, err, "unable to download file")
 	content, err := ioutil.ReadAll(reader)
 	require.NoError(t, err, "unable to read file")
 	require.Equal(t, data, string(content), "invalid file content")
 
-	_, err = pc.downloadFile(upload.Details(), file.Details())
+	_, err = pc.downloadFile(upload.Metadata(), file.Metadata())
 	require.Error(t, err, "unable to download file")
 	require.Contains(t, err.Error(), fmt.Sprintf("file %s (%s) is not available : deleted", file.Name, file.ID()), "invalid error")
 }
@@ -152,24 +152,24 @@ func TestDownloadOneShotBeforeUpload(t *testing.T) {
 
 	err = upload.Create()
 	require.NoError(t, err, "unable to create upload")
-	require.True(t, upload.Details().OneShot, "invalid upload non oneshot")
-	require.Len(t, upload.Details().Files, 1, "invalid file count")
+	require.True(t, upload.Metadata().OneShot, "invalid upload non oneshot")
+	require.Len(t, upload.Metadata().Files, 1, "invalid file count")
 
 	// This should not trigger a file status change and make it impossible to download the file afterwards
-	_, err = pc.downloadFile(upload.Details(), file.Details())
+	_, err = pc.downloadFile(upload.Metadata(), file.Metadata())
 	require.Error(t, err, "unable to download file")
 	require.Contains(t, err.Error(), fmt.Sprintf("file %s (%s) is not available : missing", file.Name, file.ID()), "invalid error")
 
 	err = upload.Upload()
 	require.NoError(t, err, "unable to upload file")
 
-	reader, err := pc.downloadFile(upload.Details(), file.Details())
+	reader, err := pc.downloadFile(upload.Metadata(), file.Metadata())
 	require.NoError(t, err, "unable to download file")
 	content, err := ioutil.ReadAll(reader)
 	require.NoError(t, err, "unable to read file")
 	require.Equal(t, data, string(content), "invalid file content")
 
-	_, err = pc.downloadFile(upload.Details(), file.Details())
+	_, err = pc.downloadFile(upload.Metadata(), file.Metadata())
 	require.Error(t, err, "unable to download file")
 	require.Contains(t, err.Error(), fmt.Sprintf("file %s (%s) is not available : deleted", file.Name, file.ID()), "invalid error")
 }
@@ -186,8 +186,8 @@ func TestRemoveFileWithoutUploadToken(t *testing.T) {
 	require.NoError(t, err, "unable to upload file")
 	require.Len(t, upload.Files(), 1, "invalid file count")
 
-	upload.Details().UploadToken = ""
-	err = pc.removeFile(upload.Details(), file.Details())
+	upload.Metadata().UploadToken = ""
+	err = pc.removeFile(upload.Metadata(), file.Metadata())
 	require.Error(t, err, "unable to remove file")
 	require.Contains(t, err.Error(), "you are not allowed to remove files from this upload", "invalid error")
 }
@@ -206,8 +206,8 @@ func TestRemovable(t *testing.T) {
 	require.NoError(t, err, "unable to upload file")
 	require.Len(t, upload.Files(), 1, "invalid file count")
 
-	upload.Details().UploadToken = ""
-	err = pc.removeFile(upload.Details(), file.Details())
+	upload.Metadata().UploadToken = ""
+	err = pc.removeFile(upload.Metadata(), file.Metadata())
 	require.NoError(t, err, "unable to upload file")
 }
 
@@ -226,15 +226,10 @@ func TestUploadWithoutUploadToken(t *testing.T) {
 	require.True(t, upload.HasBeenCreated(), "invalid nil uploads params")
 	require.NotZero(t, upload.ID(), "invalid upload id")
 
-	uploadToken := upload.Details().UploadToken
-	upload.Details().UploadToken = ""
+	upload.Metadata().UploadToken = ""
 	err = file.Upload()
 	require.Error(t, err, "should not be able to upload file to anonymous upload")
 	require.Contains(t, err.Error(), "you are not allowed to add file to this upload", "invalid error")
-
-	upload.Details().UploadToken = uploadToken
-	err = file.Upload()
-	require.NoError(t, err, "unable to upload file")
 }
 
 func TestStream(t *testing.T) {
@@ -267,7 +262,7 @@ func TestStream(t *testing.T) {
 	f := func() {
 		for {
 			time.Sleep(20 * time.Millisecond)
-			reader, err := pc.downloadFile(upload.Details(), file.Details())
+			reader, err := pc.downloadFile(upload.Metadata(), file.Metadata())
 			if err != nil {
 				continue
 			}
@@ -284,7 +279,7 @@ func TestStream(t *testing.T) {
 
 	time.Sleep(time.Second)
 
-	_, err = pc.downloadFile(upload.Details(), file.Details())
+	_, err = pc.downloadFile(upload.Metadata(), file.Metadata())
 	require.Error(t, err, "unable to download file")
 	require.Contains(t, err.Error(), fmt.Sprintf("file %s (%s) is not available : deleted", file.Name, file.ID()), "invalid error")
 }

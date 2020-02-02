@@ -17,13 +17,15 @@ type File struct {
 	Size int64
 
 	reader io.ReadCloser // Byte stream to upload
-	error  error         // Upload error
-	done   func()        // Upload callback
-
 	upload  *Upload      // Link to upload and client
-	details *common.File // File params returned by the server
+	//done   func()        // Upload callback
 
-	lock sync.Mutex
+	lock     sync.Mutex   // The two following fields need to be protected
+	metadata *common.File // File metadata returned by the server
+
+	done   chan struct{}
+	err    error
+	callback func(file *common.File, err error)
 }
 
 // NewFileFromReader creates a File from a filename and an io.ReadCloser
@@ -46,18 +48,18 @@ func newFileFromPath(upload *Upload, path string) (file *File, err error) {
 	// Test if file exists
 	fileInfo, err := os.Stat(path)
 	if err != nil {
-		return nil, fmt.Errorf("File %s not found", path)
+		return nil, fmt.Errorf("file %s not found", path)
 	}
 
 	// Check mode
 	if !fileInfo.Mode().IsRegular() {
-		return nil, fmt.Errorf("Unhandled file mode %s for file %s", fileInfo.Mode().String(), path)
+		return nil, fmt.Errorf("unhandled file mode %s for file %s", fileInfo.Mode().String(), path)
 	}
 
 	// Open file
 	fh, err := os.Open(path)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to open %s : %s", path, err)
+		return nil, fmt.Errorf("unable to open %s : %s", path, err)
 	}
 
 	filename := filepath.Base(path)
@@ -71,15 +73,18 @@ func newFileFromPath(upload *Upload, path string) (file *File, err error) {
 func newFileFromParams(upload *Upload, params *common.File) *File {
 	file := &File{}
 	file.upload = upload
-	file.details = params
+	file.metadata = params
 	file.Name = params.Name
 	file.Size = params.CurrentSize
 	return file
 }
 
-// Details return the file details returned by the server
-func (file *File) Details() (details *common.File) {
-	return file.details
+// Metadata return the file metadata returned by the server
+func (file *File) Metadata() (details *common.File) {
+	file.lock.Lock()
+	defer file.lock.Unlock()
+
+	return file.metadata
 }
 
 // getParams return a common.File to be passed to internal methods
@@ -92,25 +97,37 @@ func (file *File) getParams() (params *common.File) {
 
 // ID return the file ID if any
 func (file *File) ID() string {
-	if file.details == nil {
+	file.lock.Lock()
+	defer file.lock.Unlock()
+
+	if file.metadata == nil {
 		return ""
 	}
-	return file.details.ID
+	return file.metadata.ID
 }
 
 // ID return the file ID if any
 func (file *File) Error() error {
-	return file.error
+	file.lock.Lock()
+	defer file.lock.Unlock()
+
+	return file.err
 }
 
 // HasBeenUploaded return weather or not an attempt to upload the file ( successful or unsuccessful ) has been made
 func (file *File) HasBeenUploaded() bool {
-	if file.details != nil {
-		if !(file.details.Status == "" || file.details.Status == "missing") {
-			return true
-		}
-	}
-	return false
+	file.lock.Lock()
+	defer file.lock.Unlock()
+
+	return file.metadata != nil && file.metadata.Status == common.FileUploaded
+}
+
+// IsUploading return weather or not the file is currently being uploaded
+func (file *File) IsUploading() bool {
+	file.lock.Lock()
+	defer file.lock.Unlock()
+
+	return file.metadata != nil && file.metadata.Status == common.FileUploading
 }
 
 // GetURL returns the URL to download the file
@@ -118,11 +135,11 @@ func (file *File) GetURL() (URL *url.URL, err error) {
 	upload := file.upload
 
 	if upload.ID() == "" {
-		return nil, fmt.Errorf("Upload has not been created yet")
+		return nil, fmt.Errorf("upload has not been created yet")
 	}
 
 	if file.ID() == "" {
-		return nil, fmt.Errorf("File has not been uploaded yet")
+		return nil, fmt.Errorf("file has not been uploaded yet")
 	}
 
 	mode := "file"
@@ -131,8 +148,8 @@ func (file *File) GetURL() (URL *url.URL, err error) {
 	}
 
 	var domain string
-	if upload.details.DownloadDomain != "" {
-		domain = upload.details.DownloadDomain
+	if upload.Metadata().DownloadDomain != "" {
+		domain = upload.Metadata().DownloadDomain
 	} else {
 		domain = upload.client.URL
 	}
@@ -143,31 +160,67 @@ func (file *File) GetURL() (URL *url.URL, err error) {
 	return url.Parse(fileURL)
 }
 
+func (file *File) ready() (done chan struct{}, err error) {
+	file.lock.Lock()
+	defer file.lock.Unlock()
+
+	if file.done != nil {
+		return file.done, nil
+	}
+
+	if file.metadata == nil {
+		file.metadata = &common.File{Status: common.FileMissing}
+	}
+
+	if file.metadata.Status != common.FileMissing {
+		return nil, fmt.Errorf("file %s is not ready to upload (%s)", file.Name, file.metadata.Status)
+	}
+
+	// Grab the lock by setting this channel
+	file.done = make(chan struct{})
+	file.err = nil
+
+	file.metadata.Status = common.FileUploading
+
+	return nil, nil
+}
+
 // Upload uploads a single file.
 func (file *File) Upload() (err error) {
-	if file.HasBeenUploaded() {
-		return fmt.Errorf("File has already been uploaded")
+	err = file.upload.Create()
+	if err != nil {
+		return err
 	}
 
-	if !file.upload.HasBeenCreated() {
-		err = file.upload.Create()
-		if err != nil {
-			return err
-		}
+	done, err := file.ready()
+	if err != nil {
+		return err
+	}
+	if done != nil {
+		<- done
+		file.lock.Lock()
+		defer file.lock.Unlock()
+		return file.err
 	}
 
-	defer file.reader.Close()
+	defer func() { _ = file.reader.Close() }()
 
 	fileInfo, err := file.upload.client.uploadFile(file.upload.getParams(), file.getParams(), file.reader)
+
+	file.lock.Lock()
 	if err == nil {
-		file.details = fileInfo
+		file.metadata = fileInfo
 	} else {
-		file.error = err
+		file.err = err
 	}
+	file.lock.Unlock()
+
+	// TODO release before or after callback ?
+	close(file.done)
 
 	// Call the done callback before upload.Upload() returns
-	if file.done != nil {
-		file.done()
+	if file.callback != nil {
+		file.callback(fileInfo, err)
 	}
 
 	return err
@@ -179,9 +232,9 @@ func (file *File) WrapReader(wrapper func(reader io.ReadCloser) io.ReadCloser) {
 }
 
 // RegisterDoneCallback a callback to be executed after the file have been uploaded or failed ( check file.Error() )
-func (file *File) RegisterDoneCallback(done func()) {
-	file.done = done
-}
+//func (file *File) RegisterDoneCallback(done func()) {
+//	file.done = done
+//}
 
 // Download downloads all the upload files in a zip archive
 func (file *File) Download() (reader io.ReadCloser, err error) {
