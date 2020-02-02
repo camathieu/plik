@@ -14,7 +14,7 @@ import (
 // CreateUser implementation for Bolt Metadata Backend
 func (b *Backend) CreateUser(user *common.User) (err error) {
 	if user == nil {
-		return errors.New("unable to save user : Missing user")
+		return errors.New("missing user")
 	}
 
 	// Serialize user to json
@@ -51,7 +51,7 @@ func (b *Backend) CreateUser(user *common.User) (err error) {
 // GetUser implementation for Bolt Metadata Backend
 func (b *Backend) GetUser(userID string) (user *common.User, err error) {
 	if userID == "" {
-		return nil, errors.New("unable to get user : Missing user id or token")
+		return nil, errors.New("missing user ID")
 	}
 
 	// Get json user from Bolt database
@@ -72,7 +72,7 @@ func (b *Backend) GetUser(userID string) (user *common.User, err error) {
 		user = common.NewUser()
 		err = json.Unmarshal(b, user)
 		if err != nil {
-			return fmt.Errorf("unable to unserialize user from json \"%s\" : %s", string(b), err)
+			return fmt.Errorf("unable to unserialize user from json : %s", err)
 		}
 
 		return nil
@@ -87,7 +87,7 @@ func (b *Backend) GetUser(userID string) (user *common.User, err error) {
 // GetUserFromToken implementation for Bolt Metadata Backend
 func (b *Backend) GetUserFromToken(token string) (user *common.User, err error) {
 	if token == "" {
-		return nil, errors.New("unable to get user : Missing user id or token")
+		return nil, errors.New("missing token")
 	}
 
 	// Get json user from Bolt database
@@ -115,7 +115,7 @@ func (b *Backend) GetUserFromToken(token string) (user *common.User, err error) 
 		user = common.NewUser()
 		err = json.Unmarshal(b, user)
 		if err != nil {
-			return fmt.Errorf("unable to unserialize user from json \"%s\" : %s", string(b), err)
+			return fmt.Errorf("unable to unserialize user from json : %s", err)
 		}
 
 		return nil
@@ -130,11 +130,10 @@ func (b *Backend) GetUserFromToken(token string) (user *common.User, err error) 
 // UpdateUser implementation for Bolt Metadata Backend
 func (b *Backend) UpdateUser(user *common.User, userTx common.UserTx) (u *common.User, err error) {
 	if user == nil {
-		return nil, errors.New("unable to remove user : Missing user")
+		return nil, errors.New("missing user")
 	}
 
-	// Get json user from Bolt database
-	err = b.db.View(func(tx *bolt.Tx) error {
+	err = b.db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte("users"))
 		if bucket == nil {
 			return fmt.Errorf("unable to get users Bolt bucket")
@@ -144,20 +143,20 @@ func (b *Backend) UpdateUser(user *common.User, userTx common.UserTx) (u *common
 
 		// User not found but no error
 		if b == nil || len(b) == 0 {
-			// Upload not found ( maybe it has been removed in the mean time )
+			// User not found ( maybe it has been removed in the mean time )
 			// Let the upload tx set the (HTTP) error and forward it
 			err = userTx(nil)
 			if err != nil {
 				return err
 			}
-			return fmt.Errorf("upload tx without an upload should return an error")
+			return fmt.Errorf("user tx without an user should return an error")
 		}
 
 		// Deserialize user from json
 		u = common.NewUser()
 		err = json.Unmarshal(b, u)
 		if err != nil {
-			return fmt.Errorf("unable to unserialize user from json \"%s\" : %s", string(b), err)
+			return fmt.Errorf("unable to unserialize metadata from json : %s", err)
 		}
 
 		// Apply transaction ( mutate )
@@ -173,10 +172,10 @@ func (b *Backend) UpdateUser(user *common.User, userTx common.UserTx) (u *common
 		}
 
 		// Save user
-		// Avoid the possibility to override an other upload by changing the upload.ID in the tx
+		// Avoid the possibility to override an other user by changing the user.ID in the tx
 		err = bucket.Put([]byte(user.ID), j)
 		if err != nil {
-			return fmt.Errorf("unable save user : %s", err)
+			return fmt.Errorf("unable save user metadata : %s", err)
 		}
 
 		return nil
@@ -192,7 +191,7 @@ func (b *Backend) UpdateUser(user *common.User, userTx common.UserTx) (u *common
 // RemoveUser implementation for Bolt Metadata Backend
 func (b *Backend) RemoveUser(user *common.User) (err error) {
 	if user == nil {
-		return errors.New("unable to remove user : Missing user")
+		return errors.New("missing user")
 	}
 
 	return b.db.Update(func(tx *bolt.Tx) error {
@@ -221,7 +220,7 @@ func (b *Backend) RemoveUser(user *common.User) (err error) {
 // GetUserUploads implementation for Bolt Metadata Backend
 func (b *Backend) GetUserUploads(user *common.User, token *common.Token) (ids []string, err error) {
 	if user == nil {
-		return nil, errors.New("unable to get user uploads : Missing user")
+		return nil, errors.New("missing user")
 
 	}
 

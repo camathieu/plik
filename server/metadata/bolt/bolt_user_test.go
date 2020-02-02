@@ -2,6 +2,7 @@ package bolt
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/boltdb/bolt"
@@ -139,6 +140,120 @@ func TestBackend_GetUser_ByToken(t *testing.T) {
 	require.NoError(t, err, "unable to get user")
 	require.NotNil(t, u, "invalid nil user")
 	require.Equal(t, user.ID, u.ID, "invalid user")
+}
+
+func TestBackend_UpdateUser_NoUser(t *testing.T) {
+	backend, cleanup := newBackend(t)
+	defer cleanup()
+
+	user, err := backend.UpdateUser(nil, nil)
+	common.RequireError(t, err, "missing user")
+	require.Nil(t, user, "user is not nil")
+}
+
+func TestBackend_UpdateUser(t *testing.T) {
+	backend, cleanup := newBackend(t)
+	defer cleanup()
+
+	user := common.NewUser()
+	user.ID = "plik"
+
+	err := backend.CreateUser(user)
+	require.NoError(t, err, "create user error")
+
+	newId := "plok"
+	tx := func(u *common.User) error {
+		u.ID = newId
+		return nil
+	}
+
+	u, err := backend.UpdateUser(user, tx)
+	require.NoError(t, err, "missing user")
+	require.NotNil(t, u, "user is nil")
+	require.Equal(t, newId, u.ID, "user id mismatch")
+}
+
+func TestBackend_UpdateUser_TxError(t *testing.T) {
+	backend, cleanup := newBackend(t)
+	defer cleanup()
+
+	user := common.NewUser()
+	user.ID = "plik"
+
+	err := backend.CreateUser(user)
+	require.NoError(t, err, "create user error")
+
+	tx := func(u *common.User) error {
+		if u == nil {
+			return fmt.Errorf("no good")
+		}
+		return fmt.Errorf("tx error")
+	}
+
+	u, err := backend.UpdateUser(user, tx)
+	common.RequireError(t, err, "tx error")
+	require.Nil(t, u, "user is not nil")
+}
+
+func TestBackend_UpdateUser_NotFound(t *testing.T) {
+	backend, cleanup := newBackend(t)
+	defer cleanup()
+
+	user := common.NewUser()
+	user.ID = "plik"
+
+	tx := func(u *common.User) error {
+		if u == nil {
+			return fmt.Errorf("user not found")
+		}
+		return fmt.Errorf("no good")
+	}
+
+	u, err := backend.UpdateUser(user, tx)
+	common.RequireError(t, err, "user not found")
+	require.Nil(t, u, "user is not nil")
+
+	tx = func(u *common.User) error {
+		return nil
+	}
+
+	u, err = backend.UpdateUser(user, tx)
+	common.RequireError(t, err, "user tx without an user should return an error")
+	require.Nil(t, u, "user is not nil")
+}
+
+func TestBackend_UpdateUser_InvalidJSON(t *testing.T) {
+	backend, cleanup := newBackend(t)
+	defer cleanup()
+
+	user := common.NewUser()
+	user.ID = "plik"
+
+	err := backend.db.Update(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket([]byte("users"))
+		if bucket == nil {
+			return errors.New("unable to get user bucket")
+		}
+
+		err := bucket.Put([]byte(user.ID), []byte("portnawak"))
+		if err != nil {
+			return errors.New("unable to put value")
+		}
+
+		return nil
+	})
+	require.NoError(t, err)
+
+	tx := func(u *common.User) error {
+		if u == nil {
+			return fmt.Errorf("user not found")
+		}
+		return fmt.Errorf("no good")
+	}
+
+	u, err := backend.UpdateUser(user, tx)
+	common.RequireError(t, err, "unable to unserialize metadata from json")
+	require.Nil(t, u, "user is not nil")
 }
 
 func TestBackend_RemoveUser_NoUser(t *testing.T) {

@@ -106,7 +106,7 @@ func (b *Backend) GetUpload(ID string) (upload *common.Upload, err error) {
 		upload = new(common.Upload)
 		err = json.Unmarshal(b, upload)
 		if err != nil {
-			return fmt.Errorf("unable to unserialize metadata from json \"%s\" : %s", string(b), err)
+			return fmt.Errorf("unable to unserialize metadata from json : %s", err)
 		}
 
 		return nil
@@ -124,7 +124,6 @@ func (b *Backend) UpdateUpload(upload *common.Upload, uploadTx common.UploadTx) 
 		return nil, errors.New("missing upload")
 	}
 
-	// Remove upload from bolt database
 	err = b.db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte("uploads"))
 		if bucket == nil {
@@ -132,6 +131,8 @@ func (b *Backend) UpdateUpload(upload *common.Upload, uploadTx common.UploadTx) 
 		}
 
 		b := bucket.Get([]byte(upload.ID))
+
+		// Upload not found but no error
 		if b == nil || len(b) == 0 {
 			// Upload not found ( maybe it has been removed in the mean time )
 			// Let the upload tx set the (HTTP) error and forward it
@@ -146,7 +147,7 @@ func (b *Backend) UpdateUpload(upload *common.Upload, uploadTx common.UploadTx) 
 		u = new(common.Upload)
 		err = json.Unmarshal(b, u)
 		if err != nil {
-			return fmt.Errorf("unable to unserialize metadata from json \"%s\" : %s", string(b), err)
+			return fmt.Errorf("unable to unserialize metadata from json : %s", err)
 		}
 
 		// Apply transaction ( mutate )
