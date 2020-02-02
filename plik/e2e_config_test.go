@@ -109,7 +109,7 @@ func TestAnonymousUploadDisabled(t *testing.T) {
 
 	err = upload.Create()
 	require.NoError(t, err, "unable to create upload")
-	require.True(t, upload.HasBeenCreated(), "invalid nil uploads params")
+	require.NotNil(t, upload.Metadata(), "upload has not been created")
 	require.NotZero(t, upload.ID(), "invalid upload id")
 }
 
@@ -126,7 +126,7 @@ func TestDefaultTTL(t *testing.T) {
 	upload.TTL = 0
 	err = upload.Create()
 	require.NoError(t, err, "unable to create upload")
-	require.True(t, upload.HasBeenCreated(), "upload has not been created")
+	require.NotNil(t, upload.Metadata(), "upload has not been created")
 	require.Equal(t, 26, upload.Metadata().TTL, "invalid upload ttl")
 }
 
@@ -143,7 +143,7 @@ func TestTTLNoLimit(t *testing.T) {
 	upload.TTL = -1
 	err = upload.Create()
 	require.NoError(t, err, "unable to create upload")
-	require.True(t, upload.HasBeenCreated(), "upload has not been created")
+	require.NotNil(t, upload.Metadata(), "upload has not been created")
 	require.Equal(t, -1, upload.Metadata().TTL, "invalid upload ttl")
 }
 
@@ -232,7 +232,7 @@ func TestDownloadDomain(t *testing.T) {
 
 	upload, file, err := pc.UploadReader("filename", bytes.NewBufferString("data"))
 	require.NoError(t, err, "unable to create upload")
-	require.True(t, upload.HasBeenCreated(), "upload has not been created")
+	require.NotNil(t, upload.Metadata(), "upload has not been created")
 	require.Equal(t, ps.GetConfig().DownloadDomain, upload.Metadata().DownloadDomain, "invalid upload ttl")
 
 	_, err = file.Download()
@@ -254,7 +254,7 @@ func TestUploadWhitelistOK(t *testing.T) {
 	upload := pc.NewUpload()
 	err = upload.Create()
 	require.NoError(t, err, "unable to create upload")
-	require.True(t, upload.HasBeenCreated(), "invalid nil uploads params")
+	require.NotNil(t, upload.Metadata(), "upload has not been created")
 }
 
 func TestUploadWhitelistKO(t *testing.T) {

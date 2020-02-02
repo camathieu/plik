@@ -17,15 +17,15 @@ type File struct {
 	Size int64
 
 	reader io.ReadCloser // Byte stream to upload
-	upload  *Upload      // Link to upload and client
-	//done   func()        // Upload callback
+	upload *Upload       // Link to upload and client
 
 	lock     sync.Mutex   // The two following fields need to be protected
 	metadata *common.File // File metadata returned by the server
 
-	done   chan struct{}
-	err    error
-	callback func(file *common.File, err error)
+	callback func(metadata *common.File, err error) // Callback to execute once the file has been uploaded
+
+	done chan struct{} // Used to synchronize Upload() calls
+	err  error         // If an error occurs during a Upload() call this will be set
 }
 
 // NewFileFromReader creates a File from a filename and an io.ReadCloser
@@ -89,21 +89,17 @@ func (file *File) Metadata() (details *common.File) {
 
 // getParams return a common.File to be passed to internal methods
 func (file *File) getParams() (params *common.File) {
-	params = &common.File{}
-	params.ID = file.ID()
-	params.Name = file.Name
-	return params
-}
-
-// ID return the file ID if any
-func (file *File) ID() string {
 	file.lock.Lock()
 	defer file.lock.Unlock()
 
-	if file.metadata == nil {
-		return ""
+	params = &common.File{}
+	params.Name = file.Name
+
+	if file.metadata != nil {
+		params.ID = file.metadata.ID
 	}
-	return file.metadata.ID
+
+	return params
 }
 
 // ID return the file ID if any
@@ -114,116 +110,112 @@ func (file *File) Error() error {
 	return file.err
 }
 
-// HasBeenUploaded return weather or not an attempt to upload the file ( successful or unsuccessful ) has been made
-func (file *File) HasBeenUploaded() bool {
+// ready ensure that only one upload occurs ( like sync.Once )
+// the first call to Upload() will proceed ( abort false ) and must close the done channel once done
+// subsequent calls to Upload() will abort ( abort true ) and must :
+//  - wait on the done channel for the former Upload() call to complete ( if not nil )
+//  - return the error in upload.err
+func (file *File) ready() (done chan struct{}, abort bool) {
 	file.lock.Lock()
 	defer file.lock.Unlock()
 
-	return file.metadata != nil && file.metadata.Status == common.FileUploaded
-}
-
-// IsUploading return weather or not the file is currently being uploaded
-func (file *File) IsUploading() bool {
-	file.lock.Lock()
-	defer file.lock.Unlock()
-
-	return file.metadata != nil && file.metadata.Status == common.FileUploading
-}
-
-// GetURL returns the URL to download the file
-func (file *File) GetURL() (URL *url.URL, err error) {
-	upload := file.upload
-
-	if upload.ID() == "" {
-		return nil, fmt.Errorf("upload has not been created yet")
-	}
-
-	if file.ID() == "" {
-		return nil, fmt.Errorf("file has not been uploaded yet")
-	}
-
-	mode := "file"
-	if upload.Stream {
-		mode = "stream"
-	}
-
-	var domain string
-	if upload.Metadata().DownloadDomain != "" {
-		domain = upload.Metadata().DownloadDomain
-	} else {
-		domain = upload.client.URL
-	}
-
-	fileURL := fmt.Sprintf("%s/%s/%s/%s/%s", domain, mode, upload.ID(), file.ID(), file.Name)
-
-	// Parse to get a nice escaped url
-	return url.Parse(fileURL)
-}
-
-func (file *File) ready() (done chan struct{}, err error) {
-	file.lock.Lock()
-	defer file.lock.Unlock()
-
+	// Upload is in progress or finished
 	if file.done != nil {
-		return file.done, nil
+		return file.done, true
 	}
 
 	if file.metadata == nil {
 		file.metadata = &common.File{Status: common.FileMissing}
 	}
 
-	if file.metadata.Status != common.FileMissing {
-		return nil, fmt.Errorf("file %s is not ready to upload (%s)", file.Name, file.metadata.Status)
+	// File does not need to be uploaded
+	// TODO : maybe it would be better/simpler to rely only on file.reader == nil ?
+	if file.metadata.Status != common.FileMissing || file.reader == nil {
+		return nil, true
 	}
+
+	// Set status to uploading
+	file.metadata.Status = common.FileUploading
 
 	// Grab the lock by setting this channel
 	file.done = make(chan struct{})
-	file.err = nil
-
-	file.metadata.Status = common.FileUploading
-
-	return nil, nil
+	return file.done, false
 }
 
 // Upload uploads a single file.
 func (file *File) Upload() (err error) {
+
+	// initialize the upload if not already done
 	err = file.upload.Create()
 	if err != nil {
 		return err
 	}
 
-	done, err := file.ready()
-	if err != nil {
-		return err
-	}
-	if done != nil {
-		<- done
-		file.lock.Lock()
-		defer file.lock.Unlock()
+	// synchronize
+	done, abort := file.ready()
+	if abort {
+		if done != nil {
+			<-done
+		}
 		return file.err
 	}
 
+	// Upload file to the server
 	defer func() { _ = file.reader.Close() }()
+	fileMetadata, err := file.upload.client.uploadFile(file.upload.getParams(), file.getParams(), file.reader)
 
-	fileInfo, err := file.upload.client.uploadFile(file.upload.getParams(), file.getParams(), file.reader)
-
+	// update file with API call result
 	file.lock.Lock()
 	if err == nil {
-		file.metadata = fileInfo
+		file.metadata = fileMetadata
 	} else {
 		file.err = err
 	}
 	file.lock.Unlock()
 
-	// TODO release before or after callback ?
-	close(file.done)
+	// notify that we are done
+	close(done)
 
-	// Call the done callback before upload.Upload() returns
-	if file.callback != nil {
-		file.callback(fileInfo, err)
+	// execute registered callbacks
+	callback := file.callback
+	if callback != nil {
+		callback(fileMetadata, err)
 	}
 
 	return err
+}
+
+// GetURL returns the URL to download the file
+func (file *File) GetURL() (URL *url.URL, err error) {
+
+	// Get upload metadata
+	uploadMetadata := file.upload.Metadata()
+	if uploadMetadata == nil || uploadMetadata.ID == "" {
+		return nil, fmt.Errorf("upload has not been created yet")
+	}
+
+	// Get file metadata
+	fileMetadata := file.Metadata()
+	if fileMetadata == nil || fileMetadata.ID == "" {
+		return nil, fmt.Errorf("file has not been uploaded yet")
+	}
+
+	mode := "file"
+	if uploadMetadata.Stream {
+		mode = "stream"
+	}
+
+	var domain string
+	if uploadMetadata.DownloadDomain != "" {
+		domain = uploadMetadata.DownloadDomain
+	} else {
+		domain = file.upload.client.URL
+	}
+
+	fileURL := fmt.Sprintf("%s/%s/%s/%s/%s", domain, mode, uploadMetadata.ID, fileMetadata.ID, fileMetadata.Name)
+
+	// Parse to get a nice escaped url
+	return url.Parse(fileURL)
 }
 
 // WrapReader a convenient function to alter the content of the file on the file ( encrypt / display progress / ... )
@@ -231,10 +223,13 @@ func (file *File) WrapReader(wrapper func(reader io.ReadCloser) io.ReadCloser) {
 	file.reader = wrapper(file.reader)
 }
 
-// RegisterDoneCallback a callback to be executed after the file have been uploaded or failed ( check file.Error() )
-//func (file *File) RegisterDoneCallback(done func()) {
-//	file.done = done
-//}
+// UploadCallback to be executed once the file has been uploaded
+type UploadCallback func(metadata *common.File, err error)
+
+// RegisterUploadCallback a callback to be executed after the file have been uploaded
+func (file *File) RegisterUploadCallback(callback UploadCallback) {
+	file.callback = callback
+}
 
 // Download downloads all the upload files in a zip archive
 func (file *File) Download() (reader io.ReadCloser, err error) {

@@ -21,13 +21,13 @@ func TestLogInfo(t *testing.T) {
 	req, err := http.NewRequest("GET", "url", &bytes.Buffer{})
 	require.NoError(t, err, "unable to create new request")
 
-	req.RequestURI = "path"
+	req.RequestURI = "/path"
 
 	rr := ctx.NewRecorder(req)
 	Log(ctx, common.DummyHandler).ServeHTTP(rr, req)
 
 	require.Equal(t, http.StatusOK, rr.Code, "invalid handler response status code")
-	require.Contains(t, string(buffer.Bytes()), "GET path", "invalid log message")
+	require.Contains(t, string(buffer.Bytes()), "GET /path", "invalid log message")
 }
 
 func TestLogDebug(t *testing.T) {
@@ -60,10 +60,12 @@ func TestLogDebugNoBody(t *testing.T) {
 	req, err := http.NewRequest("POST", "/file", bytes.NewBuffer([]byte("request body")))
 	require.NoError(t, err, "unable to create new request")
 
+	req.RequestURI = "/path"
+
 	rr := ctx.NewRecorder(req)
 	Log(ctx, common.DummyHandler).ServeHTTP(rr, req)
 
 	require.Equal(t, http.StatusOK, rr.Code, "invalid handler response status code")
-	require.Contains(t, string(buffer.Bytes()), "POST /file HTTP/1.1", "invalid log message")
+	require.Contains(t, string(buffer.Bytes()), "POST /path", "invalid log message")
 	require.NotContains(t, string(buffer.Bytes()), "request body", "invalid log message")
 }

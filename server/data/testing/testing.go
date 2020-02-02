@@ -12,7 +12,7 @@ import (
 
 // Backend object
 type Backend struct {
-	files map[string]*bytes.Buffer
+	files map[string][]byte
 	err   error
 	mu    sync.Mutex
 }
@@ -21,7 +21,7 @@ type Backend struct {
 // from configuration passed as argument
 func NewBackend() (b *Backend) {
 	b = new(Backend)
-	b.files = make(map[string]*bytes.Buffer)
+	b.files = make(map[string][]byte)
 	return
 }
 
@@ -35,11 +35,11 @@ func (b *Backend) GetFile(upload *common.Upload, id string) (file io.ReadCloser,
 		return nil, b.err
 	}
 
-	if file, ok := b.files[id]; ok {
-		return ioutil.NopCloser(file), nil
+	if data, ok := b.files[id]; ok {
+		return ioutil.NopCloser(bytes.NewBuffer(data)), nil
 	}
 
-	return nil, errors.New("File not found")
+	return nil, errors.New("file not found")
 }
 
 // AddFile implementation for testing data backend will creates a new file for the given upload
@@ -53,7 +53,7 @@ func (b *Backend) AddFile(upload *common.Upload, file *common.File, fileReader i
 	}
 
 	if _, ok := b.files[file.ID]; ok {
-		return nil, errors.New("File exists")
+		return nil, errors.New("file exists")
 	}
 
 	data, err := ioutil.ReadAll(fileReader)
@@ -61,7 +61,7 @@ func (b *Backend) AddFile(upload *common.Upload, file *common.File, fileReader i
 		return nil, err
 	}
 
-	b.files[file.ID] = bytes.NewBuffer(data)
+	b.files[file.ID] = data
 
 	return nil, nil
 }

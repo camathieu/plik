@@ -37,7 +37,7 @@ func TestDefaultUploadParams(t *testing.T) {
 
 	err = upload.Create()
 	require.NoError(t, err, "unable to create upload")
-	require.True(t, upload.HasBeenCreated(), "upload has not been created")
+	require.NotNil(t, upload.Metadata(), "upload has not been created")
 	require.True(t, upload.Metadata().OneShot, "upload is not oneshot")
 
 	uploadResult, err := pc.GetUpload(upload.ID())
@@ -60,7 +60,7 @@ func TestUploadParamsOverride(t *testing.T) {
 
 	err = upload.Create()
 	require.NoError(t, err, "unable to create upload")
-	require.True(t, upload.HasBeenCreated(), "upload has not been created")
+	require.NotNil(t, upload.Metadata(), "upload has not been created")
 	require.False(t, upload.Metadata().OneShot, "upload is not oneshot")
 
 	uploadResult, err := pc.GetUpload(upload.ID())
@@ -79,9 +79,13 @@ func TestCreateAndGetUpload(t *testing.T) {
 	upload := pc.NewUpload()
 	err = upload.Create()
 	require.NoError(t, err, "unable to upload file")
-	require.True(t, upload.HasBeenCreated(), "upload has not been created")
+	require.NotNil(t, upload.Metadata(), "upload has not been created")
 
 	uploadResult, err := pc.GetUpload(upload.ID())
+	require.NoError(t, err, "unable to upload file")
+	require.Equal(t, upload.ID(), uploadResult.ID(), "upload has not been created")
+
+	err = uploadResult.Create()
 	require.NoError(t, err, "unable to upload file")
 	require.Equal(t, upload.ID(), uploadResult.ID(), "upload has not been created")
 }
@@ -102,7 +106,7 @@ func TestAddFileToExistingUpload(t *testing.T) {
 	err = upload.Upload()
 	require.NoError(t, err, "unable to upload file")
 	require.NoError(t, file.Error(), "invalid file error")
-	require.True(t, file.HasBeenUploaded(), "invalid file has been uploaded status")
+	require.Equal(t, file.Metadata().Status, common.FileUploaded, "invalid file status")
 }
 
 func TestAddFileToExistingUpload2(t *testing.T) {
@@ -112,7 +116,7 @@ func TestAddFileToExistingUpload2(t *testing.T) {
 	err := start(ps)
 	require.NoError(t, err, "unable to start plik server")
 
-	upload, _, err := pc.UploadReader("filename", bytes.NewBufferString("data"))
+	upload, _, err := pc.UploadReader("file 1", bytes.NewBufferString("data"))
 	require.NoError(t, err, "unable to create upload")
 
 	uploadToken := upload.Metadata().UploadToken
@@ -120,13 +124,13 @@ func TestAddFileToExistingUpload2(t *testing.T) {
 	upload, err = pc.GetUpload(upload.ID())
 	require.NoError(t, err, "unable to get upload")
 
-	file2 := upload.AddFileFromReader("filename", bytes.NewBufferString("data"))
+	file2 := upload.AddFileFromReader("file 2", bytes.NewBufferString("data"))
 
 	upload.Metadata().UploadToken = uploadToken
 	err = upload.Upload()
 	require.NoError(t, err, "unable to upload file")
 	require.NoError(t, file2.Error(), "invalid file error")
-	require.True(t, file2.HasBeenUploaded(), "invalid file has been uploaded status")
+	require.Equal(t, file2.Metadata().Status, common.FileUploaded, "invalid file status")
 
 	upload, err = pc.GetUpload(upload.ID())
 	require.NoError(t, err, "unable to get upload")
@@ -143,7 +147,7 @@ func TestUploadReader(t *testing.T) {
 	data := "data data data"
 	upload, file, err := pc.UploadReader("filename", ioutil.NopCloser(bytes.NewBufferString(data)))
 	require.NoError(t, err, "unable to upload file")
-	require.Len(t, upload.Metadata().Files, 1, "invalid file count")
+	require.Len(t, upload.Metadata().Files, 0, "invalid file count")
 
 	reader, err := pc.downloadFile(upload.getParams(), file.getParams())
 	require.NoError(t, err, "unable to download file")
@@ -162,7 +166,7 @@ func TestUploadReadCloser(t *testing.T) {
 	data := "data data data"
 	upload, file, err := pc.UploadReader("filename", ioutil.NopCloser(bytes.NewBufferString(data)))
 	require.NoError(t, err, "unable to upload file")
-	require.Len(t, upload.Metadata().Files, 1, "invalid file count")
+	require.Len(t, upload.Metadata().Files, 0, "invalid file count")
 
 	reader, err := pc.downloadFile(upload.getParams(), file.getParams())
 	require.NoError(t, err, "unable to download file")
@@ -207,7 +211,7 @@ func TestUploadFiles(t *testing.T) {
 
 	err = upload.Upload()
 	require.NoError(t, err, "unable to upload file")
-	require.Len(t, upload.Metadata().Files, 2, "invalid file count")
+	require.Len(t, upload.Metadata().Files, 0, "invalid file count")
 
 	for _, file := range upload.Metadata().Files {
 		reader, err := pc.downloadFile(upload.Metadata(), file)
@@ -236,10 +240,44 @@ func TestUploadMultipleFiles(t *testing.T) {
 	require.NoError(t, err, "unable to upload files")
 
 	for _, file := range upload.Files() {
-		require.True(t, file.HasBeenUploaded(), "file has not been uploaded")
+		require.Equal(t, file.Metadata().Status, common.FileUploaded, "invalid file status")
 		require.NoError(t, file.Error(), "unexpected file error")
 
 		reader, err := pc.downloadFile(upload.Metadata(), file.Metadata())
+		require.NoError(t, err, "unable to download file")
+		content, err := ioutil.ReadAll(reader)
+		require.NoError(t, err, "unable to read file")
+		require.Equal(t, fmt.Sprintf("data data data %s", file.Name), string(content), "invalid file content")
+	}
+}
+
+func TestCreateAndGetUploadFiles(t *testing.T) {
+	ps, pc := newPlikServerAndClient()
+	defer shutdown(ps)
+
+	err := start(ps)
+	require.NoError(t, err, "unable to start plik server")
+
+	upload := pc.NewUpload()
+	for i := 1; i <= 30; i++ {
+		filename := fmt.Sprintf("file_%d", i)
+		data := fmt.Sprintf("data data data %s", filename)
+		upload.AddFileFromReader(filename, bytes.NewBufferString(data))
+	}
+
+	err = upload.Upload()
+	require.NoError(t, err, "unable to upload files")
+
+	uploadResult, err := pc.GetUpload(upload.ID())
+	require.NoError(t, err, "unable to upload file")
+	require.Equal(t, upload.ID(), uploadResult.ID(), "upload has not been created")
+	require.Len(t, uploadResult.Files(), len(upload.Files()), "file count mismatch")
+
+	for _, file := range uploadResult.Files() {
+		require.Equal(t, file.Metadata().Status, common.FileUploaded, "invalid file status")
+		require.NoError(t, file.Error(), "unexpected file error")
+
+		reader, err := file.Download()
 		require.NoError(t, err, "unable to download file")
 		content, err := ioutil.ReadAll(reader)
 		require.NoError(t, err, "unable to read file")
@@ -273,7 +311,7 @@ func TestRemoveFile(t *testing.T) {
 	data := "data data data"
 	upload, file, err := pc.UploadReader("filename", ioutil.NopCloser(bytes.NewBufferString(data)))
 	require.NoError(t, err, "unable to upload file")
-	require.Len(t, upload.Metadata().Files, 1, "invalid file count")
+	require.Len(t, upload.Metadata().Files, 0, "invalid file count")
 
 	_, err = pc.downloadFile(upload.getParams(), file.getParams())
 	require.NoError(t, err, "unable to download file")
@@ -282,7 +320,7 @@ func TestRemoveFile(t *testing.T) {
 	require.NoError(t, err, "unable to remove file")
 
 	_, err = pc.downloadFile(upload.getParams(), file.getParams())
-	common.RequireError(t, err, fmt.Sprintf("file %s (%s) is not available", file.Name, file.ID()))
+	common.RequireError(t, err, fmt.Sprintf("file %s (%s) is not available", file.Name, file.metadata.ID))
 }
 
 func TestRemoveFileNotFound(t *testing.T) {
@@ -322,7 +360,7 @@ func TestDeleteUpload(t *testing.T) {
 	data := "data data data"
 	upload, file, err := pc.UploadReader("filename", ioutil.NopCloser(bytes.NewBufferString(data)))
 	require.NoError(t, err, "unable to upload file")
-	require.Len(t, upload.Metadata().Files, 1, "invalid file count")
+	require.Len(t, upload.Metadata().Files, 0, "invalid file count")
 
 	_, err = file.Download()
 	require.NoError(t, err, "unable to download file")
@@ -374,7 +412,7 @@ func TestDownloadArchive(t *testing.T) {
 	data := "data data data"
 	upload, _, err := pc.UploadReader("filename", ioutil.NopCloser(bytes.NewBufferString(data)))
 	require.NoError(t, err, "unable to upload file")
-	require.Len(t, upload.Metadata().Files, 1, "invalid file count")
+	require.Len(t, upload.Metadata().Files, 0, "invalid file count")
 
 	reader, err := upload.DownloadZipArchive()
 	require.NoError(t, err, "unable to download archive")

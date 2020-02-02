@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"github.com/root-gg/plik/server/common"
 	"io"
 	"io/ioutil"
 	"strconv"
@@ -58,10 +59,10 @@ func (p *Progress) register(file *plik.File) {
 		return ioutil.NopCloser(io.TeeReader(fileReader, bar))
 	})
 
-	file.RegisterDoneCallback(func() {
-		if file.Error() != nil {
+	file.RegisterUploadCallback(func(metadata *common.File, err error) {
+		if err != nil {
 			// Keep only the first line of the error
-			str := strings.TrimSuffix(strings.SplitAfterN(file.Error().Error(), "\n", 2)[0], "\n")
+			str := strings.TrimSuffix(strings.SplitAfterN(err.Error(), "\n", 2)[0], "\n")
 			bar.FinishError(errors.New(str))
 		} else {
 			bar.Finish()

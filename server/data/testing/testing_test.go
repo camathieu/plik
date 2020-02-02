@@ -107,7 +107,7 @@ func TestRemoveFile(t *testing.T) {
 
 	_, err = backend.GetFile(upload, file.ID)
 	require.Error(t, err, "unable to get file")
-	require.Equal(t, "File not found", err.Error(), "invalid error message")
+	require.Equal(t, "file not found", err.Error(), "invalid error message")
 }
 
 func TestRemoveUploadError(t *testing.T) {
@@ -147,7 +147,7 @@ func TestRemoveUpload(t *testing.T) {
 
 	_, err = backend.GetFile(upload, file.ID)
 	require.Error(t, err, "unable to get file")
-	require.Equal(t, "File not found", err.Error(), "invalid error message")
+	require.Equal(t, "file not found", err.Error(), "invalid error message")
 
 	_, err = backend.GetFile(upload2, file2.ID)
 	require.NoError(t, err, "unable to get file")

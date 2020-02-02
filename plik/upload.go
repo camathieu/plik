@@ -31,14 +31,14 @@ type UploadParams struct {
 // Upload store the necessary data to upload files to a Plik server
 type Upload struct {
 	UploadParams
-	client  *Client        // Client that makes the actual HTTP calls
-	files   []*File        // Files to upload
+	client *Client // Client that makes the actual HTTP calls
+	files  []*File // Files to upload
 
 	lock     sync.Mutex     // The following fields need to be protected
 	metadata *common.Upload // Upload metadata ( once created )
 
-	done     chan struct{}
-	err      error
+	done chan struct{} // Used to synchronize Create() calls
+	err  error         // If an error occurs during a Create() call this will be set
 }
 
 // newUpload create and initialize a new Upload object
@@ -52,18 +52,23 @@ func newUpload(client *Client) (upload *Upload) {
 	return upload
 }
 
-func newUploadFromParams(client *Client, params *common.Upload) (upload *Upload) {
+// newUploadFromMetadata create and initialize a new Upload object from server metadata
+func newUploadFromMetadata(client *Client, uploadMetadata *common.Upload) (upload *Upload) {
 	upload = newUpload(client)
-	upload.Stream = params.Stream
-	upload.OneShot = params.OneShot
-	upload.Removable = params.Removable
-	upload.TTL = params.TTL
-	upload.Comments = params.Comments
-	upload.metadata = params
+	upload.Stream = uploadMetadata.Stream
+	upload.OneShot = uploadMetadata.OneShot
+	upload.Removable = uploadMetadata.Removable
+	upload.TTL = uploadMetadata.TTL
+	upload.Comments = uploadMetadata.Comments
+	upload.metadata = uploadMetadata
 
-	for _, file := range params.Files {
+	// Generate files
+	for _, file := range uploadMetadata.Files {
 		upload.add(newFileFromParams(upload, file))
 	}
+
+	// Remove files from metadata as this could be misleading
+	uploadMetadata.Files = nil
 
 	return upload
 }
@@ -110,6 +115,9 @@ func (upload *Upload) Metadata() (details *common.Upload) {
 
 // getParams returns a common.Upload to be passed to internal methods
 func (upload *Upload) getParams() (params *common.Upload) {
+	upload.lock.Lock()
+	defer upload.lock.Unlock()
+
 	params = common.NewUpload()
 	params.Stream = upload.Stream
 	params.OneShot = upload.OneShot
@@ -120,13 +128,12 @@ func (upload *Upload) getParams() (params *common.Upload) {
 	params.Login = upload.Login
 	params.Password = upload.Password
 
-	metadata := upload.Metadata()
-	if upload.HasBeenCreated() {
-		params.ID = metadata.ID
-		params.UploadToken = metadata.UploadToken
+	if upload.metadata != nil {
+		params.ID = upload.metadata.ID
+		params.UploadToken = upload.metadata.UploadToken
 	}
 
-	for i, file := range upload.Files() {
+	for i, file := range upload.files {
 		fileParams := file.getParams()
 		if fileParams.ID == "" {
 			reference := strconv.Itoa(i)
@@ -136,6 +143,7 @@ func (upload *Upload) getParams() (params *common.Upload) {
 			params.Files[fileParams.ID] = fileParams
 		}
 	}
+
 	return params
 }
 
@@ -147,11 +155,6 @@ func (upload *Upload) Files() (files []*File) {
 	return upload.files
 }
 
-// HasBeenCreated return true if the upload has been created server side ( has an ID )
-func (upload *Upload) HasBeenCreated() bool {
-	return upload.Metadata() != nil
-}
-
 // ID returns the upload ID if the upload has been created server side
 func (upload *Upload) ID() string {
 	metadata := upload.Metadata()
@@ -161,55 +164,69 @@ func (upload *Upload) ID() string {
 	return metadata.ID
 }
 
-func (upload *Upload) ready() (done chan struct{}) {
+// ready ensure that only one upload occurs ( like sync.Once )
+// the first call to Create() will proceed ( abort false ) and must close the done channel once done
+// subsequent calls to Create() will abort ( abort true ) and must :
+//  - wait on the done channel for the former Create() call to complete ( if not nil )
+//  - return the error in upload.err
+func (upload *Upload) ready() (done chan struct{}, abort bool) {
 	upload.lock.Lock()
 	defer upload.lock.Unlock()
 
+	// Create is in progress or finished
 	if upload.done != nil {
-		return upload.done
+		return upload.done, true
+	}
+
+	// Upload has already been created
+	if upload.metadata != nil {
+		return nil, true
 	}
 
 	// Grab the lock by setting this channel
 	upload.done = make(chan struct{})
-
-	return nil
+	return upload.done, false
 }
 
 // Create a new empty upload on a Plik Server
 func (upload *Upload) Create() (err error) {
 
-	done := upload.ready()
-	if done != nil {
-		<- done
-		upload.lock.Lock()
-		defer upload.lock.Unlock()
+	// synchronize
+	done, abort := upload.ready()
+	if abort {
+		if done != nil {
+			<-done
+		}
 		return upload.err
 	}
 
+	// Get upload parameters to send to the server
 	uploadParams := upload.getParams()
 
-	// Crate the upload on the Plik server
+	// Crate the upload on the server
 	uploadMetadata, err := upload.client.create(uploadParams)
-	if err == nil {
-		// Keep all the uploadMetadata but we are mostly interested in the upload ID
-		upload.lock.Lock()
-		upload.metadata = uploadMetadata
-		err = upload.updateMetadata(uploadMetadata)
-		upload.lock.Unlock()
-	}
 
+	// update upload with API call result
 	upload.lock.Lock()
-	upload.err = err
+	if err == nil {
+		err = upload.updateUpload(uploadMetadata)
+	}
+	if err != nil {
+		upload.err = err
+	}
 	upload.lock.Unlock()
 
-	close(upload.done)
+	// notify that we are done
+	close(done)
 
 	return err
 }
 
-func (upload *Upload) updateMetadata(uploadMetadata *common.Upload) (err error){
-	// Here also we keep all the file info but we are also mostly interested in the file ID
-	// We use the reference system to avoid problems if uploading several files with the same filename
+// update the upload and files metadata with the result from the Create() API call
+func (upload *Upload) updateUpload(uploadMetadata *common.Upload) (err error) {
+	upload.metadata = uploadMetadata
+
+	// Plik uses a reference system to avoid problems if uploading several files with the same filename
 LOOP:
 	for _, file := range uploadMetadata.Files {
 		for i, f := range upload.files {
@@ -225,11 +242,16 @@ LOOP:
 		return fmt.Errorf("no file match for file reference %s", file.Reference)
 	}
 
+	// Remove files from metadata as this could be misleading
+	uploadMetadata.Files = nil
+
 	return nil
 }
 
 // Upload uploads all files of the upload in parallel
 func (upload *Upload) Upload() (err error) {
+
+	// initialize the upload if not already done
 	err = upload.Create()
 	if err != nil {
 		return err
@@ -243,20 +265,19 @@ func (upload *Upload) Upload() (err error) {
 		wg.Add(1)
 		go func(file *File) {
 			defer wg.Done()
-			err := file.Upload()
-			if err != nil {
-				errors <- err
-				return
-			}
+			errors <- file.Upload()
 		}(file)
 	}
 
+	// Wait for all files to be uploaded
 	wg.Wait()
 
+	// Check for errors
 	close(errors)
 	for err := range errors {
-		fmt.Println(err)
-		return fmt.Errorf("failed to upload at least one file. Check each file status for more details")
+		if err != nil {
+			return fmt.Errorf("failed to upload at least one file. Check each file status for more details")
+		}
 	}
 
 	return nil
@@ -264,11 +285,14 @@ func (upload *Upload) Upload() (err error) {
 
 // GetURL returns the URL page of the upload
 func (upload *Upload) GetURL() (u *url.URL, err error) {
-	if !upload.HasBeenCreated() {
+
+	// Get upload metadata
+	uploadMetadata := upload.Metadata()
+	if uploadMetadata == nil || uploadMetadata.ID == "" {
 		return nil, fmt.Errorf("upload has not been created yet")
 	}
 
-	fileURL := fmt.Sprintf("%s/?id=%s", upload.client.URL, upload.ID())
+	fileURL := fmt.Sprintf("%s/?id=%s", upload.client.URL, uploadMetadata.ID)
 
 	// Parse to get a nice escaped url
 	return url.Parse(fileURL)

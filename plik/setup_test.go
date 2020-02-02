@@ -15,9 +15,12 @@ import (
 	metadata_test "github.com/root-gg/plik/server/metadata/testing"
 	"github.com/root-gg/plik/server/server"
 	"github.com/root-gg/utils"
+	"io"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"testing"
+	"time"
 )
 
 //
@@ -162,7 +165,6 @@ func newPlikServerAndClient() (ps *server.PlikServer, pc *Client) {
 	config.ListenPort = common.APIMockServerDefaultPort
 	config.AutoClean(false)
 	//config.Debug = true
-	config.NoWebInterface = true
 	_ = config.Initialize()
 	ps = server.NewPlikServer(config)
 	ps.WithMetadataBackend(metadataBackend)
@@ -205,4 +207,39 @@ func shutdown(ps *server.PlikServer) {
 	//if err == nil {
 	//	panic("still able to join plik server after shutdown")
 	//}
+}
+
+type LockedReader struct {
+	lock   chan struct{}
+	reader io.Reader
+}
+
+func NewLockedReader(reader io.Reader) (lr *LockedReader) {
+	lr = new(LockedReader)
+	lr.lock = make(chan struct{})
+	lr.reader = reader
+	return lr
+}
+
+func (lr *LockedReader) Read(p []byte) (n int, err error) {
+	<-lr.lock
+	return lr.reader.Read(p)
+}
+
+func (lr *LockedReader) Unleash() {
+	close(lr.lock)
+}
+
+func NewSlowReaderRandom(reader io.Reader) (lr *LockedReader) {
+	timeout := time.Duration(rand.Intn(1000)) * time.Millisecond
+	return NewSlowReader(reader, timeout)
+}
+
+func NewSlowReader(reader io.Reader, timeout time.Duration) (lr *LockedReader) {
+	lr = NewLockedReader(reader)
+	go func() {
+		<-time.After(timeout)
+		lr.Unleash()
+	}()
+	return lr
 }

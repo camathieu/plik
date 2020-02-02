@@ -42,7 +42,7 @@ func TestTokenAuthentication(t *testing.T) {
 	data := "data data data"
 	upload, file, err := pc.UploadReader("filename", ioutil.NopCloser(bytes.NewBufferString(data)))
 	require.NoError(t, err, "unable to upload file")
-	require.Len(t, upload.Metadata().Files, 1, "invalid file count")
+	require.Len(t, upload.Metadata().Files, 0, "invalid file count")
 
 	reader, err := file.Download()
 	require.NoError(t, err, "unable to download file")

@@ -53,18 +53,3 @@ func TestNotUploadedGetFileURL(t *testing.T) {
 	_, err = file.GetURL()
 	common.RequireError(t, err, "file has not been uploaded yet")
 }
-
-func TestFileHasBeenUploaded(t *testing.T) {
-	file := &File{}
-
-	require.False(t, file.HasBeenUploaded(), "invalid file has uploaded status")
-
-	file.metadata = &common.File{}
-	require.False(t, file.HasBeenUploaded(), "invalid file has uploaded status")
-
-	file.Metadata().Status = common.FileMissing
-	require.False(t, file.HasBeenUploaded(), "invalid file has uploaded status")
-
-	file.Metadata().Status = common.FileUploaded
-	require.True(t, file.HasBeenUploaded(), "invalid file has uploaded status")
-}

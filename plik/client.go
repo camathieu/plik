@@ -100,7 +100,7 @@ func (c *Client) GetServerVersion() (bi *common.BuildInfo, err error) {
 		return nil, err
 	}
 
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
@@ -116,12 +116,9 @@ func (c *Client) GetServerVersion() (bi *common.BuildInfo, err error) {
 	return bi, nil
 }
 
-// GetUpload return the remote upload info for the given upload id
+// GetUpload fetch upload metadata from the server
 func (c *Client) GetUpload(id string) (upload *Upload, err error) {
-	uploadParams := &common.Upload{}
+	uploadParams := c.NewUpload().getParams()
 	uploadParams.ID = id
-	uploadParams.Token = c.Token
-	uploadParams.Login = c.Login
-	uploadParams.Password = c.Password
 	return c.getUploadWithParams(uploadParams)
 }

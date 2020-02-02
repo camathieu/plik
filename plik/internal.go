@@ -215,7 +215,7 @@ func (c *Client) getUploadWithParams(uploadParams *common.Upload) (upload *Uploa
 		return nil, err
 	}
 
-	upload = newUploadFromParams(c, params)
+	upload = newUploadFromMetadata(c, params)
 
 	return upload, nil
 }

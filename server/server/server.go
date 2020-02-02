@@ -243,7 +243,7 @@ func (ps *PlikServer) getHTTPHandler() (handler http.Handler) {
 	if !ps.config.NoWebInterface {
 		_, err := os.Stat("./public")
 		if err != nil {
-			ps.config.NewLogger().Fatal("Public directory not found. Please set NoWebInterface to true in config file")
+			ps.config.NewLogger().Warning("Public directory not found, consider setting config.NoWebInterface to true")
 		}
 
 		router.PathPrefix("/clients/").Handler(http.StripPrefix("/clients/", http.FileServer(http.Dir("../clients"))))
