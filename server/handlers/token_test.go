@@ -127,10 +127,8 @@ func TestCreateTokenMetadataBackendError(t *testing.T) {
 	ctx.GetMetadataBackend().(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
 
 	rr := ctx.NewRecorder(req)
-
-	context.TestPanic(t, rr, "unable to update user metadata : metadata backend error", func() {
-		CreateToken(ctx, rr, req)
-	})
+	CreateToken(ctx, rr, req)
+	context.TestInternalServerError(t, rr, "unable to update user metadata : metadata backend error")
 }
 
 func TestRemoveToken(t *testing.T) {
@@ -242,7 +240,6 @@ func TestRevokeTokenMetadataBackendError(t *testing.T) {
 	ctx.GetMetadataBackend().(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
 
 	rr := ctx.NewRecorder(req)
-	context.TestPanic(t, rr, "unable to update user metadata : metadata backend error", func() {
-		RevokeToken(ctx, rr, req)
-	})
+	RevokeToken(ctx, rr, req)
+	context.TestInternalServerError(t, rr, "unable to update user metadata : metadata backend error")
 }

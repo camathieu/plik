@@ -12,6 +12,7 @@ import (
 	"github.com/root-gg/plik/server/metadata"
 )
 
+// Context to be propagated throughout the middleware chain
 type Context struct {
 	config              *common.Configuration
 	logger              *logger.Logger
@@ -30,7 +31,6 @@ type Context struct {
 	isQuick             bool
 	req                 *http.Request
 	resp                http.ResponseWriter
-	panic               bool
 	mu                  sync.RWMutex
 }
 
@@ -38,10 +38,6 @@ type Context struct {
 func (ctx *Context) GetConfig() *common.Configuration {
 	ctx.mu.RLock()
 	defer ctx.mu.RUnlock()
-
-	if ctx.config == nil {
-		ctx.internalServerError("missing config from context", nil)
-	}
 
 	return ctx.config
 }
@@ -59,10 +55,6 @@ func (ctx *Context) GetLogger() *logger.Logger {
 	ctx.mu.RLock()
 	defer ctx.mu.RUnlock()
 
-	if ctx.logger == nil {
-		ctx.internalServerError("missing logger from context", nil)
-	}
-
 	return ctx.logger
 }
 
@@ -78,10 +70,6 @@ func (ctx *Context) SetLogger(logger *logger.Logger) {
 func (ctx *Context) GetMetadataBackend() metadata.Backend {
 	ctx.mu.RLock()
 	defer ctx.mu.RUnlock()
-
-	if ctx.metadataBackend == nil {
-		ctx.internalServerError("missing metadataBackend from context", nil)
-	}
 
 	return ctx.metadataBackend
 }
@@ -99,10 +87,6 @@ func (ctx *Context) GetDataBackend() data.Backend {
 	ctx.mu.RLock()
 	defer ctx.mu.RUnlock()
 
-	if ctx.dataBackend == nil {
-		ctx.internalServerError("missing dataBackend from context", nil)
-	}
-
 	return ctx.dataBackend
 }
 
@@ -118,10 +102,6 @@ func (ctx *Context) SetDataBackend(dataBackend data.Backend) {
 func (ctx *Context) GetStreamBackend() data.Backend {
 	ctx.mu.RLock()
 	defer ctx.mu.RUnlock()
-
-	if ctx.streamBackend == nil {
-		ctx.internalServerError("missing streamBackend from context", nil)
-	}
 
 	return ctx.streamBackend
 }

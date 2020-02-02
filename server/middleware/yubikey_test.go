@@ -21,9 +21,8 @@ func TestYubikeyNoUpload(t *testing.T) {
 
 	rr := ctx.NewRecorder(req)
 
-	context.TestPanic(t, rr, "missing upload in yubikey middleware", func() {
-		Yubikey(ctx, common.DummyHandler).ServeHTTP(rr, req)
-	})
+	Yubikey(ctx, common.DummyHandler).ServeHTTP(rr, req)
+	context.TestInternalServerError(t, rr, "missing upload in yubikey middleware")
 }
 
 func TestYubikeyNotEnabled(t *testing.T) {

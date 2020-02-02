@@ -6,12 +6,12 @@ use warnings;
 use Data::Dumper;
 
 my $struct = [
-	'config', '*common.Configuration', { 'panic' => 1 },
-	'logger', '*logger.Logger', { 'panic' => 1 },
+	'config', '*common.Configuration', {},
+	'logger', '*logger.Logger', {},
 
-	'metadataBackend', 'metadata.Backend', { 'panic' => 1 },
-	'dataBackend', 'data.Backend', { 'panic' => 1 },
-	'streamBackend', 'data.Backend', { 'panic' => 1 },
+	'metadataBackend', 'metadata.Backend', {},
+	'dataBackend', 'data.Backend', {},
+	'streamBackend', 'data.Backend', {},
 
 	'sourceIP', 'net.IP', {},
 
@@ -29,37 +29,8 @@ my $struct = [
 	'req', '*http.Request', {},
 	'resp', 'http.ResponseWriter', {},
 
-    'panic', 'bool', { 'internal' => 1 },
 	'mu', 'sync.RWMutex', { 'internal' => 1 },
 ];
-
-#sub genHas
-#{
-#    my $param = shift;
-#    my $type = shift;
-#    my $params = shift;
-#
-#    return "" if $type eq 'bool';
-#    return "" if $params->{'no_has'};
-#
-#    my $uc = ucfirst $param;
-#
-#    my $str = << "EOF";
-#// Has$uc return true if $param is set in the context
-#func (ctx *Context) Has$uc() bool {
-#    ctx.mu.RLock()
-#    defer ctx.mu.RUnlock()
-#
-#    if ctx.$param != nil {
-#        return true
-#    }
-#
-#    return false
-#}
-#
-#EOF
-#    return $str;
-#}
 
 sub genGet
 {
@@ -90,17 +61,6 @@ func (ctx *Context) Get$uc() $type {
     ctx.mu.RLock()
     defer ctx.mu.RUnlock()
 
-EOF
-        if ( $params->{'panic'} ) {
-        $str .= << "EOF";
-    if ctx.$param == nil {
-        ctx.internalServerError("missing $param from context", nil)
-    }
-
-EOF
-        }
-
-    $str .= << "EOF";
     return ctx.$param
 }
 
@@ -162,7 +122,8 @@ sub genStruct
 {
     my $struct = shift;
 
-    my $str = "type Context struct {\n";
+    my $str .= '// Context to be propagated throughout the middleware chain\n';
+    $str = "type Context struct {\n";
     for (my $i = 0 ; $i < @$struct ; $i += 3)
     {
         my $param = $struct->[$i];
@@ -186,8 +147,6 @@ sub genMethods
         my $type = $struct->[$i + 1];
         my $params = $struct->[$i + 2];
 
-        my $uc = ucfirst $param;
-
         $str .= genGet($param, $type, $params);
         $str .= genSet($param, $type, $params);
     }
@@ -195,14 +154,34 @@ sub genMethods
     return $str;
 }
 
-sub gen
+sub genCode
 {
-    print genImports;
-    print "\n";
-    print genStruct $struct;
-    print "\n";
-    print genMethods $struct;
-    print "\n";
+    my $struct = shift;
+
+    my $str = genImports;
+    $str .= "\n";
+    $str .= genStruct $struct;
+    $str .= "\n";
+    $str .= genMethods $struct;
+    $str .= "\n";
 }
 
-gen;
+sub genTestImports
+{
+    my $str = "";
+
+    $str = << "EOF";
+package context
+
+import (
+	"testing"
+$type =~ s/^\*//;
+	"github.com/root-gg/plik/server/common"
+	"github.com/stretchr/testify/require"
+)
+
+EOF
+    return $str;
+}
+
+print genCode $struct;

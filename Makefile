@@ -225,12 +225,12 @@ test-backends:
 ###
 
 # Build docker builder
-docker-builder:
+build-docker-builder:
 	@cd docker/plik-builder && docker build -t plik-builder .
 
 # Start docker builder
 docker-builder-start:
-	@docker run --rm -it --name plik-dev --network plik-dev -p 8080:8080 -v $(shell pwd):/go/src/github.com/root-gg/plik -w /go/src/github.com/root-gg/plik plik-builder /bin/bash
+	@docker run --rm -it --name plik-dev --network plik-dev --user $(shell whoami) -p 8080:8080 -v $(shell pwd):/go/src/github.com/root-gg/plik -w /go/src/github.com/root-gg/plik plik-builder /bin/bash
 
 # Docker builder make
 docker-make:

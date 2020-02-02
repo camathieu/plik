@@ -331,9 +331,8 @@ func TestGetUserStatisticsMetadataBackendError(t *testing.T) {
 	ctx.GetMetadataBackend().(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
 
 	rr := ctx.NewRecorder(req)
-	context.TestPanic(t, rr, "unable to get user statistics : metadata backend error", func() {
-		GetUserStatistics(ctx, rr, req)
-	})
+	GetUserStatistics(ctx, rr, req)
+	context.TestInternalServerError(t, rr, "unable to get user statistics : metadata backend error")
 }
 
 func TestRemoveUserUploads(t *testing.T) {
@@ -476,9 +475,8 @@ func TestRemoveUserUploadsMetadataBackendError(t *testing.T) {
 	ctx.GetMetadataBackend().(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
 
 	rr := ctx.NewRecorder(req)
-	context.TestPanic(t, rr, "unable to get user statistics : metadata backend error", func() {
-		GetUserStatistics(ctx, rr, req)
-	})
+	GetUserStatistics(ctx, rr, req)
+	context.TestInternalServerError(t, rr, "unable to get user statistics : metadata backend error")
 }
 
 func TestGetUserStatistics(t *testing.T) {
@@ -644,7 +642,6 @@ func TestRemoveUserStatisticsMetadataBackendError(t *testing.T) {
 	ctx.GetMetadataBackend().(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
 
 	rr := ctx.NewRecorder(req)
-	context.TestPanic(t, rr, "unable to get user statistics : metadata backend error", func() {
-		GetUserStatistics(ctx, rr, req)
-	})
+	GetUserStatistics(ctx, rr, req)
+	context.TestInternalServerError(t, rr, "unable to get user statistics : metadata backend error")
 }

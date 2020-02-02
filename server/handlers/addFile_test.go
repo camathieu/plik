@@ -166,10 +166,8 @@ func TestAddFileWithoutUploadInContext(t *testing.T) {
 	require.NoError(t, err, "unable to create new request")
 
 	rr := ctx.NewRecorder(req)
-
-	context.TestPanic(t, rr, "missing upload from context", func() {
-		AddFile(ctx, rr, req)
-	})
+	AddFile(ctx, rr, req)
+	context.TestInternalServerError(t, rr, "missing upload from context")
 }
 
 func TestAddFileNotAdmin(t *testing.T) {
@@ -349,10 +347,8 @@ func TestAddFileWithDataBackendError(t *testing.T) {
 	req = mux.SetURLVars(req, vars)
 
 	rr := ctx.NewRecorder(req)
-
-	context.TestPanic(t, rr, "unable to save file : data backend error", func() {
-		AddFile(ctx, rr, req)
-	})
+	AddFile(ctx, rr, req)
+	context.TestInternalServerError(t, rr, "unable to save file : data backend error")
 }
 
 func TestAddFileWithMetadataBackendError(t *testing.T) {
@@ -383,8 +379,6 @@ func TestAddFileWithMetadataBackendError(t *testing.T) {
 	req = mux.SetURLVars(req, vars)
 
 	rr := ctx.NewRecorder(req)
-
-	context.TestPanic(t, rr, "metadata backend error", func() {
-		AddFile(ctx, rr, req)
-	})
+	AddFile(ctx, rr, req)
+	context.TestInternalServerError(t, rr, "metadata backend error")
 }

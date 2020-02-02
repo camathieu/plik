@@ -169,9 +169,8 @@ func TestRemoveFileNoUpload(t *testing.T) {
 	require.NoError(t, err, "unable to create new request")
 
 	rr := ctx.NewRecorder(req)
-	context.TestPanic(t, rr, "missing upload from context", func() {
-		RemoveFile(ctx, rr, req)
-	})
+	RemoveFile(ctx, rr, req)
+	context.TestInternalServerError(t, rr, "missing upload from context")
 }
 
 func TestRemoveFileNoFile(t *testing.T) {
@@ -185,9 +184,8 @@ func TestRemoveFileNoFile(t *testing.T) {
 	require.NoError(t, err, "unable to create new request")
 
 	rr := ctx.NewRecorder(req)
-	context.TestPanic(t, rr, "missing file from context", func() {
-		RemoveFile(ctx, rr, req)
-	})
+	RemoveFile(ctx, rr, req)
+	context.TestInternalServerError(t, rr, "missing file from context")
 }
 
 func TestRemoveFileMetadataBackendError(t *testing.T) {
@@ -217,9 +215,8 @@ func TestRemoveFileMetadataBackendError(t *testing.T) {
 	ctx.GetMetadataBackend().(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
 
 	rr := ctx.NewRecorder(req)
-	context.TestPanic(t, rr, "unable to update upload metadata : metadata backend error", func() {
-		RemoveFile(ctx, rr, req)
-	})
+	RemoveFile(ctx, rr, req)
+	context.TestInternalServerError(t, rr, "unable to update upload metadata : metadata backend error")
 }
 
 func TestRemoveFileDataBackendError(t *testing.T) {

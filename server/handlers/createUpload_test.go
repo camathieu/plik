@@ -395,7 +395,6 @@ func TestCreateWithMetadataBackendError(t *testing.T) {
 	require.NoError(t, err, "unable to create new request")
 
 	rr := ctx.NewRecorder(req)
-	context.TestPanic(t, rr, "create upload error : metadata backend error", func() {
-		CreateUpload(ctx, rr, req)
-	})
+	CreateUpload(ctx, rr, req)
+	context.TestInternalServerError(t, rr, "create upload error : metadata backend error")
 }

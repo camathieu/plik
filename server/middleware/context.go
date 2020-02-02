@@ -7,7 +7,7 @@ import (
 )
 
 // Context sets necessary request context values
-func Context(setupContext func(ctx *context.Context)) context.ContextMiddleware {
+func Context(setupContext func(ctx *context.Context)) context.Middleware {
 	return func(ctx *context.Context, next http.Handler) http.Handler {
 		return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
 

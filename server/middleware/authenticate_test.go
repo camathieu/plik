@@ -39,10 +39,8 @@ func TestAuthenticateTokenMetadataBackendError(t *testing.T) {
 
 	rr := ctx.NewRecorder(req)
 
-	f := func() {
-		Authenticate(true)(ctx, common.DummyHandler).ServeHTTP(rr, req)
-	}
-	context.TestPanic(t, rr, "unable to get user from token  : metadata backend error", f)
+	Authenticate(true)(ctx, common.DummyHandler).ServeHTTP(rr, req)
+	context.TestInternalServerError(t, rr, "unable to get user from token  : metadata backend error")
 }
 
 func TestAuthenticateToken(t *testing.T) {
@@ -165,9 +163,8 @@ func TestAuthenticateMetadataBackendError(t *testing.T) {
 	ctx.GetMetadataBackend().(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
 
 	rr := ctx.NewRecorder(req)
-	context.TestPanic(t, rr, "unable to get user from session : metadata backend error", func() {
-		Authenticate(false)(ctx, common.DummyHandler).ServeHTTP(rr, req)
-	})
+	Authenticate(false)(ctx, common.DummyHandler).ServeHTTP(rr, req)
+	context.TestInternalServerError(t, rr, "unable to get user from session : metadata backend error")
 }
 
 func TestAuthenticateNoUser(t *testing.T) {

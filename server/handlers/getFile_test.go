@@ -164,9 +164,8 @@ func TestGetFileMissingUpload(t *testing.T) {
 	require.NoError(t, err, "unable to create new request")
 
 	rr := ctx.NewRecorder(req)
-	context.TestPanic(t, rr, "missing upload from context", func() {
-		GetFile(ctx, rr, req)
-	})
+	GetFile(ctx, rr, req)
+	context.TestInternalServerError(t, rr, "missing upload from context")
 }
 
 func TestGetFileMissingFile(t *testing.T) {
@@ -178,9 +177,8 @@ func TestGetFileMissingFile(t *testing.T) {
 	require.NoError(t, err, "unable to create new request")
 
 	rr := ctx.NewRecorder(req)
-	context.TestPanic(t, rr, "missing file from context", func() {
-		GetFile(ctx, rr, req)
-	})
+	GetFile(ctx, rr, req)
+	context.TestInternalServerError(t, rr, "missing file from context")
 }
 
 func TestGetHtmlFile(t *testing.T) {
@@ -255,9 +253,8 @@ func TestGetFileDataBackendError(t *testing.T) {
 	require.NoError(t, err, "unable to create new request")
 
 	rr := ctx.NewRecorder(req)
-	context.TestPanic(t, rr, "unable to get file from data backend : data backend error", func() {
-		GetFile(ctx, rr, req)
-	})
+	GetFile(ctx, rr, req)
+	context.TestInternalServerError(t, rr, "unable to get file from data backend : data backend error")
 }
 
 func TestGetFileMetadataBackendError(t *testing.T) {
@@ -281,7 +278,6 @@ func TestGetFileMetadataBackendError(t *testing.T) {
 	require.NoError(t, err, "unable to create new request")
 
 	rr := ctx.NewRecorder(req)
-	context.TestPanic(t, rr, "unable to update upload metadata : metadata backend error", func() {
-		GetFile(ctx, rr, req)
-	})
+	GetFile(ctx, rr, req)
+	context.TestInternalServerError(t, rr, "unable to update upload metadata : metadata backend error")
 }

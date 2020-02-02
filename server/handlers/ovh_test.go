@@ -116,10 +116,8 @@ func TestOVHLoginInvalidOVHResponse(t *testing.T) {
 	require.NoError(t, err, "unable to start OVH api mock server")
 
 	rr := ctx.NewRecorder(req)
-
-	context.TestPanic(t, rr, "error with OVH API", func() {
-		OvhLogin(ctx, rr, req)
-	})
+	OvhLogin(ctx, rr, req)
+	context.TestInternalServerError(t, rr, "error with OVH API")
 }
 
 func TestOVHLoginInvalidOVHResponse2(t *testing.T) {
@@ -144,10 +142,9 @@ func TestOVHLoginInvalidOVHResponse2(t *testing.T) {
 	require.NoError(t, err, "unable to start OVH api mock server")
 
 	rr := ctx.NewRecorder(req)
+	OvhLogin(ctx, rr, req)
+	context.TestInternalServerError(t, rr, "error with OVH API")
 
-	context.TestPanic(t, rr, "error with OVH API", func() {
-		OvhLogin(ctx, rr, req)
-	})
 }
 
 func TestOVHLoginAuthDisabled(t *testing.T) {
@@ -163,7 +160,6 @@ func TestOVHLoginAuthDisabled(t *testing.T) {
 
 	rr := ctx.NewRecorder(req)
 	OvhLogin(ctx, rr, req)
-
 	context.TestBadRequest(t, rr, "authentication is disabled")
 }
 
@@ -458,10 +454,8 @@ func TestOVHCallbackMissingOvhAPIConfigParam(t *testing.T) {
 	require.NoError(t, err, "unable to create new request")
 
 	rr := ctx.NewRecorder(req)
-
-	context.TestPanic(t, rr, "missing OVH API credentials", func() {
-		OvhCallback(ctx, rr, req)
-	})
+	OvhCallback(ctx, rr, req)
+	context.TestInternalServerError(t, rr, "missing OVH API credentials")
 }
 
 func TestOVHCallbackMissingOvhSessionCookie(t *testing.T) {
@@ -575,9 +569,8 @@ func TestOVHCallbackMissingOvhApi(t *testing.T) {
 	req.AddCookie(ovhAuthCookie)
 
 	rr := ctx.NewRecorder(req)
-	context.TestPanic(t, rr, "error with OVH API", func() {
-		OvhCallback(ctx, rr, req)
-	})
+	OvhCallback(ctx, rr, req)
+	context.TestInternalServerError(t, rr, "error with OVH API")
 }
 
 func TestOVHCallbackInvalidOvhSessionCookie(t *testing.T) {
@@ -644,9 +637,8 @@ func TestOVHCallbackInvalidOvhApiResponse(t *testing.T) {
 	require.NoError(t, err, "unable to start OVH api mock server")
 
 	rr := ctx.NewRecorder(req)
-	context.TestPanic(t, rr, "error with OVH API", func() {
-		OvhCallback(ctx, rr, req)
-	})
+	OvhCallback(ctx, rr, req)
+	context.TestInternalServerError(t, rr, "error with OVH API")
 }
 
 func TestOVHCallbackInvalidOvhApiResponseJson(t *testing.T) {
@@ -687,7 +679,6 @@ func TestOVHCallbackInvalidOvhApiResponseJson(t *testing.T) {
 	require.NoError(t, err, "unable to start OVH api mock server")
 
 	rr := ctx.NewRecorder(req)
-	context.TestPanic(t, rr, "error with OVH API", func() {
-		OvhCallback(ctx, rr, req)
-	})
+	OvhCallback(ctx, rr, req)
+	context.TestInternalServerError(t, rr, "error with OVH API")
 }

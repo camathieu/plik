@@ -15,7 +15,7 @@ func TestBackend_CreateUpload_NoUpload(t *testing.T) {
 	defer cleanup()
 
 	err := backend.CreateUpload(nil)
-	require.Errorf(t, err, "Missing upload")
+	require.Errorf(t, err, "missing upload")
 }
 
 func TestBackend_CreateUpload_MissingBucket(t *testing.T) {
@@ -108,8 +108,9 @@ func TestBackend_GetUpload_NotFound(t *testing.T) {
 	backend, cleanup := newBackend(t)
 	defer cleanup()
 
-	_, err := backend.GetUpload("id")
-	require.Errorf(t, err, "Unable to get upload metadata from Bolt bucket")
+	upload, err := backend.GetUpload("id")
+	require.NoError(t, err, "error expected")
+	require.Nil(t, upload, "no upload expected")
 }
 
 func TestBackend_GetUpload_InvalidJSON(t *testing.T) {

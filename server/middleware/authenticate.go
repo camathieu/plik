@@ -8,7 +8,7 @@ import (
 )
 
 // Authenticate verify that a request has either a whitelisted url or a valid auth token
-func Authenticate(allowToken bool) context.ContextMiddleware {
+func Authenticate(allowToken bool) context.Middleware {
 	return func(ctx *context.Context, next http.Handler) http.Handler {
 		return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
 			config := ctx.GetConfig()

@@ -4,26 +4,24 @@ import (
 	"net/http"
 )
 
-// ContextMiddleware is a constructor to close a Context into a middleware
-type ContextMiddleware func(ctx *Context, next http.Handler) http.Handler
+// Middleware is a constructor to close a Context into a middleware
+type Middleware func(ctx *Context, next http.Handler) http.Handler
 
-// ContextHandler is a constructor to close a Context into a http.Handler
-type ContextHandler func(ctx *Context) http.Handler
+// Handler is a constructor to close a Context into a http.Handler
+type Handler func(ctx *Context) http.Handler
 
-// ContextHandlerFunc is a constructor to close a Context into a http.HandlerFunc
-type ContextHandlerFunc func(ctx *Context, resp http.ResponseWriter, req *http.Request)
+// HandlerFunc is a constructor to close a Context into a http.HandlerFunc
+type HandlerFunc func(ctx *Context, resp http.ResponseWriter, req *http.Request)
 
-type ContextBuilder func() *Context
-
-// Chain link context middlewares to each other.
+// Chain link context middleware to each other.
 // Chain are immutable and any operation on them returns a new Chain object.
 type Chain struct {
 	parent     *Chain
-	middleware ContextMiddleware
+	middleware Middleware
 }
 
 // NewChain creates a new contextMiddleware chain.
-func NewChain(cms ...ContextMiddleware) (chain *Chain) {
+func NewChain(cms ...Middleware) (chain *Chain) {
 	chain = new(Chain)
 	if len(cms) > 0 {
 		chain.middleware = cms[0]
@@ -35,14 +33,14 @@ func NewChain(cms ...ContextMiddleware) (chain *Chain) {
 }
 
 // append add a contextMiddleware to the chain.
-func (chain *Chain) append(cm ContextMiddleware) (newChain *Chain) {
+func (chain *Chain) append(cm Middleware) (newChain *Chain) {
 	newChain = NewChain(cm)
 	newChain.parent = chain
 	return newChain
 }
 
 // Append add contextMiddleware(s) to the chain.
-func (chain *Chain) Append(cms ...ContextMiddleware) (newChain *Chain) {
+func (chain *Chain) Append(cms ...Middleware) (newChain *Chain) {
 	newChain = chain
 	for _, cm := range cms {
 		newChain = newChain.append(cm)
@@ -52,7 +50,7 @@ func (chain *Chain) Append(cms ...ContextMiddleware) (newChain *Chain) {
 }
 
 // Adapt add context to a middleware so it can be added to the chain.
-func Adapt(fn func(http.Handler) http.Handler) ContextMiddleware {
+func Adapt(fn func(http.Handler) http.Handler) Middleware {
 	return func(ctx *Context, h http.Handler) http.Handler {
 		return fn(h)
 	}
@@ -89,22 +87,22 @@ func (chain *Chain) AppendChain(tail *Chain) (newChain *Chain) {
 	return
 }
 
-// Then add a ContextHandlerFunc to the end of the chain
-// and returns a http.Handler compliant ContextHandler
-func (chain *Chain) Then(fn ContextHandlerFunc) (ch *ChainHandler) {
+// Then add a HandlerFunc to the end of the chain
+// and returns a http.Handler compliant Handler
+func (chain *Chain) Then(fn HandlerFunc) (ch *ChainHandler) {
 	ch = newHandler(chain, adaptContextHandlerFunc(fn))
 	return
 }
 
 // ThenHandler add a http.Handler to the end of the chain
-// and returns a http.Handler compliant ContextHandler
+// and returns a http.Handler compliant Handler
 func (chain *Chain) ThenHandler(handler http.Handler) (ch *ChainHandler) {
 	ch = newHandler(chain, adaptHandler(handler))
 	return
 }
 
 // ThenHandlerFunc add a http.HandlerFunc to the end of the chain
-// and returns a http.Handler compliant ContextHandler
+// and returns a http.Handler compliant Handler
 func (chain *Chain) ThenHandlerFunc(fn func(http.ResponseWriter, *http.Request)) (ch *ChainHandler) {
 	ch = newHandler(chain, adaptHandlerFunc(fn))
 	return
@@ -115,11 +113,11 @@ func (chain *Chain) ThenHandlerFunc(fn func(http.ResponseWriter, *http.Request))
 // served directly by a net/http server.
 type ChainHandler struct {
 	chain   *Chain
-	handler ContextHandler
+	handler Handler
 }
 
 // New Handler creates a new handler chain.
-func newHandler(chain *Chain, handler ContextHandler) (ch *ChainHandler) {
+func newHandler(chain *Chain, handler Handler) (ch *ChainHandler) {
 	ch = new(ChainHandler)
 	ch.chain = chain
 	ch.handler = handler
@@ -143,8 +141,8 @@ func (ch *ChainHandler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 	handler.ServeHTTP(resp, req)
 }
 
-// Adapt a ContextHandlerFunc into a ContextHandler.
-func adaptContextHandlerFunc(fn ContextHandlerFunc) ContextHandler {
+// Adapt a HandlerFunc into a Handler.
+func adaptContextHandlerFunc(fn HandlerFunc) Handler {
 	return func(ctx *Context) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			fn(ctx, w, r)
@@ -152,14 +150,14 @@ func adaptContextHandlerFunc(fn ContextHandlerFunc) ContextHandler {
 	}
 }
 
-// Adapt a http.Handler into a ContextHandler.
-func adaptHandler(h http.Handler) ContextHandler {
+// Adapt a http.Handler into a Handler.
+func adaptHandler(h http.Handler) Handler {
 	return func(ctx *Context) http.Handler {
 		return h
 	}
 }
 
-// Adapt a http.HandlerFunc into a ContextHandler.
-func adaptHandlerFunc(fn func(w http.ResponseWriter, r *http.Request)) ContextHandler {
+// Adapt a http.HandlerFunc into a Handler.
+func adaptHandlerFunc(fn func(w http.ResponseWriter, r *http.Request)) Handler {
 	return adaptHandler(http.HandlerFunc(fn))
 }

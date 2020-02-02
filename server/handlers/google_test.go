@@ -453,9 +453,8 @@ func TestGoogleCallbackNoApi(t *testing.T) {
 	req = req.WithContext(gocontext.WithValue(gocontext.TODO(), googeleEndpointContextKey, oauth2TestEndpoint))
 
 	rr := ctx.NewRecorder(req)
-	context.TestPanic(t, rr, "unable to get user info from Google API", func() {
-		GoogleCallback(ctx, rr, req)
-	})
+	GoogleCallback(ctx, rr, req)
+	context.TestInternalServerError(t, rr, "unable to get user info from Google API")
 }
 
 func TestGoogleCallbackCreateUser(t *testing.T) {

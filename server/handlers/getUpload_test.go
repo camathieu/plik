@@ -52,7 +52,6 @@ func TestGetUploadMissingUpload(t *testing.T) {
 	require.NoError(t, err, "unable to create new request")
 
 	rr := ctx.NewRecorder(req)
-	context.TestPanic(t, rr, "missing upload from context", func() {
-		GetUpload(ctx, rr, req)
-	})
+	GetUpload(ctx, rr, req)
+	context.TestInternalServerError(t, rr, "missing upload from context")
 }

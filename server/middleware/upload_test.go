@@ -42,10 +42,8 @@ func TestUploadMetadataBackendError(t *testing.T) {
 	req = mux.SetURLVars(req, vars)
 
 	rr := ctx.NewRecorder(req)
-
-	context.TestPanic(t, rr, "unable to get upload metadata : metadata backend error", func() {
-		Upload(ctx, common.DummyHandler).ServeHTTP(rr, req)
-	})
+	Upload(ctx, common.DummyHandler).ServeHTTP(rr, req)
+	context.TestInternalServerError(t, rr, "unable to get upload metadata : metadata backend error")
 }
 
 func TestUpload(t *testing.T) {

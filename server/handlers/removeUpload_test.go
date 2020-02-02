@@ -89,9 +89,8 @@ func TestRemoveUploadNoUpload(t *testing.T) {
 	require.NoError(t, err, "unable to create new request")
 
 	rr := ctx.NewRecorder(req)
-	context.TestPanic(t, rr, "missing upload from context", func() {
-		RemoveUpload(ctx, rr, req)
-	})
+	RemoveUpload(ctx, rr, req)
+	context.TestInternalServerError(t, rr, "missing upload from context")
 }
 
 func TestRemoveUploadMetadataBackendError(t *testing.T) {
@@ -111,9 +110,8 @@ func TestRemoveUploadMetadataBackendError(t *testing.T) {
 	ctx.GetMetadataBackend().(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
 
 	rr := ctx.NewRecorder(req)
-	context.TestPanic(t, rr, "unable to update upload metadata : metadata backend error", func() {
-		RemoveUpload(ctx, rr, req)
-	})
+	RemoveUpload(ctx, rr, req)
+	context.TestInternalServerError(t, rr, "unable to update upload metadata : metadata backend error")
 }
 
 func TestRemoveUploadDataBackendError(t *testing.T) {

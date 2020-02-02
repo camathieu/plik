@@ -19,9 +19,8 @@ func TestSourceIPInvalid(t *testing.T) {
 	req.RemoteAddr = "invalid_ip_address"
 	rr := ctx.NewRecorder(req)
 
-	context.TestPanic(t, rr, "unable to parse source IP address", func() {
-		SourceIP(ctx, common.DummyHandler).ServeHTTP(rr, req)
-	})
+	SourceIP(ctx, common.DummyHandler).ServeHTTP(rr, req)
+	context.TestInternalServerError(t, rr, "unable to parse source IP address")
 }
 
 func TestSourceIPInvalidFromHeader(t *testing.T) {

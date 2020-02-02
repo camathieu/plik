@@ -19,9 +19,8 @@ func TestFileNoUpload(t *testing.T) {
 
 	rr := ctx.NewRecorder(req)
 
-	context.TestPanic(t, rr, "missing upload from context", func() {
-		File(ctx, common.DummyHandler).ServeHTTP(rr, req)
-	})
+	File(ctx, common.DummyHandler).ServeHTTP(rr, req)
+	context.TestInternalServerError(t, rr, "missing upload from context")
 }
 
 func TestFileNoFileID(t *testing.T) {
