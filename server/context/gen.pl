@@ -6,12 +6,12 @@ use warnings;
 use Data::Dumper;
 
 my $struct = [
-	'config', '*common.Configuration', {},
-	'logger', '*logger.Logger', {},
+	'config', '*common.Configuration', { 'panic' => 1 },
+	'logger', '*logger.Logger', { 'panic' => 1 },
 
-	'metadataBackend', 'metadata.Backend', {},
-	'dataBackend', 'data.Backend', {},
-	'streamBackend', 'data.Backend', {},
+	'metadataBackend', 'metadata.Backend', { 'panic' => 1 },
+	'dataBackend', 'data.Backend', { 'panic' => 1 },
+	'streamBackend', 'data.Backend', { 'panic' => 1 },
 
 	'sourceIP', 'net.IP', {},
 
@@ -52,7 +52,6 @@ func (ctx *Context) $uc() $type {
 
     return ctx.$param
 }
-
 EOF
     } else {
         $str = << "EOF";
@@ -61,9 +60,19 @@ func (ctx *Context) Get$uc() $type {
     ctx.mu.RLock()
     defer ctx.mu.RUnlock()
 
+EOF
+        if ( $params->{'panic'} ) {
+        $str .= << "EOF";
+    if ctx.$param == nil {
+        panic("missing $param from context")
+    }
+
+EOF
+        }
+
+    $str .= << "EOF";
     return ctx.$param
 }
-
 EOF
     }
 }
@@ -86,7 +95,7 @@ sub genSet
 // Set$uc set $param in the context
 func (ctx *Context) Set$uc($param $type) {
     ctx.mu.Lock()
-    ctx.mu.Unlock()
+    defer ctx.mu.Unlock()
 
     ctx.$param = $param
 }
@@ -102,12 +111,10 @@ sub genImports
 package context
 
 import (
-	"fmt"
 	"net"
 	"net/http"
 	"sync"
 
-	//gocontext "context"
 	"github.com/root-gg/logger"
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/data"
@@ -164,24 +171,6 @@ sub genCode
     $str .= "\n";
     $str .= genMethods $struct;
     $str .= "\n";
-}
-
-sub genTestImports
-{
-    my $str = "";
-
-    $str = << "EOF";
-package context
-
-import (
-	"testing"
-$type =~ s/^\*//;
-	"github.com/root-gg/plik/server/common"
-	"github.com/stretchr/testify/require"
-)
-
-EOF
-    return $str;
 }
 
 print genCode $struct;

@@ -5,14 +5,12 @@ import (
 	"net/http"
 	"sync"
 
-	//gocontext "context"
 	"github.com/root-gg/logger"
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/data"
 	"github.com/root-gg/plik/server/metadata"
 )
 
-// Context to be propagated throughout the middleware chain
 type Context struct {
 	config              *common.Configuration
 	logger              *logger.Logger
@@ -39,13 +37,17 @@ func (ctx *Context) GetConfig() *common.Configuration {
 	ctx.mu.RLock()
 	defer ctx.mu.RUnlock()
 
+	if ctx.config == nil {
+		panic("missing config from context")
+	}
+
 	return ctx.config
 }
 
 // SetConfig set config in the context
 func (ctx *Context) SetConfig(config *common.Configuration) {
 	ctx.mu.Lock()
-	ctx.mu.Unlock()
+	defer ctx.mu.Unlock()
 
 	ctx.config = config
 }
@@ -55,13 +57,17 @@ func (ctx *Context) GetLogger() *logger.Logger {
 	ctx.mu.RLock()
 	defer ctx.mu.RUnlock()
 
+	if ctx.logger == nil {
+		panic("missing logger from context")
+	}
+
 	return ctx.logger
 }
 
 // SetLogger set logger in the context
 func (ctx *Context) SetLogger(logger *logger.Logger) {
 	ctx.mu.Lock()
-	ctx.mu.Unlock()
+	defer ctx.mu.Unlock()
 
 	ctx.logger = logger
 }
@@ -71,13 +77,17 @@ func (ctx *Context) GetMetadataBackend() metadata.Backend {
 	ctx.mu.RLock()
 	defer ctx.mu.RUnlock()
 
+	if ctx.metadataBackend == nil {
+		panic("missing metadataBackend from context")
+	}
+
 	return ctx.metadataBackend
 }
 
 // SetMetadataBackend set metadataBackend in the context
 func (ctx *Context) SetMetadataBackend(metadataBackend metadata.Backend) {
 	ctx.mu.Lock()
-	ctx.mu.Unlock()
+	defer ctx.mu.Unlock()
 
 	ctx.metadataBackend = metadataBackend
 }
@@ -87,13 +97,17 @@ func (ctx *Context) GetDataBackend() data.Backend {
 	ctx.mu.RLock()
 	defer ctx.mu.RUnlock()
 
+	if ctx.dataBackend == nil {
+		panic("missing dataBackend from context")
+	}
+
 	return ctx.dataBackend
 }
 
 // SetDataBackend set dataBackend in the context
 func (ctx *Context) SetDataBackend(dataBackend data.Backend) {
 	ctx.mu.Lock()
-	ctx.mu.Unlock()
+	defer ctx.mu.Unlock()
 
 	ctx.dataBackend = dataBackend
 }
@@ -103,13 +117,17 @@ func (ctx *Context) GetStreamBackend() data.Backend {
 	ctx.mu.RLock()
 	defer ctx.mu.RUnlock()
 
+	if ctx.streamBackend == nil {
+		panic("missing streamBackend from context")
+	}
+
 	return ctx.streamBackend
 }
 
 // SetStreamBackend set streamBackend in the context
 func (ctx *Context) SetStreamBackend(streamBackend data.Backend) {
 	ctx.mu.Lock()
-	ctx.mu.Unlock()
+	defer ctx.mu.Unlock()
 
 	ctx.streamBackend = streamBackend
 }
@@ -125,7 +143,7 @@ func (ctx *Context) GetSourceIP() net.IP {
 // SetSourceIP set sourceIP in the context
 func (ctx *Context) SetSourceIP(sourceIP net.IP) {
 	ctx.mu.Lock()
-	ctx.mu.Unlock()
+	defer ctx.mu.Unlock()
 
 	ctx.sourceIP = sourceIP
 }
@@ -141,7 +159,7 @@ func (ctx *Context) GetUpload() *common.Upload {
 // SetUpload set upload in the context
 func (ctx *Context) SetUpload(upload *common.Upload) {
 	ctx.mu.Lock()
-	ctx.mu.Unlock()
+	defer ctx.mu.Unlock()
 
 	ctx.upload = upload
 }
@@ -157,7 +175,7 @@ func (ctx *Context) GetFile() *common.File {
 // SetFile set file in the context
 func (ctx *Context) SetFile(file *common.File) {
 	ctx.mu.Lock()
-	ctx.mu.Unlock()
+	defer ctx.mu.Unlock()
 
 	ctx.file = file
 }
@@ -173,7 +191,7 @@ func (ctx *Context) GetUser() *common.User {
 // SetUser set user in the context
 func (ctx *Context) SetUser(user *common.User) {
 	ctx.mu.Lock()
-	ctx.mu.Unlock()
+	defer ctx.mu.Unlock()
 
 	ctx.user = user
 }
@@ -189,7 +207,7 @@ func (ctx *Context) GetToken() *common.Token {
 // SetToken set token in the context
 func (ctx *Context) SetToken(token *common.Token) {
 	ctx.mu.Lock()
-	ctx.mu.Unlock()
+	defer ctx.mu.Unlock()
 
 	ctx.token = token
 }
@@ -205,7 +223,7 @@ func (ctx *Context) IsWhitelisted() bool {
 // SetWhitelisted set isWhitelisted in the context
 func (ctx *Context) SetWhitelisted(isWhitelisted bool) {
 	ctx.mu.Lock()
-	ctx.mu.Unlock()
+	defer ctx.mu.Unlock()
 
 	ctx.isWhitelisted = isWhitelisted
 }
@@ -221,7 +239,7 @@ func (ctx *Context) IsAdmin() bool {
 // SetAdmin set isAdmin in the context
 func (ctx *Context) SetAdmin(isAdmin bool) {
 	ctx.mu.Lock()
-	ctx.mu.Unlock()
+	defer ctx.mu.Unlock()
 
 	ctx.isAdmin = isAdmin
 }
@@ -237,7 +255,7 @@ func (ctx *Context) IsUploadAdmin() bool {
 // SetUploadAdmin set isUploadAdmin in the context
 func (ctx *Context) SetUploadAdmin(isUploadAdmin bool) {
 	ctx.mu.Lock()
-	ctx.mu.Unlock()
+	defer ctx.mu.Unlock()
 
 	ctx.isUploadAdmin = isUploadAdmin
 }
@@ -253,7 +271,7 @@ func (ctx *Context) IsRedirectOnFailure() bool {
 // SetRedirectOnFailure set isRedirectOnFailure in the context
 func (ctx *Context) SetRedirectOnFailure(isRedirectOnFailure bool) {
 	ctx.mu.Lock()
-	ctx.mu.Unlock()
+	defer ctx.mu.Unlock()
 
 	ctx.isRedirectOnFailure = isRedirectOnFailure
 }
@@ -269,7 +287,7 @@ func (ctx *Context) IsQuick() bool {
 // SetQuick set isQuick in the context
 func (ctx *Context) SetQuick(isQuick bool) {
 	ctx.mu.Lock()
-	ctx.mu.Unlock()
+	defer ctx.mu.Unlock()
 
 	ctx.isQuick = isQuick
 }
@@ -285,7 +303,7 @@ func (ctx *Context) GetReq() *http.Request {
 // SetReq set req in the context
 func (ctx *Context) SetReq(req *http.Request) {
 	ctx.mu.Lock()
-	ctx.mu.Unlock()
+	defer ctx.mu.Unlock()
 
 	ctx.req = req
 }
@@ -301,7 +319,7 @@ func (ctx *Context) GetResp() http.ResponseWriter {
 // SetResp set resp in the context
 func (ctx *Context) SetResp(resp http.ResponseWriter) {
 	ctx.mu.Lock()
-	ctx.mu.Unlock()
+	defer ctx.mu.Unlock()
 
 	ctx.resp = resp
 }

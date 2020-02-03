@@ -15,6 +15,9 @@ func Context(setupContext func(ctx *context.Context)) context.Middleware {
 			ctx.SetReq(req)
 			ctx.SetResp(resp)
 
+			// Recover from panic and return a nice http.InternalServerError()
+			defer ctx.Recover()
+
 			next.ServeHTTP(resp, req)
 		})
 	}

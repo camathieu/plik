@@ -103,7 +103,7 @@ func (chain *Chain) ThenHandler(handler http.Handler) (ch *ChainHandler) {
 
 // ThenHandlerFunc add a http.HandlerFunc to the end of the chain
 // and returns a http.Handler compliant Handler
-func (chain *Chain) ThenHandlerFunc(fn func(http.ResponseWriter, *http.Request)) (ch *ChainHandler) {
+func (chain *Chain) ThenHandlerFunc(fn http.HandlerFunc) (ch *ChainHandler) {
 	ch = newHandler(chain, adaptHandlerFunc(fn))
 	return
 }
