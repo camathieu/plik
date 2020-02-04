@@ -35,7 +35,7 @@ func TestUploadFileTwice(t *testing.T) {
 
 	_, err = pc.uploadFile(uploadParams, fileParams, bytes.NewBufferString("data"))
 	require.Error(t, err, "missing error")
-	require.Contains(t, err.Error(), "has already been uploaded or removed", "invalid error")
+	require.Contains(t, err.Error(), "file status is uploaded", "invalid error")
 }
 
 func TestDownloadDuringUpload(t *testing.T) {
@@ -225,13 +225,13 @@ func TestStream(t *testing.T) {
 	require.NoError(t, err, "unable to create upload")
 	require.True(t, upload.Stream, "invalid nil error params")
 
+	errors := make(chan error, 1)
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		time.Sleep(50 * time.Millisecond)
-		err := upload.Upload()
-		require.NoError(t, err, "unable to upload file")
-		wg.Done()
+		errors <- upload.Upload()
 	}()
 
 	f := func() {
@@ -251,6 +251,9 @@ func TestStream(t *testing.T) {
 
 	err = common.TestTimeout(f, time.Second)
 	require.NoError(t, err, "timeout")
+
+	err = <-errors
+	require.NoError(t, err, "upload error")
 
 	time.Sleep(time.Second)
 

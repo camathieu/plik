@@ -139,7 +139,6 @@ func TestRemoveToken(t *testing.T) {
 
 	token := common.NewToken()
 	token.Comment = "token comment"
-	token.Create()
 	user.Tokens = append(user.Tokens, token)
 
 	err := addTestUser(ctx, user)
@@ -178,7 +177,6 @@ func TestRemoveMissingToken(t *testing.T) {
 
 	token := common.NewToken()
 	token.Comment = "token comment"
-	token.Create()
 	user.Tokens = append(user.Tokens, token)
 
 	err := addTestUser(ctx, user)
@@ -221,7 +219,6 @@ func TestRevokeTokenMetadataBackendError(t *testing.T) {
 
 	token := common.NewToken()
 	token.Comment = "token comment"
-	token.Create()
 	user.Tokens = append(user.Tokens, token)
 
 	err := addTestUser(ctx, user)

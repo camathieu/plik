@@ -3,11 +3,10 @@ package handlers
 import (
 	"crypto/md5"
 	"fmt"
+	"github.com/gorilla/mux"
 	"io"
 	"net/http"
 	"time"
-
-	"github.com/gorilla/mux"
 
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
@@ -30,8 +29,7 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 	// Get upload from context
 	upload := ctx.GetUpload()
 	if upload == nil {
-		ctx.InternalServerError("missing upload from context", nil)
-		return
+		panic("missing upload from context")
 	}
 
 	// Check authorization
@@ -60,46 +58,11 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 		}
 	}
 
-	// Check file status and set to FileUploading
-	// This avoids file overwriting
-	tx := func(u *common.Upload) (err error) {
-		if u == nil {
-			return common.NewHTTPError("upload does not exist anymore", http.StatusNotFound)
-		}
-
-		f, ok := u.Files[file.ID]
-		if !ok {
-			// Add new file to the upload metadata
-			u.Files[file.ID] = file
-			f = file
-		}
-
-		// Limit number of files per upload
-		if len(u.Files) > config.MaxFilePerUpload {
-			return common.NewHTTPError(fmt.Sprintf("maximum number file per upload reached, limit is %d", config.MaxFilePerUpload), http.StatusBadRequest)
-		}
-
-		if !(f.Status == "" || f.Status == common.FileMissing) {
-			return common.NewHTTPError(fmt.Sprintf("file %s (%s) has already been uploaded or removed", f.Name, f.ID), http.StatusBadRequest)
-		}
-
-		f.Status = common.FileUploading
-
-		return nil
-	}
-
-	// Update upload metadata
-	upload, err := ctx.GetMetadataBackend().UpdateUpload(upload, tx)
-	if err != nil {
-		handleTxError(ctx, "unable to update upload metadata", err)
-		return
-	}
-
 	// Update request logger prefix
 	prefix := fmt.Sprintf("%s[%s]", log.Prefix, file.ID)
 	log.SetPrefix(prefix)
 
-	// Get file handle from multipart request
+	// Get file handle form multipart request
 	var fileReader io.Reader
 	multiPartReader, err := req.MultipartReader()
 	if err != nil {
@@ -139,17 +102,58 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 		}
 	}
 	if fileReader == nil {
-		ctx.MissingParameter("file")
+		ctx.MissingParameter("file from multipart form")
 		return
 	}
 	if file.Name == "" {
-		ctx.MissingParameter("file name")
+		ctx.MissingParameter("file name from multipart form")
 		return
 	}
 
 	// Update request logger prefix
 	prefix = fmt.Sprintf("%s[%s]", log.Prefix, file.Name)
 	log.SetPrefix(prefix)
+
+	// Check file status and set status to common.FileUploading to avoid multiple uploads in parallel
+	tx := func(u *common.Upload) (err error) {
+		if u == nil {
+			return common.NewHTTPError("upload does not exist anymore", http.StatusNotFound)
+		}
+
+		f, ok := u.Files[file.ID]
+		if !ok {
+			// Add new file to the upload metadata
+			u.Files[file.ID] = file
+			f = file
+		}
+
+		// Limit number of files per upload
+		if len(u.Files) > config.MaxFilePerUpload {
+			return common.NewHTTPError(fmt.Sprintf("maximum number file per upload reached, limit is %d", config.MaxFilePerUpload), http.StatusBadRequest)
+		}
+
+		if !(f.Status == "" || f.Status == common.FileMissing) {
+			return common.NewHTTPError(fmt.Sprintf("file status is %s", f.Status), http.StatusBadRequest)
+		}
+
+		f.Status = common.FileUploading
+
+		return nil
+	}
+
+	// Update upload metadata
+	upload, err = ctx.GetMetadataBackend().UpdateUpload(upload, tx)
+	if err != nil {
+		handleTxError(ctx, "unable to update upload metadata", err)
+		return
+	}
+
+	// Get updated file
+	var ok bool
+	file, ok = upload.Files[file.ID]
+	if !ok {
+		panic("missing file from upload after metadata update")
+	}
 
 	// Pipe file data from the request body to a preprocessing goroutine
 	//  - Guess content type
@@ -169,6 +173,8 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 
 	backendDetails, err := backend.AddFile(upload, file, preprocessReader)
 	if err != nil {
+		// TODO : file status is left to common.FileUploading we should set it to some common.FileUploadError
+		// TODO : or we can set it back to common.FileMissing if we are sure data backends will handle that
 		ctx.InternalServerError("unable to save file", err)
 		return
 	}
@@ -176,59 +182,60 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 	// Get preprocessor goroutine output
 	preprocessOutput := <-preprocessOutputCh
 	if preprocessOutput.err != nil {
+		// TODO : file status is left to common.FileUploading we should set it to some common.FileUploadError
+		// TODO : or we can set it back to common.FileMissing if we are sure data backends will handle that
 		handleTxError(ctx, "unable to execute preprocessor", preprocessOutput.err)
 		return
 	}
 
-	// Fill-in file information
-	file.Type = preprocessOutput.mimeType
-	file.CurrentSize = preprocessOutput.size
-	file.Md5 = preprocessOutput.md5sum
-	file.UploadDate = time.Now().Unix()
-	file.BackendDetails = backendDetails
-
-	if !upload.Stream {
-		// Double check file status and update upload metadata
-		tx = func(u *common.Upload) (err error) {
-			if u == nil {
-				return common.NewHTTPError("missing upload from upload transaction", http.StatusNotFound)
-			}
-
-			// Just to check that the file has not been already removed
-			f, ok := u.Files[file.ID]
-			if !ok {
-				return fmt.Errorf("missing file %s from upload transaction", file.ID)
-			}
-			if f.Status != common.FileUploading {
-				return common.NewHTTPError(fmt.Sprintf("invalid file status %s, expected %s", f.Status, common.FileUploading), http.StatusInternalServerError)
-			}
-
-			// Update file status
-			file.Status = common.FileUploaded
-
-			// Update file
-			u.Files[file.ID] = file
-
-			return nil
+	// update upload metadata
+	tx = func(u *common.Upload) (err error) {
+		if u == nil {
+			return common.NewHTTPError("upload does not exists anymore", http.StatusNotFound)
 		}
 
-		upload, err = ctx.GetMetadataBackend().UpdateUpload(upload, tx)
-		if err != nil {
-			handleTxError(ctx, "unable to update upload metadata", err)
-			return
-		}
-
-		// Get updated file
-		var ok bool
-		file, ok = upload.Files[file.ID]
+		// This should never happen as the file status should not be changed until it has been set to uploaded
+		f, ok := u.Files[file.ID]
 		if !ok {
-			ctx.InternalServerError("missing file from upload after metadata update", nil)
-			return
+			return fmt.Errorf("missing file %s from upload transaction", file.ID)
 		}
-	} else {
-		// For steam upload the file will be removed by the getFile handler
-		// If there is only one file the upload will be removed too
-		file.Status = common.FileDeleted
+
+		if u.Stream {
+			if f.Status != common.FileUploading {
+				return fmt.Errorf("invalid file status %s, expected %s", f.Status, common.FileUploading)
+			}
+		}
+
+		// Update file status
+		if upload.Stream {
+			f.Status = common.FileDeleted
+		} else {
+			f.Status = common.FileUploaded
+		}
+
+		// Fill-in file information
+		f.Type = preprocessOutput.mimeType
+		f.CurrentSize = preprocessOutput.size
+		f.Md5 = preprocessOutput.md5sum
+		f.UploadDate = time.Now().Unix()
+		f.BackendDetails = backendDetails
+
+		return nil
+	}
+
+	// Update upload metadata
+	upload, err = ctx.GetMetadataBackend().UpdateUpload(upload, tx)
+	if err != nil {
+		handleTxError(ctx, "unable to update upload metadata", err)
+		return
+	}
+
+	// Get updated file
+	var ok2 bool
+	file, ok2 = upload.Files[file.ID]
+	if !ok2 {
+		ctx.InternalServerError("missing file from upload after metadata update", nil)
+		return
 	}
 
 	// Remove all private information (ip, data backend details, ...) before
@@ -241,8 +248,7 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 		if ctx.GetConfig().GetDownloadDomain() != nil {
 			url = ctx.GetConfig().GetDownloadDomain().String()
 		} else {
-			ctx.BadRequest("download domain must be set server side for quick upload to work")
-			return
+			url = ctx.GetConfig().GetServerURL().String()
 		}
 
 		url += fmt.Sprintf("/file/%s/%s/%s", upload.ID, file.ID, file.Name)
@@ -254,8 +260,7 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 		if json, err = utils.ToJson(file); err == nil {
 			_, _ = resp.Write(json)
 		} else {
-			ctx.InternalServerError("unable to serialize json response", err)
-			return
+			panic(fmt.Errorf("unable to serialize json response : %s", err))
 		}
 	}
 }

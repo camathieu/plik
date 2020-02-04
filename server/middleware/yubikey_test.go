@@ -25,6 +25,20 @@ func TestYubikeyNoUpload(t *testing.T) {
 	context.TestInternalServerError(t, rr, "missing upload in yubikey middleware")
 }
 
+func TestYubikeyNoYubikey(t *testing.T) {
+	ctx := newTestingContext(common.NewConfiguration())
+
+	ctx.SetUpload(common.NewUpload())
+
+	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
+	require.NoError(t, err, "unable to create new request")
+
+	rr := ctx.NewRecorder(req)
+
+	Yubikey(ctx, common.DummyHandler).ServeHTTP(rr, req)
+	context.TestOK(t, rr)
+}
+
 func TestYubikeyNotEnabled(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 	ctx.GetMetadataBackend().(*metadata_test.Backend).SetError(errors.New("metadata backend error"))

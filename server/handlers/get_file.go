@@ -2,14 +2,14 @@ package handlers
 
 import (
 	"fmt"
-
-	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/plik/server/context"
-	"github.com/root-gg/plik/server/data"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/plik/server/context"
+	"github.com/root-gg/plik/server/data"
 )
 
 // GetFile download a file
@@ -23,18 +23,16 @@ func GetFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 	// Get upload from context
 	upload := ctx.GetUpload()
 	if upload == nil {
-		ctx.InternalServerError("missing upload from context", nil)
-		return
+		panic("missing upload from context")
 	}
 
 	// Get file from context
 	file := ctx.GetFile()
 	if file == nil {
-		ctx.InternalServerError("missing file from context", nil)
-		return
+		panic("missing file from context")
 	}
 
-	// File status pre-check
+	// File status check
 	if upload.Stream {
 		if file.Status != common.FileUploading {
 			ctx.NotFound("file %s (%s) is not available : %s", file.Name, file.ID, file.Status)
@@ -47,7 +45,7 @@ func GetFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 		}
 	}
 
-	if req.Method == "GET" && (upload.Stream || upload.OneShot) {
+	if req.Method == "GET" && upload.OneShot {
 		// If this is a one shot or stream upload we have to ensure it's downloaded only once.
 		tx := func(u *common.Upload) error {
 			if u == nil {
@@ -59,18 +57,11 @@ func GetFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 				return fmt.Errorf("unable to find file %s (%s)", file.Name, file.ID)
 			}
 
-			// File status double-check
-			if upload.Stream {
-				if f.Status != common.FileUploading {
-					return common.NewHTTPError(fmt.Sprintf("invalid file %s (%s) status %s, expected %s", file.Name, file.ID, file.Status, common.FileUploading), http.StatusBadRequest)
-				}
-				f.Status = common.FileDeleted
-			} else if upload.OneShot {
-				if f.Status != common.FileUploaded {
-					return common.NewHTTPError(fmt.Sprintf("invalid file %s (%s) status %s, expected %s", file.Name, file.ID, file.Status, common.FileUploaded), http.StatusBadRequest)
-				}
-				f.Status = common.FileRemoved
+			if f.Status != common.FileUploaded {
+				return common.NewHTTPError(fmt.Sprintf("invalid file %s (%s) status %s, expected %s", file.Name, file.ID, file.Status, common.FileUploaded), http.StatusBadRequest)
 			}
+
+			f.Status = common.FileRemoved
 
 			return nil
 		}
@@ -81,15 +72,14 @@ func GetFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 			return
 		}
 
-		if !upload.Stream {
-			// From now on we'll try to delete the file from the data backend whatever happens
-			defer func() {
-				err = DeleteRemovedFile(ctx, upload, file)
-				if err != nil {
-					log.Warningf("unable to delete file %s (%s) : %s", file.Name, file.ID, err)
-				}
-			}()
-		}
+		// From now on we'll try to delete the file from the data backend whatever happens
+		// TODO recover the status to uploaded and do not delete file on io.Copy error
+		defer func() {
+			err = DeleteRemovedFile(ctx, upload, file)
+			if err != nil {
+				log.Warningf("unable to delete file %s (%s) : %s", file.Name, file.ID, err)
+			}
+		}()
 	}
 
 	// Avoid rendering HTML in browser

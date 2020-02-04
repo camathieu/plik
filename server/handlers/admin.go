@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -73,8 +74,7 @@ func GetUsers(ctx *context.Context, resp http.ResponseWriter, req *http.Request)
 	// Print users in the json response.
 	var json []byte
 	if json, err = utils.ToJson(users); err != nil {
-		ctx.InternalServerError("unable to serialize json response", err)
-		return
+		panic(fmt.Errorf("unable to serialize json response : %s", err))
 	}
 
 	_, _ = resp.Write(json)
@@ -97,8 +97,7 @@ func GetServerStatistics(ctx *context.Context, resp http.ResponseWriter, req *ht
 	// Print stats in the json response.
 	var json []byte
 	if json, err = utils.ToJson(stats); err != nil {
-		ctx.InternalServerError("unable to serialize json response", err)
-		return
+		panic(fmt.Errorf("unable to serialize json response : %s", err))
 	}
 
 	_, _ = resp.Write(json)

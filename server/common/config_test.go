@@ -1,6 +1,7 @@
 package common
 
 import (
+	"net"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -52,6 +53,26 @@ func TestInitializeConfigUploadWhitelist(t *testing.T) {
 	require.Equal(t, config.UploadWhitelist[0]+"/32", config.uploadWhitelist[0].String(), "invalid parsed upload IP")
 	require.Equal(t, config.UploadWhitelist[1], config.uploadWhitelist[1].String(), "invalid parsed upload IP")
 	require.Equal(t, config.UploadWhitelist[1], config.uploadWhitelist[2].String(), "invalid parsed upload IP")
+}
+
+func TestIsWhitelisted(t *testing.T) {
+	config := NewConfiguration()
+
+	require.True(t, config.IsWhitelisted(nil), "no whitelist should be always ok")
+	require.True(t, config.IsWhitelisted(net.ParseIP("1.2.3.4").To4()), "no whitelist should be always ok")
+	require.True(t, config.IsWhitelisted(net.ParseIP("1234::1").To16()), "no whitelist should be always ok")
+
+	config.UploadWhitelist = []string{"1.1.1.1", "127.0.0.0/24", "1234::/64"}
+	err := config.Initialize()
+	require.NoError(t, err, "unable to initialize invalid config")
+
+	require.False(t, config.IsWhitelisted(nil), "should not be whitelisted")
+	require.False(t, config.IsWhitelisted(net.ParseIP("1.2.3.4").To4()), "should not be whitelisted")
+	require.False(t, config.IsWhitelisted(net.ParseIP("666::").To16()), "should not be whitelisted")
+
+	require.True(t, config.IsWhitelisted(net.ParseIP("1.1.1.1").To4()), "no be whitelisted")
+	require.True(t, config.IsWhitelisted(net.ParseIP("127.0.0.42").To4()), "no be whitelisted")
+	require.True(t, config.IsWhitelisted(net.ParseIP("1234::42").To16()), "no be whitelisted")
 }
 
 func TestInitializeConfigAuthentication(t *testing.T) {

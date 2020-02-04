@@ -23,9 +23,6 @@ func CreateToken(ctx *context.Context, resp http.ResponseWriter, req *http.Reque
 		return
 	}
 
-	// Create token
-	token := common.NewToken()
-
 	// Read request body
 	defer func() { _ = req.Body.Close() }()
 
@@ -36,6 +33,9 @@ func CreateToken(ctx *context.Context, resp http.ResponseWriter, req *http.Reque
 		return
 	}
 
+	// Create token
+	token := common.NewToken()
+
 	// Deserialize json body
 	if len(body) > 0 {
 		err = json.Unmarshal(body, token)
@@ -45,11 +45,8 @@ func CreateToken(ctx *context.Context, resp http.ResponseWriter, req *http.Reque
 		}
 	}
 
-	// Initialize token
-	err = token.Create()
-	if err != nil {
-		ctx.InternalServerError("unable to generate token", err)
-	}
+	// Generate token uuid and set creation date
+	token.Initialize()
 
 	// Add token to user
 	tx := func(u *common.User) error {
@@ -70,8 +67,7 @@ func CreateToken(ctx *context.Context, resp http.ResponseWriter, req *http.Reque
 	// Print token in the json response.
 	var bytes []byte
 	if bytes, err = utils.ToJson(token); err != nil {
-		ctx.InternalServerError("unable to serialize json response", err)
-		return
+		panic(fmt.Errorf("unable to serialize json response : %s", err))
 	}
 
 	_, _ = resp.Write(bytes)

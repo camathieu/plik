@@ -19,8 +19,7 @@ func GetVersion(ctx *context.Context, resp http.ResponseWriter, req *http.Reques
 	// Print version and build information in the json response.
 	json, err := utils.ToJson(common.GetBuildInfo())
 	if err != nil {
-		ctx.InternalServerError("unable to serialize json response", err)
-		return
+		panic(fmt.Errorf("unable to serialize json response : %s", err))
 	}
 
 	_, _ = resp.Write(json)
@@ -33,8 +32,7 @@ func GetConfiguration(ctx *context.Context, resp http.ResponseWriter, req *http.
 	// Print configuration in the json response.
 	json, err := utils.ToJson(config)
 	if err != nil {
-		ctx.InternalServerError("unable to serialize json response", err)
-		return
+		panic(fmt.Errorf("unable to serialize json response : %s", err))
 	}
 
 	_, _ = resp.Write(json)

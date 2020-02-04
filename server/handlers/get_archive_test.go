@@ -116,8 +116,9 @@ func TestGetArchiveMissingUpload(t *testing.T) {
 	require.NoError(t, err, "unable to create new request")
 
 	rr := ctx.NewRecorder(req)
-	GetArchive(ctx, rr, req)
-	context.TestInternalServerError(t, rr, "missing upload from context")
+	context.TestPanic(t, rr, "missing upload from context", func() {
+		GetArchive(ctx, rr, req)
+	})
 }
 
 func TestGetArchiveOneShot(t *testing.T) {
@@ -171,10 +172,6 @@ func TestGetArchiveOneShot(t *testing.T) {
 
 	_, err = ctx.GetDataBackend().GetFile(upload, file.ID)
 	require.Error(t, err, "downloaded file still exists")
-
-	u, err := ctx.GetMetadataBackend().GetUpload(upload.ID)
-	require.Error(t, err, "unexpected unable to get upload")
-	require.Nil(t, u, "downloaded upload still exists")
 }
 
 func TestGetArchiveNoArchiveName(t *testing.T) {

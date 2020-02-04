@@ -31,17 +31,15 @@ type UserStats struct {
 }
 
 // NewUser create a new user object
-func NewUser() (user *User) {
-	user = new(User)
-	return
+func NewUser() *User {
+	return &User{}
 }
 
 // NewToken add a new token to a user
 func (user *User) NewToken() (token *Token) {
 	token = NewToken()
-	token.Create()
 	user.Tokens = append(user.Tokens, token)
-	return
+	return token
 }
 
 // GenAuthCookies generate a sign a jwt session cookie to authenticate a user
@@ -101,28 +99,28 @@ func ParseSessionCookie(value string, config *Configuration) (uid string, xsrf s
 	session, err := jwt.Parse(value, func(t *jwt.Token) (interface{}, error) {
 		// Verify signing algorithm
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("Unexpected siging method : %v", t.Header["alg"])
+			return nil, fmt.Errorf("unexpected siging method : %v", t.Header["alg"])
 		}
 
 		// Get authentication provider
 		provider, ok := t.Claims.(jwt.MapClaims)["provider"]
 		if !ok {
-			return nil, fmt.Errorf("Missing authentication provider")
+			return nil, fmt.Errorf("missing authentication provider")
 		}
 
 		switch provider {
 		case "google":
 			if config.GoogleAPISecret == "" {
-				return nil, fmt.Errorf("Missing Google API credentials")
+				return nil, fmt.Errorf("missing Google API credentials")
 			}
 			return []byte(config.GoogleAPISecret), nil
 		case "ovh":
 			if config.OvhAPISecret == "" {
-				return nil, fmt.Errorf("Missing OVH API credentials")
+				return nil, fmt.Errorf("missing OVH API credentials")
 			}
 			return []byte(config.OvhAPISecret), nil
 		default:
-			return nil, fmt.Errorf("Invalid authentication provider : %s", provider)
+			return nil, fmt.Errorf("invalid authentication provider : %s", provider)
 		}
 	})
 	if err != nil {
@@ -134,10 +132,10 @@ func ParseSessionCookie(value string, config *Configuration) (uid string, xsrf s
 	if ok {
 		uid, ok = userValue.(string)
 		if !ok || uid == "" {
-			return "", "", fmt.Errorf("Missing user from session cookie")
+			return "", "", fmt.Errorf("missing user from session cookie")
 		}
 	} else {
-		return "", "", fmt.Errorf("Missing user from session cookie")
+		return "", "", fmt.Errorf("missing user from session cookie")
 	}
 
 	// Get the xsrf token
@@ -145,10 +143,10 @@ func ParseSessionCookie(value string, config *Configuration) (uid string, xsrf s
 	if ok {
 		xsrf, ok = xsrfValue.(string)
 		if !ok || uid == "" {
-			return "", "", fmt.Errorf("Missing xsrf token from session cookie")
+			return "", "", fmt.Errorf("missing xsrf token from session cookie")
 		}
 	} else {
-		return "", "", fmt.Errorf("Missing xsrf token from session cookie")
+		return "", "", fmt.Errorf("missing xsrf token from session cookie")
 	}
 
 	return uid, xsrf, nil

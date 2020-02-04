@@ -161,16 +161,16 @@ func TestBackend_UpdateUser(t *testing.T) {
 	err := backend.CreateUser(user)
 	require.NoError(t, err, "create user error")
 
-	newId := "plok"
+	newID := "plok"
 	tx := func(u *common.User) error {
-		u.ID = newId
+		u.ID = newID
 		return nil
 	}
 
 	u, err := backend.UpdateUser(user, tx)
 	require.NoError(t, err, "missing user")
 	require.NotNil(t, u, "user is nil")
-	require.Equal(t, newId, u.ID, "user id mismatch")
+	require.Equal(t, newID, u.ID, "user id mismatch")
 }
 
 func TestBackend_UpdateUser_TxError(t *testing.T) {

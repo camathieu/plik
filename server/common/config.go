@@ -206,6 +206,23 @@ func (config *Configuration) IsAutoClean() bool {
 	return config.clean
 }
 
+// IsWhitelisted return weather or not the IP matches of the config upload whitelist
+func (config *Configuration) IsWhitelisted(ip net.IP) bool {
+	if len(config.uploadWhitelist) == 0 {
+		// Empty whitelist == accept all
+		return true
+	}
+
+	// Check if the source IP address is in whitelist
+	for _, subnet := range config.uploadWhitelist {
+		if subnet.Contains(ip) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // IsUserAdmin check if the user is a Plik server administrator
 func (config *Configuration) IsUserAdmin(user *User) bool {
 	for _, id := range config.Admins {
@@ -217,7 +234,7 @@ func (config *Configuration) IsUserAdmin(user *User) bool {
 	return false
 }
 
-// GetServerURL is a helper to get the server HTP URL
+// GetServerURL is a helper to get the server HTTP URL
 func (config *Configuration) GetServerURL() *url.URL {
 	URL := &url.URL{}
 

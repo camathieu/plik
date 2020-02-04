@@ -20,7 +20,7 @@ func Authenticate(allowToken bool) context.Middleware {
 					if tokenHeader != "" {
 						user, err := ctx.GetMetadataBackend().GetUserFromToken(tokenHeader)
 						if err != nil {
-							ctx.InternalServerError("unable to get user from token ", err)
+							ctx.InternalServerError("unable to get user from token", err)
 							return
 						}
 						if user == nil {

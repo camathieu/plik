@@ -162,7 +162,6 @@ func TestGetUserUploadsWithToken(t *testing.T) {
 	user.ID = "user1"
 
 	token := common.NewToken()
-	token.Create()
 	token.Comment = "token comment"
 	user.Tokens = append(user.Tokens, token)
 
@@ -394,7 +393,6 @@ func TestRemoveUserUploadsWithToken(t *testing.T) {
 	user.ID = "user1"
 
 	token := common.NewToken()
-	token.Create()
 	token.Comment = "token comment"
 	user.Tokens = append(user.Tokens, token)
 
@@ -535,7 +533,6 @@ func TestGetUserStatisticsToken(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
 	token := common.NewToken()
-	token.Create()
 
 	user := common.NewUser()
 	user.ID = "user1"

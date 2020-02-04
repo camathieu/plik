@@ -5,29 +5,29 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/root-gg/logger"
 	"github.com/root-gg/plik/server/common"
 	"github.com/stretchr/testify/require"
 )
 
-func TestLogInfo(t *testing.T) {
+func TestLog(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 	log := ctx.GetLogger()
-	log.SetMinLevel(logger.INFO)
+	ctx.GetConfig().Debug = true
 
 	buffer := &bytes.Buffer{}
 	log.SetOutput(buffer)
 
-	req, err := http.NewRequest("GET", "url", &bytes.Buffer{})
+	req, err := http.NewRequest("GET", "file", bytes.NewBuffer([]byte("request body")))
 	require.NoError(t, err, "unable to create new request")
 
-	req.RequestURI = "/path"
+	req.RequestURI = "/file"
 
 	rr := ctx.NewRecorder(req)
 	Log(ctx, common.DummyHandler).ServeHTTP(rr, req)
 
 	require.Equal(t, http.StatusOK, rr.Code, "invalid handler response status code")
-	require.Contains(t, string(buffer.Bytes()), "GET /path", "invalid log message")
+	require.Contains(t, string(buffer.Bytes()), "GET /file", "invalid log message")
+	require.NotContains(t, string(buffer.Bytes()), "request body", "invalid log message")
 }
 
 func TestLogDebug(t *testing.T) {
@@ -52,7 +52,7 @@ func TestLogDebug(t *testing.T) {
 func TestLogDebugNoBody(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 	log := ctx.GetLogger()
-	log.SetMinLevel(logger.DEBUG)
+	ctx.GetConfig().DebugRequests = true
 
 	buffer := &bytes.Buffer{}
 	log.SetOutput(buffer)
@@ -60,12 +60,12 @@ func TestLogDebugNoBody(t *testing.T) {
 	req, err := http.NewRequest("POST", "/file", bytes.NewBuffer([]byte("request body")))
 	require.NoError(t, err, "unable to create new request")
 
-	req.RequestURI = "/path"
+	req.RequestURI = "/file"
 
 	rr := ctx.NewRecorder(req)
 	Log(ctx, common.DummyHandler).ServeHTTP(rr, req)
 
 	require.Equal(t, http.StatusOK, rr.Code, "invalid handler response status code")
-	require.Contains(t, string(buffer.Bytes()), "POST /path", "invalid log message")
+	require.Contains(t, string(buffer.Bytes()), "POST /file", "invalid log message")
 	require.NotContains(t, string(buffer.Bytes()), "request body", "invalid log message")
 }

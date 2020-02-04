@@ -164,8 +164,9 @@ func TestGetFileMissingUpload(t *testing.T) {
 	require.NoError(t, err, "unable to create new request")
 
 	rr := ctx.NewRecorder(req)
-	GetFile(ctx, rr, req)
-	context.TestInternalServerError(t, rr, "missing upload from context")
+	context.TestPanic(t, rr, "missing upload from context", func() {
+		GetFile(ctx, rr, req)
+	})
 }
 
 func TestGetFileMissingFile(t *testing.T) {
@@ -177,8 +178,9 @@ func TestGetFileMissingFile(t *testing.T) {
 	require.NoError(t, err, "unable to create new request")
 
 	rr := ctx.NewRecorder(req)
-	GetFile(ctx, rr, req)
-	context.TestInternalServerError(t, rr, "missing file from context")
+	context.TestPanic(t, rr, "missing file from context", func() {
+		GetFile(ctx, rr, req)
+	})
 }
 
 func TestGetHtmlFile(t *testing.T) {

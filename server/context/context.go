@@ -11,6 +11,7 @@ import (
 	"github.com/root-gg/plik/server/metadata"
 )
 
+// Context is a scoped request context to be passed throughout the middleware chaine
 type Context struct {
 	config              *common.Configuration
 	logger              *logger.Logger
@@ -22,7 +23,7 @@ type Context struct {
 	file                *common.File
 	user                *common.User
 	token               *common.Token
-	isWhitelisted       bool
+	isWhitelisted       *bool
 	isAdmin             bool
 	isUploadAdmin       bool
 	isRedirectOnFailure bool
@@ -210,22 +211,6 @@ func (ctx *Context) SetToken(token *common.Token) {
 	defer ctx.mu.Unlock()
 
 	ctx.token = token
-}
-
-// IsWhitelisted get isWhitelisted from the context.
-func (ctx *Context) IsWhitelisted() bool {
-	ctx.mu.RLock()
-	defer ctx.mu.RUnlock()
-
-	return ctx.isWhitelisted
-}
-
-// SetWhitelisted set isWhitelisted in the context
-func (ctx *Context) SetWhitelisted(isWhitelisted bool) {
-	ctx.mu.Lock()
-	defer ctx.mu.Unlock()
-
-	ctx.isWhitelisted = isWhitelisted
 }
 
 // IsAdmin get isAdmin from the context.

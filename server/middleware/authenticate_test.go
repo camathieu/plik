@@ -40,7 +40,7 @@ func TestAuthenticateTokenMetadataBackendError(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 
 	Authenticate(true)(ctx, common.DummyHandler).ServeHTTP(rr, req)
-	context.TestInternalServerError(t, rr, "unable to get user from token  : metadata backend error")
+	context.TestInternalServerError(t, rr, "unable to get user from token : metadata backend error")
 }
 
 func TestAuthenticateToken(t *testing.T) {
@@ -232,6 +232,8 @@ func TestAuthenticateAdminUser(t *testing.T) {
 	err := ctx.GetMetadataBackend().CreateUser(user)
 	require.NoError(t, err, "unable to save user")
 
+	ctx.GetConfig().Admins = append(ctx.GetConfig().Admins, user.ID)
+
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
 	require.NoError(t, err, "unable to create new request")
 
@@ -244,4 +246,5 @@ func TestAuthenticateAdminUser(t *testing.T) {
 	Authenticate(false)(ctx, common.DummyHandler).ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code, "invalid handler response status code")
 	require.Equal(t, user, ctx.GetUser(), "invalid user from context")
+	require.True(t, ctx.IsAdmin(), "context is not admin")
 }

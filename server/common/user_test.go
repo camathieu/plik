@@ -91,7 +91,7 @@ func TestParseSessionCookieMissingProvider(t *testing.T) {
 	require.NoError(t, err, "unable to sign session cookie")
 
 	_, _, err = ParseSessionCookie(sessionString, NewConfiguration())
-	RequireError(t, err, "Missing authentication provider")
+	RequireError(t, err, "missing authentication provider")
 }
 
 func TestAuthenticateInvalidProvider(t *testing.T) {
@@ -102,7 +102,7 @@ func TestAuthenticateInvalidProvider(t *testing.T) {
 	require.NoError(t, err, "unable to sign session cookie")
 
 	_, _, err = ParseSessionCookie(sessionString, NewConfiguration())
-	RequireError(t, err, "Invalid authentication provider")
+	RequireError(t, err, "invalid authentication provider")
 }
 
 func TestAuthenticateProviderOvhDisabled(t *testing.T) {
@@ -113,7 +113,7 @@ func TestAuthenticateProviderOvhDisabled(t *testing.T) {
 	require.NoError(t, err, "unable to sign session cookie")
 
 	_, _, err = ParseSessionCookie(sessionString, NewConfiguration())
-	RequireError(t, err, "Missing OVH API credentials")
+	RequireError(t, err, "missing OVH API credentials")
 }
 
 func TestAuthenticateProviderGoogleDisabled(t *testing.T) {
@@ -124,7 +124,7 @@ func TestAuthenticateProviderGoogleDisabled(t *testing.T) {
 	require.NoError(t, err, "unable to sign session cookie")
 
 	_, _, err = ParseSessionCookie(sessionString, NewConfiguration())
-	RequireError(t, err, "Missing Google API credentials")
+	RequireError(t, err, "missing Google API credentials")
 }
 
 func TestLogout(t *testing.T) {

@@ -17,6 +17,7 @@ import (
 )
 
 func createTestUpload(ctx *context.Context, uploadToCreate *common.Upload) {
+	uploadToCreate.Create()
 	metadataBackend := ctx.GetMetadataBackend()
 	_ = metadataBackend.CreateUpload(uploadToCreate)
 }

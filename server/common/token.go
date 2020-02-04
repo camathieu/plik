@@ -1,6 +1,7 @@
 package common
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/nu7hatch/gouuid"
@@ -15,17 +16,18 @@ type Token struct {
 
 // NewToken create a new Token instance
 func NewToken() (t *Token) {
-	t = new(Token)
-	return
+	t = &Token{}
+	t.Initialize()
+	return t
 }
 
-// Create initialize a new Token
-func (t *Token) Create() (err error) {
+// Initialize generate the token uuid and sets the creation date
+func (t *Token) Initialize() {
 	t.CreationDate = time.Now().Unix()
-	uuid, err := uuid.NewV4()
+
+	token, err := uuid.NewV4()
 	if err != nil {
-		return
+		panic(fmt.Errorf("unable to generate token uuid %s", err))
 	}
-	t.Token = uuid.String()
-	return
+	t.Token = token.String()
 }

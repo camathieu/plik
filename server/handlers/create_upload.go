@@ -87,12 +87,9 @@ func CreateUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Requ
 		return
 	}
 
-	if upload.Stream {
-		if !config.StreamMode {
-			ctx.BadRequest("stream mode is not enabled")
-			return
-		}
-		upload.OneShot = true
+	if upload.Stream && !config.StreamMode {
+		ctx.BadRequest("stream mode is not enabled")
+		return
 	}
 
 	// TTL = Time in second before the upload expiration
@@ -203,7 +200,7 @@ func CreateUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Requ
 	// Print upload metadata in the json response.
 	var bytes []byte
 	if bytes, err = utils.ToJson(upload); err != nil {
-		ctx.InternalServerError("unable to serialize json response", err)
+		panic(fmt.Errorf("unable to serialize json response : %s", err))
 	}
 
 	_, _ = resp.Write(bytes)

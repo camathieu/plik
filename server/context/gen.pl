@@ -6,12 +6,12 @@ use warnings;
 use Data::Dumper;
 
 my $struct = [
-	'config', '*common.Configuration', { 'panic' => 1 },
-	'logger', '*logger.Logger', { 'panic' => 1 },
+	'config', '*common.Configuration', { panic => 1 },
+	'logger', '*logger.Logger', { panic => 1 },
 
-	'metadataBackend', 'metadata.Backend', { 'panic' => 1 },
-	'dataBackend', 'data.Backend', { 'panic' => 1 },
-	'streamBackend', 'data.Backend', { 'panic' => 1 },
+	'metadataBackend', 'metadata.Backend', { panic => 1 },
+	'dataBackend', 'data.Backend', { panic => 1 },
+	'streamBackend', 'data.Backend', { panic => 1 },
 
 	'sourceIP', 'net.IP', {},
 
@@ -20,7 +20,7 @@ my $struct = [
 	'user', '*common.User', {},
 	'token', '*common.Token', {},
 
-	'isWhitelisted', 'bool', {},
+	'isWhitelisted', '*bool', { internal => 1 },
 	'isAdmin', 'bool', {},
 	'isUploadAdmin', 'bool', {},
 	'isRedirectOnFailure', 'bool', {},
@@ -29,7 +29,7 @@ my $struct = [
 	'req', '*http.Request', {},
 	'resp', 'http.ResponseWriter', {},
 
-	'mu', 'sync.RWMutex', { 'internal' => 1 },
+	'mu', 'sync.RWMutex', { internal => 1 },
 ];
 
 sub genGet
@@ -129,8 +129,8 @@ sub genStruct
 {
     my $struct = shift;
 
-    my $str .= '// Context to be propagated throughout the middleware chain\n';
-    $str = "type Context struct {\n";
+    my $str = '// Context to be propagated throughout the middleware chain\n';
+    $str .= "type Context struct {\n";
     for (my $i = 0 ; $i < @$struct ; $i += 3)
     {
         my $param = $struct->[$i];

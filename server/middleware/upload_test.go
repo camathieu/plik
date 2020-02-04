@@ -28,6 +28,24 @@ func TestUploadNoUploadID(t *testing.T) {
 	context.TestMissingParameter(t, rr, "upload id")
 }
 
+func TestUploadNoUpload(t *testing.T) {
+	ctx := newTestingContext(common.NewConfiguration())
+
+	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
+	require.NoError(t, err, "unable to create new request")
+
+	// Fake gorilla/mux vars
+	vars := map[string]string{
+		"uploadID": "uploadID",
+	}
+	req = mux.SetURLVars(req, vars)
+
+	rr := ctx.NewRecorder(req)
+	Upload(ctx, common.DummyHandler).ServeHTTP(rr, req)
+
+	context.TestNotFound(t, rr, "upload uploadID not found")
+}
+
 func TestUploadMetadataBackendError(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 	ctx.GetMetadataBackend().(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
@@ -137,6 +155,37 @@ func TestUploadUser(t *testing.T) {
 	upload := common.NewUpload()
 	upload.Create()
 	upload.User = user.ID
+
+	err := ctx.GetMetadataBackend().CreateUpload(upload)
+	require.NoError(t, err, "Unable to create upload")
+
+	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
+	require.NoError(t, err, "unable to create new request")
+
+	// Fake gorilla/mux vars
+	vars := map[string]string{
+		"uploadID": upload.ID,
+	}
+	req = mux.SetURLVars(req, vars)
+
+	rr := ctx.NewRecorder(req)
+	Upload(ctx, common.DummyHandler).ServeHTTP(rr, req)
+
+	require.Equal(t, http.StatusOK, rr.Code, "invalid handler response status code")
+	require.Equal(t, upload, ctx.GetUpload(), "invalid upload from context")
+	require.True(t, ctx.IsUploadAdmin(), "invalid upload admin status")
+}
+
+func TestUploadUserToken(t *testing.T) {
+	ctx := newTestingContext(common.NewConfiguration())
+	ctx.GetConfig().Authentication = true
+
+	token := common.NewToken()
+	ctx.SetToken(token)
+
+	upload := common.NewUpload()
+	upload.Create()
+	upload.Token = token.Token
 
 	err := ctx.GetMetadataBackend().CreateUpload(upload)
 	require.NoError(t, err, "Unable to create upload")

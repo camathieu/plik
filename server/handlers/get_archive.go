@@ -24,8 +24,7 @@ func GetArchive(ctx *context.Context, resp http.ResponseWriter, req *http.Reques
 	// Get upload from context
 	upload := ctx.GetUpload()
 	if upload == nil {
-		ctx.InternalServerError("missing upload from context", nil)
-		return
+		panic("missing upload from context")
 	}
 
 	if upload.Stream {

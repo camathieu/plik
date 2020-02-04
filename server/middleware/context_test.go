@@ -16,7 +16,7 @@ func TestContext(t *testing.T) {
 	setup := func(ctx *context.Context) {}
 
 	ok := false
-	handler := func (ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
+	handler := func(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
 		require.Equal(t, resp, ctx.GetResp(), "missing response")
 		require.Equal(t, req, ctx.GetReq(), "missing request")
 		ok = true
@@ -35,7 +35,7 @@ func TestPanic(t *testing.T) {
 	config := &common.Configuration{}
 	setup := func(ctx *context.Context) { ctx.SetConfig(config) }
 
-	handler := func (ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
+	handler := func(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
 		panic("defuk")
 	}
 
@@ -49,10 +49,10 @@ func TestPanic(t *testing.T) {
 
 func TestPanicDebug(t *testing.T) {
 
-	config := &common.Configuration{Debug:true}
+	config := &common.Configuration{Debug: true}
 	setup := func(ctx *context.Context) { ctx.SetConfig(config) }
 
-	handler := func (ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
+	handler := func(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
 		panic("defuk")
 	}
 

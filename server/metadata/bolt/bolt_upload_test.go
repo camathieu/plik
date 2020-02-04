@@ -190,16 +190,16 @@ func TestBackend_UpdateUpload(t *testing.T) {
 	err := backend.CreateUpload(upload)
 	require.NoError(t, err, "create upload error")
 
-	newId := "1234567890"
+	newID := "1234567890"
 	tx := func(u *common.Upload) error {
-		u.ID = newId
+		u.ID = newID
 		return nil
 	}
 
 	u, err := backend.UpdateUpload(upload, tx)
 	require.NoError(t, err, "missing upload")
 	require.NotNil(t, u, "upload is nil")
-	require.Equal(t, newId, u.ID, "upload id mismatch")
+	require.Equal(t, newID, u.ID, "upload id mismatch")
 }
 
 func TestBackend_UpdateUpload_TxError(t *testing.T) {

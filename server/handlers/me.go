@@ -26,8 +26,7 @@ func UserInfo(ctx *context.Context, resp http.ResponseWriter, req *http.Request)
 	// Print token in the json response.
 	json, err := utils.ToJson(user)
 	if err != nil {
-		ctx.InternalServerError("unable to serialize json response", err)
-		return
+		panic(fmt.Errorf("unable to serialize json response : %s", err))
 	}
 
 	_, _ = resp.Write(json)
@@ -143,8 +142,7 @@ func GetUserUploads(ctx *context.Context, resp http.ResponseWriter, req *http.Re
 	// Print uploads in the json response.
 	var json []byte
 	if json, err = utils.ToJson(uploads); err != nil {
-		ctx.InternalServerError("unable to serialize json response", err)
-		return
+		panic(fmt.Errorf("unable to serialize json response : %s", err))
 	}
 
 	_, _ = resp.Write(json)
@@ -243,8 +241,7 @@ func GetUserStatistics(ctx *context.Context, resp http.ResponseWriter, req *http
 	// Print stats in the json response.
 	var json []byte
 	if json, err = utils.ToJson(stats); err != nil {
-		ctx.InternalServerError("unable to serialize json response", err)
-		return
+		panic(fmt.Errorf("unable to serialize json response : %s", err))
 	}
 
 	_, _ = resp.Write(json)
