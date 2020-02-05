@@ -82,50 +82,39 @@ func GetArchive(ctx *context.Context, resp http.ResponseWriter, req *http.Reques
 		// Get files to archive
 		var files []*common.File
 
-		if upload.OneShot {
-			// If this is a one shot upload we have to ensure it's downloaded only once now
-			tx := func(u *common.Upload) error {
-				if u == nil {
-					return common.NewHTTPError("upload does not exist anymore", http.StatusNotFound)
-				}
-
-				for _, f := range u.Files {
-					// Ignore uploading, missing, removed, one shot already downloaded,...
-					if f.Status != common.FileUploaded {
-						continue
-					}
-
-					f.Status = common.FileRemoved
-					files = append(files, f)
-				}
-				return nil
+		for _, f := range upload.Files {
+			// Ignore uploading, missing, removed, one shot already downloaded,...
+			if f.Status != common.FileUploaded {
+				continue
 			}
 
-			upload, err := ctx.GetMetadataBackend().UpdateUpload(upload, tx)
-			if err != nil {
-				handleTxError(ctx, "unable to update upload metadata", err)
-				return
+			files = append(files, f)
+		}
+
+		if upload.OneShot {
+			// If this is a one shot upload we have to ensure it's downloaded only once now
+			for _, file := range files {
+
+				// Update file status
+				file.Status = common.FileRemoved
+
+				err := ctx.GetMetadataBackend().AddOrUpdateFile(upload, file, common.FileUploaded)
+				if err != nil {
+					ctx.InternalServerError("unable to update upload metadata", err)
+					return
+				}
 			}
 
 			// From now on we'll try to delete the files from the data backend whatever happens
+			// TODO maybe recover if download was not successful ?
 			defer func() {
 				for _, file := range files {
-					err = DeleteRemovedFile(ctx, upload, file)
+					err := DeleteRemovedFile(ctx, upload, file)
 					if err != nil {
 						log.Warningf("Unable to delete file %s (%s) : %s", file.Name, file.ID, err)
 					}
 				}
 			}()
-		} else {
-			// Without one shot mode we do not need as strong guaranties, no need to re-fetch upload metadata
-			for _, f := range upload.Files {
-				// Ignore uploading, missing, removed, one shot already downloaded,...
-				if f.Status != common.FileUploaded {
-					continue
-				}
-
-				files = append(files, f)
-			}
 		}
 
 		if len(files) == 0 {

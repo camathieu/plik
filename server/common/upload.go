@@ -41,6 +41,8 @@ type Upload struct {
 
 	ProtectedByYubikey bool   `json:"protectedByYubikey" bson:"protectedByYubikey"`
 	Yubikey            string `json:"yubikey,omitempty" bson:"yubikey"`
+
+	Version int `json:"-" bson:"version"`
 }
 
 // NewUpload instantiate a new upload object

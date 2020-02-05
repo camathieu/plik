@@ -175,7 +175,7 @@ func CreateUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Requ
 		}
 
 		file.GenerateID()
-		file.Status = "missing"
+		file.Status = common.FileMissing
 		delete(upload.Files, i)
 		upload.Files[file.ID] = file
 	}

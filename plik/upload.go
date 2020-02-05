@@ -276,6 +276,12 @@ func (upload *Upload) Upload() (err error) {
 	close(errors)
 	for err := range errors {
 		if err != nil {
+			// TODO REMOVE !!!
+			for _, file := range files {
+				if file.Error() != nil {
+					fmt.Println(file.Error().Error())
+				}
+			}
 			return fmt.Errorf("failed to upload at least one file. Check each file status for more details")
 		}
 	}

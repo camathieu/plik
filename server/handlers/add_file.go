@@ -3,11 +3,11 @@ package handlers
 import (
 	"crypto/md5"
 	"fmt"
-	"github.com/gorilla/mux"
 	"io"
 	"net/http"
 	"time"
 
+	"github.com/gorilla/mux"
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
 	"github.com/root-gg/plik/server/data"
@@ -47,7 +47,12 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 		// Create a new file object
 		file = common.NewFile()
 		file.Type = "application/octet-stream"
-		file.Status = common.FileMissing
+
+		if len(upload.Files) >= config.MaxFilePerUpload {
+			// TODO there is a slight race condition here
+			ctx.BadRequest("maximum number file per upload reached, limit is %d", config.MaxFilePerUpload)
+			return
+		}
 	} else {
 		// Get file object from upload
 		var ok bool
@@ -85,7 +90,7 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 
 			if file.Name != "" {
 				if file.Name != part.FileName() {
-					ctx.BadRequest("invalid filename %s, expected %s", part.FileName(), file.Name)
+					ctx.BadRequest("invalid file name %s, expected %s", part.FileName(), file.Name)
 					return
 				}
 			} else {
@@ -114,45 +119,20 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 	prefix = fmt.Sprintf("%s[%s]", log.Prefix, file.Name)
 	log.SetPrefix(prefix)
 
-	// Check file status and set status to common.FileUploading to avoid multiple uploads in parallel
-	tx := func(u *common.Upload) (err error) {
-		if u == nil {
-			return common.NewHTTPError("upload does not exist anymore", http.StatusNotFound)
-		}
-
-		f, ok := u.Files[file.ID]
-		if !ok {
-			// Add new file to the upload metadata
-			u.Files[file.ID] = file
-			f = file
-		}
-
-		// Limit number of files per upload
-		if len(u.Files) > config.MaxFilePerUpload {
-			return common.NewHTTPError(fmt.Sprintf("maximum number file per upload reached, limit is %d", config.MaxFilePerUpload), http.StatusBadRequest)
-		}
-
-		if !(f.Status == "" || f.Status == common.FileMissing) {
-			return common.NewHTTPError(fmt.Sprintf("file status is %s", f.Status), http.StatusBadRequest)
-		}
-
-		f.Status = common.FileUploading
-
-		return nil
-	}
-
-	// Update upload metadata
-	upload, err = ctx.GetMetadataBackend().UpdateUpload(upload, tx)
-	if err != nil {
-		handleTxError(ctx, "unable to update upload metadata", err)
+	currentStatus := file.Status
+	if !(currentStatus == "" || currentStatus == common.FileMissing) {
+		ctx.BadRequest("invalid file status %s, expected %s", file.Status, common.FileMissing)
 		return
 	}
 
-	// Get updated file
-	var ok bool
-	file, ok = upload.Files[file.ID]
-	if !ok {
-		panic("missing file from upload after metadata update")
+	// Update file status
+	file.Status = common.FileUploading
+
+	// Update upload metadata
+	err = ctx.GetMetadataBackend().AddOrUpdateFile(upload, file, currentStatus)
+	if err != nil {
+		ctx.InternalServerError("unable to update file metadata", err)
+		return
 	}
 
 	// Pipe file data from the request body to a preprocessing goroutine
@@ -184,57 +164,29 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 	if preprocessOutput.err != nil {
 		// TODO : file status is left to common.FileUploading we should set it to some common.FileUploadError
 		// TODO : or we can set it back to common.FileMissing if we are sure data backends will handle that
-		handleTxError(ctx, "unable to execute preprocessor", preprocessOutput.err)
+		handleHTTPError(ctx, "unable to execute preprocessor", preprocessOutput.err)
 		return
 	}
 
-	// update upload metadata
-	tx = func(u *common.Upload) (err error) {
-		if u == nil {
-			return common.NewHTTPError("upload does not exists anymore", http.StatusNotFound)
-		}
+	// Fill-in file information
+	file.Type = preprocessOutput.mimeType
+	file.CurrentSize = preprocessOutput.size
+	file.Md5 = preprocessOutput.md5sum
+	file.UploadDate = time.Now().Unix()
+	file.BackendDetails = backendDetails
 
-		// This should never happen as the file status should not be changed until it has been set to uploaded
-		f, ok := u.Files[file.ID]
-		if !ok {
-			return fmt.Errorf("missing file %s from upload transaction", file.ID)
-		}
-
-		if u.Stream {
-			if f.Status != common.FileUploading {
-				return fmt.Errorf("invalid file status %s, expected %s", f.Status, common.FileUploading)
-			}
-		}
-
-		// Update file status
-		if upload.Stream {
-			f.Status = common.FileDeleted
-		} else {
-			f.Status = common.FileUploaded
-		}
-
-		// Fill-in file information
-		f.Type = preprocessOutput.mimeType
-		f.CurrentSize = preprocessOutput.size
-		f.Md5 = preprocessOutput.md5sum
-		f.UploadDate = time.Now().Unix()
-		f.BackendDetails = backendDetails
-
-		return nil
+	// Update file status
+	currentStatus = file.Status
+	if upload.Stream {
+		file.Status = common.FileDeleted
+	} else {
+		file.Status = common.FileUploaded
 	}
 
-	// Update upload metadata
-	upload, err = ctx.GetMetadataBackend().UpdateUpload(upload, tx)
+	// Update file metadata
+	err = ctx.GetMetadataBackend().AddOrUpdateFile(upload, file, currentStatus)
 	if err != nil {
-		handleTxError(ctx, "unable to update upload metadata", err)
-		return
-	}
-
-	// Get updated file
-	var ok2 bool
-	file, ok2 = upload.Files[file.ID]
-	if !ok2 {
-		ctx.InternalServerError("missing file from upload after metadata update", nil)
+		ctx.InternalServerError("unable to update file metadata", err)
 		return
 	}
 

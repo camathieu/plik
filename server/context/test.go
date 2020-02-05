@@ -65,7 +65,7 @@ func TestFail(t *testing.T, resp *httptest.ResponseRecorder, status int, message
 
 	var result = &common.Result{}
 	err = json.Unmarshal(respBody, result)
-	require.NoError(t, err, "unable to unmarshal error")
+	require.NoError(t, err, fmt.Sprintf("unable to unmarshal error %v", string(respBody)))
 
 	if message != "" {
 		require.Contains(t, result.Message, message, "invalid response error message")
@@ -74,7 +74,10 @@ func TestFail(t *testing.T, resp *httptest.ResponseRecorder, status int, message
 
 // TestOK is a helper to test a httptest.ResponseRecorder status
 func TestOK(t *testing.T, resp *httptest.ResponseRecorder) {
-	require.Equal(t, http.StatusOK, resp.Code, "handler returned wrong status code")
+	if resp.Code != http.StatusOK {
+		respBody, _ := ioutil.ReadAll(resp.Body)
+		require.Equal(t, http.StatusOK, resp.Code, fmt.Sprintf("handler error %s", string(respBody)))
+	}
 }
 
 // TestPanic is a helper to test a httptest.ResponseRecorder status

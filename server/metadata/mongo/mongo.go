@@ -3,6 +3,8 @@ package mongo
 import (
 	"context"
 	"fmt"
+	"go.mongodb.org/mongo-driver/mongo/readconcern"
+	"go.mongodb.org/mongo-driver/mongo/writeconcern"
 	"time"
 
 	"github.com/root-gg/plik/server/metadata"
@@ -38,7 +40,7 @@ func NewConfig(params map[string]interface{}) (c *Config) {
 	c.Database = "plik"
 	c.UploadCollection = "uploads"
 	c.UserCollection = "tokens"
-	c.TimeoutInSeconds = 5
+	c.TimeoutInSeconds = 60
 	utils.Assign(c, params)
 	return
 }
@@ -62,7 +64,11 @@ func NewBackend(config *Config) (b *Backend, err error) {
 	fmt.Printf("connecting to %s\n", b.config.ConnectionString)
 
 	// Create client
-	opts := options.Client().ApplyURI(b.config.ConnectionString)
+	opts := options.Client().ApplyURI(b.config.ConnectionString).
+		SetReadPreference(readpref.Primary()).
+		SetReadConcern(readconcern.Majority()).
+		SetWriteConcern(writeconcern.New(writeconcern.WMajority()))
+
 	b.client, err = mongo.NewClient(opts)
 	if err != nil {
 		return nil, err
@@ -109,6 +115,7 @@ func runTransactionWithRetry(sctx mongo.SessionContext, txnFn func(mongo.Session
 
 		// If transient error, retry the whole transaction
 		if cmdErr, ok := err.(mongo.CommandError); ok && cmdErr.HasErrorLabel("TransientTransactionError") {
+			fmt.Println("tx retry")
 			continue
 		}
 		return err
@@ -120,6 +127,7 @@ func commitWithRetry(sctx mongo.SessionContext) error {
 		err := sctx.CommitTransaction(sctx)
 		switch e := err.(type) {
 		case nil:
+			fmt.Println("tx commit")
 			return nil
 		case mongo.CommandError:
 			// Can retry commit

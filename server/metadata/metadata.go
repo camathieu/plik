@@ -15,7 +15,10 @@ type Backend interface {
 	GetUpload(uploadID string) (upload *common.Upload, err error)
 
 	// Update upload metadata
-	UpdateUpload(upload *common.Upload, tx common.UploadTx) (u *common.Upload, err error)
+	//UpdateUpload(upload *common.Upload, tx common.UploadTx) (u *common.Upload, err error)
+
+	// Add or update file metadata
+	AddOrUpdateFile(upload *common.Upload, file *common.File, status string) (err error)
 
 	// Remove upload metadata
 	RemoveUpload(upload *common.Upload) (err error)

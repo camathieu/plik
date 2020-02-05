@@ -281,5 +281,5 @@ func TestGetFileMetadataBackendError(t *testing.T) {
 
 	rr := ctx.NewRecorder(req)
 	GetFile(ctx, rr, req)
-	context.TestInternalServerError(t, rr, "unable to update upload metadata : metadata backend error")
+	context.TestInternalServerError(t, rr, "unable to update file metadata : metadata backend error")
 }

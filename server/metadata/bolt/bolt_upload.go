@@ -118,10 +118,14 @@ func (b *Backend) GetUpload(ID string) (upload *common.Upload, err error) {
 	return upload, nil
 }
 
-// UpdateUpload implementation for Bolt Metadata Backend
-func (b *Backend) UpdateUpload(upload *common.Upload, uploadTx common.UploadTx) (u *common.Upload, err error) {
+// AddOrUpdateFile implementation for Bolt Metadata Backend
+func (b *Backend) AddOrUpdateFile(upload *common.Upload, file *common.File, status string) (err error) {
 	if upload == nil {
-		return nil, errors.New("missing upload")
+		return errors.New("missing upload")
+	}
+
+	if file == nil {
+		return errors.New("missing file")
 	}
 
 	err = b.db.Update(func(tx *bolt.Tx) error {
@@ -132,29 +136,32 @@ func (b *Backend) UpdateUpload(upload *common.Upload, uploadTx common.UploadTx) 
 
 		b := bucket.Get([]byte(upload.ID))
 
-		// Upload not found but no error
+		// Upload not found
 		if b == nil || len(b) == 0 {
-			// Upload not found ( maybe it has been removed in the mean time )
-			// Let the upload tx set the (HTTP) error and forward it
-			err = uploadTx(nil)
-			if err != nil {
-				return err
-			}
-			return fmt.Errorf("upload tx without an upload should return an error")
+			return fmt.Errorf("upload does not exist anymore")
 		}
 
 		// Deserialize metadata from json
-		u = new(common.Upload)
+		u := new(common.Upload)
 		err = json.Unmarshal(b, u)
 		if err != nil {
 			return fmt.Errorf("unable to unserialize metadata from json : %s", err)
 		}
 
-		// Apply transaction ( mutate )
-		err = uploadTx(u)
-		if err != nil {
-			return err
+		if status == "" {
+			// Insert file, verify it does not already exist
+			if _, ok := upload.Files[file.ID]; ok {
+				return fmt.Errorf("file already exist")
+			}
+		} else {
+			// Update file, verify it exists and status
+			if current, ok := upload.Files[file.ID]; !ok || current.Status != status {
+				return fmt.Errorf("invalid file status")
+			}
 		}
+
+		// Insert file
+		u.Files[file.ID] = file
 
 		// Serialize metadata to json
 		j, err := json.Marshal(u)
@@ -162,7 +169,6 @@ func (b *Backend) UpdateUpload(upload *common.Upload, uploadTx common.UploadTx) 
 			return fmt.Errorf("unable to serialize metadata to json : %s", err)
 		}
 
-		// Avoid the possibility to override an other upload by changing the upload.ID in the tx
 		err = bucket.Put([]byte(upload.ID), j)
 		if err != nil {
 			return fmt.Errorf("unable save upload metadata : %s", err)
@@ -171,12 +177,68 @@ func (b *Backend) UpdateUpload(upload *common.Upload, uploadTx common.UploadTx) 
 		return nil
 	})
 
-	if err != nil {
-		return nil, err
-	}
-
-	return u, err
+	return err
 }
+
+//// UpdateUpload implementation for Bolt Metadata Backend
+//func (b *Backend) UpdateUpload(upload *common.Upload, uploadTx common.UploadTx) (u *common.Upload, err error) {
+//	if upload == nil {
+//		return nil, errors.New("missing upload")
+//	}
+//
+//	err = b.db.Update(func(tx *bolt.Tx) error {
+//		bucket := tx.Bucket([]byte("uploads"))
+//		if bucket == nil {
+//			return fmt.Errorf("unable to get uploads Bolt bucket")
+//		}
+//
+//		b := bucket.Get([]byte(upload.ID))
+//
+//		// Upload not found but no error
+//		if b == nil || len(b) == 0 {
+//			// Upload not found ( maybe it has been removed in the mean time )
+//			// Let the upload tx set the (HTTP) error and forward it
+//			err = uploadTx(nil)
+//			if err != nil {
+//				return err
+//			}
+//			return fmt.Errorf("upload tx without an upload should return an error")
+//		}
+//
+//		// Deserialize metadata from json
+//		u = new(common.Upload)
+//		err = json.Unmarshal(b, u)
+//		if err != nil {
+//			return fmt.Errorf("unable to unserialize metadata from json : %s", err)
+//		}
+//
+//		// Apply transaction ( mutate )
+//		err = uploadTx(u)
+//		if err != nil {
+//			return err
+//		}
+//
+//		// Serialize metadata to json
+//		j, err := json.Marshal(u)
+//		if err != nil {
+//			return fmt.Errorf("unable to serialize metadata to json : %s", err)
+//		}
+//
+//		// Avoid the possibility to override an other upload by changing the upload.ID in the tx
+//		err = bucket.Put([]byte(upload.ID), j)
+//		if err != nil {
+//			return fmt.Errorf("unable save upload metadata : %s", err)
+//		}
+//
+//		return nil
+//	})
+//
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	return u, err
+//}
 
 // RemoveUpload implementation for Bolt Metadata Backend
 func (b *Backend) RemoveUpload(upload *common.Upload) (err error) {

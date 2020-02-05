@@ -60,7 +60,7 @@ func CreateToken(ctx *context.Context, resp http.ResponseWriter, req *http.Reque
 	// Save user
 	user, err = ctx.GetMetadataBackend().UpdateUser(user, tx)
 	if err != nil {
-		handleTxError(ctx, "unable to update user metadata", err)
+		handleHTTPError(ctx, "unable to update user metadata", err)
 		return
 	}
 
@@ -118,7 +118,7 @@ func RevokeToken(ctx *context.Context, resp http.ResponseWriter, req *http.Reque
 	// Save user
 	user, err := ctx.GetMetadataBackend().UpdateUser(user, tx)
 	if err != nil {
-		handleTxError(ctx, "unable to update user metadata", err)
+		handleHTTPError(ctx, "unable to update user metadata", err)
 		return
 	}
 

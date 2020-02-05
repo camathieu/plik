@@ -8,7 +8,7 @@ services:
       - ${PWD}/create_mongo_users.js/:/scripts/create_mongo_users.js:ro
       - ${PWD}/create_mongo_replica_set.js/:/scripts/create_mongo_replica_set.js:ro
     networks:
-      - plik-dev
+      - plik-mongodb-test
     expose:
       - 27017
     restart: always
@@ -21,7 +21,7 @@ services:
       - ${PWD}/create_mongo_users.js/:/scripts/create_mongo_users.js:ro
       - ${PWD}/create_mongo_replica_set.js/:/scripts/create_mongo_replica_set.js:ro
     networks:
-      - plik-dev
+      - plik-mongodb-test
     expose:
       - 27017
     restart: always
@@ -34,12 +34,12 @@ services:
       - ${PWD}/create_mongo_users.js/:/scripts/create_mongo_users.js:ro
       - ${PWD}/create_mongo_replica_set.js/:/scripts/create_mongo_replica_set.js:ro
     networks:
-      - plik-dev
+      - plik-mongodb-test
     expose:
       - 27017
     restart: always
     entrypoint: [ "/usr/bin/mongod", "--bind_ip_all", "--replSet", "rs0" ]
 
 networks:
-  plik-dev:
-    name: plik-dev
+  plik-mongodb-test:
+    name: plik-mongodb-test

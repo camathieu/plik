@@ -35,7 +35,7 @@ func TestUploadFileTwice(t *testing.T) {
 
 	_, err = pc.uploadFile(uploadParams, fileParams, bytes.NewBufferString("data"))
 	require.Error(t, err, "missing error")
-	require.Contains(t, err.Error(), "file status is uploaded", "invalid error")
+	require.Contains(t, err.Error(), "invalid file status uploaded, expected missing", "invalid error")
 }
 
 func TestDownloadDuringUpload(t *testing.T) {

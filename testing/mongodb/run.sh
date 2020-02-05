@@ -4,15 +4,20 @@ set -e
 cd "$(dirname "$0")"
 
 source ../utils.sh
-check_docker_connectivity
+
+BACKEND="mongodb"
+CMD=$1
+TEST=$2
 
 DOCKER_COMPOSE_FILE="docker-compose.yml"
+DOCKER_COMPOSE_TEST_FILE="docker-compose-test-runner.yml"
 DOCKER_NAMES=( "plik.mongodb.rs0.1" "plik.mongodb.rs0.2" "plik.mongodb.rs0.3" )
 
 function start {
+    check_docker_connectivity
     docker-compose -f "$DOCKER_COMPOSE_FILE" up -d
 
-    READY=0
+    local READY=0
     for i in $(seq 0 60)
     do
         echo "Waiting for everything to start"
@@ -48,20 +53,26 @@ function start {
     sleep 1
 
     echo -e "\n - Initializing MongoDB users\n"
+
+    local OK=0
     for DOCKER_NAME in "${DOCKER_NAMES[@]}"
     do
-        docker exec -t "$DOCKER_NAME" sh -c 'mongo < /scripts/create_mongo_users.js' && exit 0
+        docker exec -t "$DOCKER_NAME" sh -c 'mongo < /scripts/create_mongo_users.js' && OK=1
     done
 
-    echo -e "\n - Failed to create MongoDB users\n"
-    exit 1
+    if [[ "$OK" == "0" ]]; then
+        echo -e "\n - Failed to create MongoDB users\n"
+        exit 1
+    fi
 }
 
 function stop {
+    check_docker_connectivity
     docker-compose -f "$DOCKER_COMPOSE_FILE" down
 }
 
 function status {
+    check_docker_connectivity
     for name in "${DOCKER_NAMES[@]}"
     do
         if docker ps -f name="$name" | grep "$name" > /dev/null ; then
@@ -72,8 +83,34 @@ function status {
     done
 }
 
+function run_docker {
+    check_docker_connectivity
 
-case "$1" in
+    workdir="/go/src/github.com/root-gg/plik"
+    entrypoint="$1"
+    shift
+
+    # Generate version.go
+    ( cd "$ROOT" && make build-info )
+
+    docker run -it --rm \
+      --network "plik-mongodb-test" \
+      --workdir="$workdir" \
+      --entrypoint="$entrypoint" \
+      --volume="$ROOT:$workdir" \
+      -p 8080:8080 \
+      golang:latest "$@"
+}
+
+# Cleaning shutdown hook
+function shutdown {
+    echo "CLEANING UP $BACKEND !!!"
+    # do not try to run stop inside the docker
+    check_docker_connectivity >/dev/null 2>&1 && stop
+}
+trap shutdown EXIT
+
+case "$CMD" in
   start)
     start
     ;;
@@ -87,8 +124,21 @@ case "$1" in
   status)
     status
     ;;
+  run_tests)
+    run_tests "$BACKEND" "$TEST"
+    ;;
+  test)
+    stop
+    start
+    run_docker "./testing/mongodb/run.sh" "run_tests" "$TEST"
+    ;;
+  dev)
+    stop
+    start
+    run_docker "/bin/bash"
+    ;;
   *)
-	echo "Usage: $0 {start|stop|restart|status}"
+	echo "Usage: $0 {start|stop|restart|status|test [test_name]}"
 	exit 1
 esac
 

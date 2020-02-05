@@ -111,7 +111,7 @@ func TestRemoveUploadMetadataBackendError(t *testing.T) {
 
 	rr := ctx.NewRecorder(req)
 	RemoveUpload(ctx, rr, req)
-	context.TestInternalServerError(t, rr, "unable to update upload metadata : metadata backend error")
+	context.TestInternalServerError(t, rr, "unable to remove upload metadata : metadata backend error")
 }
 
 func TestRemoveUploadDataBackendError(t *testing.T) {

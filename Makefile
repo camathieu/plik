@@ -272,7 +272,7 @@ clean-all: clean clean-frontend
 	@rm -rf server/public/node_modules
 
 ###
-# Since the client/server directories are not generated
+# Since the client/server/version directories are not generated
 # by make, we must declare these targets as phony to avoid :
 # "make: `client' is up to date" cases at compile time
 ###

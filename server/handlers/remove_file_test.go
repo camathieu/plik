@@ -247,5 +247,5 @@ func TestRemoveFileDataBackendError(t *testing.T) {
 
 	rr := ctx.NewRecorder(req)
 	RemoveFile(ctx, rr, req)
-	context.TestOK(t, rr)
+	context.TestInternalServerError(t, rr, "data backend error")
 }

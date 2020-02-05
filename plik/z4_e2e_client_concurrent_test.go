@@ -3,11 +3,12 @@ package plik
 import (
 	"bytes"
 	"fmt"
-	"github.com/root-gg/plik/server/common"
-	"github.com/stretchr/testify/require"
 	"io/ioutil"
 	"sync"
 	"testing"
+
+	"github.com/root-gg/plik/server/common"
+	"github.com/stretchr/testify/require"
 )
 
 func downloadSequence(file *File, delete bool) (err error) {
@@ -66,7 +67,7 @@ func TestMultipleUploadsInParallel(t *testing.T) {
 	err := start(ps)
 	require.NoError(t, err, "unable to start plik server")
 
-	count := 30
+	count := 10
 	errors := make(chan error, count)
 	var wg sync.WaitGroup
 	for i := 1; i <= count; i++ {
@@ -113,13 +114,13 @@ func TestMultipleFilesInParallel(t *testing.T) {
 			data := fmt.Sprintf("data data data %s", filename)
 			file := upload.AddFileFromReader(filename, NewSlowReaderRandom(bytes.NewBufferString(data)))
 
-			err := upload.Upload()
+			err := file.Upload()
 			if err != nil {
 				errors <- fmt.Errorf("upload error : %s", err)
 				return
 			}
 
-			errors <- downloadSequence(file, true)
+			errors <- downloadSequence(file, false)
 		}(i)
 	}
 

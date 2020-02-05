@@ -96,7 +96,9 @@ func DeleteRemovedFile(ctx *context.Context, upload *common.Upload, file *common
 		return fmt.Errorf("file parameter is nil")
 	}
 
-	// /!\ File status MUST be removed before to call this /!\
+	if file.Status != common.FileRemoved {
+		return
+	}
 
 	backend := ctx.GetDataBackend()
 	err = backend.RemoveFile(upload, file.ID)
@@ -104,26 +106,11 @@ func DeleteRemovedFile(ctx *context.Context, upload *common.Upload, file *common
 		return fmt.Errorf("error while deleting file %s (%s) from upload %s : %s", file.Name, file.ID, upload.ID, err)
 	}
 
-	tx := func(u *common.Upload) error {
-		if u == nil {
-			return common.NewHTTPError("upload does not exist anymore", http.StatusNotFound)
-		}
+	file.Status = common.FileDeleted
 
-		f, ok := u.Files[file.ID]
-		if !ok {
-			return fmt.Errorf("unable to find file %s (%s)", file.Name, file.ID)
-		}
-		if f.Status != common.FileRemoved {
-			return fmt.Errorf("invalid file %s (%s) status %s, expected %s", file.Name, file.ID, f.Status, common.FileRemoved)
-		}
-		f.Status = common.FileDeleted
-
-		return nil
-	}
-
-	upload, err = ctx.GetMetadataBackend().UpdateUpload(upload, tx)
+	err = ctx.GetMetadataBackend().AddOrUpdateFile(upload, file, common.FileRemoved)
 	if err != nil {
-		return fmt.Errorf("unable to update upload metadata : %s", err)
+		return fmt.Errorf("unable to update file metadata : %s", err)
 	}
 
 	// Remove upload if no files anymore
@@ -178,9 +165,9 @@ func checkDownloadDomain(ctx *context.Context) bool {
 	return true
 }
 
-func handleTxError(ctx *context.Context, message string, err error) {
-	if txError, ok := err.(common.HTTPError); ok {
-		ctx.Fail(txError.Error(), nil, txError.GetStatusCode())
+func handleHTTPError(ctx *context.Context, message string, err error) {
+	if httpError, ok := err.(common.HTTPError); ok {
+		ctx.Fail(httpError.Error(), nil, httpError.GetStatusCode())
 	} else {
 		ctx.InternalServerError(message, err)
 	}

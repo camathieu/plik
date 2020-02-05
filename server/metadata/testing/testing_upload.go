@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
 	"github.com/root-gg/plik/server/common"
 )
 
@@ -13,12 +14,12 @@ func (b *Backend) CreateUpload(upload *common.Upload) (err error) {
 		return fmt.Errorf("missing upload")
 	}
 
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
 	if b.err != nil {
 		return b.err
 	}
+
+	b.mu.Lock()
+	defer b.mu.Unlock()
 
 	if _, ok := b.uploads[upload.ID]; ok {
 		return errors.New("upload already exists")
@@ -40,12 +41,12 @@ func (b *Backend) GetUpload(uploadID string) (upload *common.Upload, err error) 
 		return nil, fmt.Errorf("missing upload id")
 	}
 
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
 	if b.err != nil {
 		return nil, b.err
 	}
+
+	b.mu.Lock()
+	defer b.mu.Unlock()
 
 	upload, ok := b.uploads[uploadID]
 	if !ok {
@@ -60,52 +61,69 @@ func (b *Backend) GetUpload(uploadID string) (upload *common.Upload, err error) 
 	return upload, nil
 }
 
-// UpdateUpload update upload metadata
-func (b *Backend) UpdateUpload(upload *common.Upload, tx common.UploadTx) (u *common.Upload, err error) {
+func (b *Backend) AddOrUpdateFile(upload *common.Upload, file *common.File, status string) (err error) {
 	if upload == nil {
-		return nil, fmt.Errorf("missing upload")
+		return fmt.Errorf("missing upload")
+	}
+
+	if file == nil {
+		return fmt.Errorf("missing upload id")
+	}
+
+	if b.err != nil {
+		return b.err
 	}
 
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	if b.err != nil {
-		return nil, b.err
-	}
-
-	upload, ok := b.uploads[upload.ID]
+	var ok bool
+	upload, ok = b.uploads[upload.ID]
 	if !ok {
-		err = tx(u)
-		if err != nil {
-			return nil, err
+		return errors.New("upload does not exists anymore")
+	}
+
+	upload, err = defCopyUpload(upload)
+	if err != nil {
+		return err
+	}
+
+	if status == "" {
+		// Insert file, verify it does not already exist
+		if _, ok := upload.Files[file.ID]; ok {
+			return fmt.Errorf("file already exist")
 		}
-		return nil, fmt.Errorf("upload tx without upload should return an error")
+	} else {
+		// Update file, verify it exists and status
+		current, ok := upload.Files[file.ID]
+
+		if !ok {
+			return fmt.Errorf("missing file")
+		}
+		if current.Status != status {
+			return fmt.Errorf("invalid file status %s, expected %s", current.Status, status)
+		}
+
 	}
 
-	u, err = defCopyUpload(upload)
+	// Insert file
+	var f *common.File
+	f, err = defCopyFile(file)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	err = tx(u)
+	upload.Files[file.ID] = f
+
+	// Update upload
+	upload, err = defCopyUpload(upload)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	u, err = defCopyUpload(u)
-	if err != nil {
-		return nil, err
-	}
+	b.uploads[upload.ID] = upload
 
-	// Avoid the possibility to override an other upload by changing the upload.ID in the tx
-	b.uploads[upload.ID] = u
-
-	u, err = defCopyUpload(u)
-	if err != nil {
-		return nil, err
-	}
-
-	return u, nil
+	return nil
 }
 
 // RemoveUpload remove upload metadata
@@ -142,4 +160,18 @@ func defCopyUpload(upload *common.Upload) (u *common.Upload, err error) {
 		return nil, err
 	}
 	return u, err
+}
+
+// Create a defensive copy of the file object
+func defCopyFile(file *common.File) (f *common.File, err error) {
+	f = &common.File{}
+	j, err := json.Marshal(file)
+	if err != nil {
+		return nil, err
+	}
+	err = json.Unmarshal(j, f)
+	if err != nil {
+		return nil, err
+	}
+	return f, err
 }

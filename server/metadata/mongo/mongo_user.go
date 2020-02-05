@@ -87,7 +87,6 @@ func (b *Backend) UpdateUser(user *common.User, userTx common.UserTx) (u *common
 		defer func() { _ = sctx.AbortTransaction(sctx) }()
 
 		// Fetch user
-		u := &common.User{}
 		result := b.uploadCollection.FindOne(ctx, bson.M{"id": user.ID})
 		if result.Err() != nil {
 			if result.Err() == mongo.ErrNoDocuments {
@@ -104,7 +103,7 @@ func (b *Backend) UpdateUser(user *common.User, userTx common.UserTx) (u *common
 
 		// Decode user
 		u = &common.User{}
-		err = result.Decode(&user)
+		err = result.Decode(&u)
 		if err != nil {
 			return err
 		}

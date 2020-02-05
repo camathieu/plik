@@ -129,7 +129,7 @@ func TestGetArchiveOneShot(t *testing.T) {
 	upload.OneShot = true
 	file := upload.NewFile()
 	file.Name = "file"
-	file.Status = "uploaded"
+	file.Status = common.FileUploaded
 	createTestUpload(ctx, upload)
 
 	err := createTestFile(ctx, upload, file, bytes.NewBuffer([]byte(data)))

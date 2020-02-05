@@ -46,29 +46,12 @@ func GetFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 	}
 
 	if req.Method == "GET" && upload.OneShot {
-		// If this is a one shot or stream upload we have to ensure it's downloaded only once.
-		tx := func(u *common.Upload) error {
-			if u == nil {
-				return common.NewHTTPError("upload does not exist anymore", http.StatusNotFound)
-			}
 
-			f, ok := u.Files[file.ID]
-			if !ok {
-				return fmt.Errorf("unable to find file %s (%s)", file.Name, file.ID)
-			}
+		file.Status = common.FileRemoved
 
-			if f.Status != common.FileUploaded {
-				return common.NewHTTPError(fmt.Sprintf("invalid file %s (%s) status %s, expected %s", file.Name, file.ID, file.Status, common.FileUploaded), http.StatusBadRequest)
-			}
-
-			f.Status = common.FileRemoved
-
-			return nil
-		}
-
-		upload, err := ctx.GetMetadataBackend().UpdateUpload(upload, tx)
+		err := ctx.GetMetadataBackend().AddOrUpdateFile(upload, file, common.FileUploaded)
 		if err != nil {
-			handleTxError(ctx, "unable to update upload metadata", err)
+			ctx.InternalServerError("unable to update file metadata", err)
 			return
 		}
 

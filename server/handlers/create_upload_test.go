@@ -18,6 +18,11 @@ import (
 
 func createTestUpload(ctx *context.Context, uploadToCreate *common.Upload) {
 	uploadToCreate.Create()
+	for _, file := range uploadToCreate.Files {
+		if file.Status == "" {
+			file.Status = common.FileMissing
+		}
+	}
 	metadataBackend := ctx.GetMetadataBackend()
 	_ = metadataBackend.CreateUpload(uploadToCreate)
 }

@@ -230,7 +230,7 @@ func TestAddFileNoUpload(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	AddFile(ctx, rr, req)
 
-	context.TestNotFound(t, rr, "upload does not exist anymore")
+	context.TestInternalServerError(t, rr, "unable to update file metadata")
 }
 
 func TestAddFileStatusUploading(t *testing.T) {
@@ -252,7 +252,7 @@ func TestAddFileStatusUploading(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	AddFile(ctx, rr, req)
 
-	context.TestBadRequest(t, rr, fmt.Sprintf("file status is %s", common.FileUploading))
+	context.TestBadRequest(t, rr, fmt.Sprintf("nvalid file status %s, expected missing", common.FileUploading))
 }
 
 func TestAddFileStatusUploaded(t *testing.T) {
@@ -274,7 +274,7 @@ func TestAddFileStatusUploaded(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	AddFile(ctx, rr, req)
 
-	context.TestBadRequest(t, rr, fmt.Sprintf("file status is %s", common.FileUploaded))
+	context.TestBadRequest(t, rr, fmt.Sprintf("invalid file status %s, expected missing", common.FileUploaded))
 }
 
 func TestAddFileStatusRemoved(t *testing.T) {
@@ -296,7 +296,7 @@ func TestAddFileStatusRemoved(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	AddFile(ctx, rr, req)
 
-	context.TestBadRequest(t, rr, fmt.Sprintf("file status is %s", common.FileRemoved))
+	context.TestBadRequest(t, rr, fmt.Sprintf("invalid file status %s, expected missing", common.FileRemoved))
 }
 
 func TestAddFileStatusDeleted(t *testing.T) {
@@ -318,7 +318,7 @@ func TestAddFileStatusDeleted(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	AddFile(ctx, rr, req)
 
-	context.TestBadRequest(t, rr, fmt.Sprintf("file status is %s", common.FileDeleted))
+	context.TestBadRequest(t, rr, fmt.Sprintf("invalid file status %s, expected missing", common.FileDeleted))
 }
 
 func TestAddFileNotAdmin(t *testing.T) {
@@ -339,14 +339,9 @@ func TestAddFileNotAdmin(t *testing.T) {
 
 func TestAddFileNoMultipartForm(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	ctx.GetConfig().MaxFilePerUpload = 2
 	ctx.SetUploadAdmin(true)
 
 	upload := common.NewUpload()
-
-	for i := 0; i < 5; i++ {
-		upload.NewFile()
-	}
 
 	createTestUpload(ctx, upload)
 	ctx.SetUpload(upload)
@@ -435,7 +430,7 @@ func TestAddFileWithInvalidFileName(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	AddFile(ctx, rr, req)
 
-	context.TestBadRequest(t, rr, "invalid filename blah, expected file name")
+	context.TestBadRequest(t, rr, "invalid file name blah, expected file name")
 }
 
 func TestAddFileWithEmptyName(t *testing.T) {
