@@ -34,8 +34,11 @@ type Backend interface {
 	// Return nil but no error if user not found
 	GetUserFromToken(token string) (user *common.User, err error)
 
-	// Remove user metadata
-	UpdateUser(user *common.User, tx common.UserTx) (u *common.User, err error)
+	// Create user token
+	AddUserToken(user *common.User, token *common.Token) (err error)
+
+	// Remove user token
+	RemoveUserToken(user *common.User, token *common.Token) (err error)
 
 	// Remove user metadata
 	RemoveUser(user *common.User) (err error)

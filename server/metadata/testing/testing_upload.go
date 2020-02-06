@@ -77,15 +77,9 @@ func (b *Backend) AddOrUpdateFile(upload *common.Upload, file *common.File, stat
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	var ok bool
-	upload, ok = b.uploads[upload.ID]
+	upload, ok := b.uploads[upload.ID]
 	if !ok {
 		return errors.New("upload does not exists anymore")
-	}
-
-	upload, err = defCopyUpload(upload)
-	if err != nil {
-		return err
 	}
 
 	if status == "" {
@@ -106,22 +100,14 @@ func (b *Backend) AddOrUpdateFile(upload *common.Upload, file *common.File, stat
 
 	}
 
-	// Insert file
-	var f *common.File
-	f, err = defCopyFile(file)
+	// Create a defensive copy
+	f, err := defCopyFile(file)
 	if err != nil {
 		return err
 	}
 
+	// add file to upload
 	upload.Files[file.ID] = f
-
-	// Update upload
-	upload, err = defCopyUpload(upload)
-	if err != nil {
-		return err
-	}
-
-	b.uploads[upload.ID] = upload
 
 	return nil
 }

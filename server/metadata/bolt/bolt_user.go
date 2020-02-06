@@ -127,65 +127,65 @@ func (b *Backend) GetUserFromToken(token string) (user *common.User, err error) 
 	return user, nil
 }
 
-// UpdateUser implementation for Bolt Metadata Backend
-func (b *Backend) UpdateUser(user *common.User, userTx common.UserTx) (u *common.User, err error) {
+// AddUserToken add a token to the user
+func (b *Backend) AddUserToken(user *common.User, token *common.Token) (err error) {
 	if user == nil {
-		return nil, errors.New("missing user")
+		return fmt.Errorf("missing user")
+	}
+
+	if token == nil {
+		return fmt.Errorf("missing token")
+	}
+
+	if token.Token == "" {
+		return fmt.Errorf("token is not initialized")
 	}
 
 	err = b.db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte("users"))
 		if bucket == nil {
-			return fmt.Errorf("unable to get users Bolt bucket")
+			return fmt.Errorf("unable to get user Bolt bucket")
 		}
 
 		b := bucket.Get([]byte(user.ID))
 
-		// User not found but no error
+		// Upload not found
 		if b == nil || len(b) == 0 {
-			// User not found ( maybe it has been removed in the mean time )
-			// Let the upload tx set the (HTTP) error and forward it
-			err = userTx(nil)
-			if err != nil {
-				return err
-			}
-			return fmt.Errorf("user tx without an user should return an error")
+			return fmt.Errorf("user does not exist anymore")
 		}
 
-		// Deserialize user from json
-		u = common.NewUser()
+		// Deserialize metadata from json
+		u := new(common.User)
 		err = json.Unmarshal(b, u)
 		if err != nil {
 			return fmt.Errorf("unable to unserialize metadata from json : %s", err)
 		}
 
-		// Apply transaction ( mutate )
-		err = userTx(u)
-		if err != nil {
-			return err
+		// Check that the token does not already exists
+		for _, t := range user.Tokens {
+			if t.Token == token.Token {
+				return fmt.Errorf("token already exists")
+			}
 		}
 
-		// Serialize user to json
+		// Add token
+		user.Tokens = append(user.Tokens, token)
+
+		// Serialize metadata to json
 		j, err := json.Marshal(u)
 		if err != nil {
-			return fmt.Errorf("unable to serialize user to json : %s", err)
+			return fmt.Errorf("unable to serialize metadata to json : %s", err)
 		}
 
-		// Save user
-		// Avoid the possibility to override an other user by changing the user.ID in the tx
 		err = bucket.Put([]byte(user.ID), j)
 		if err != nil {
-			return fmt.Errorf("unable save user metadata : %s", err)
+			return fmt.Errorf("unable save upload metadata : %s", err)
 		}
 
 		return nil
 	})
 
-	if err != nil {
-		return nil, err
-	}
-
-	return u, err
+	return err
 }
 
 // RemoveUser implementation for Bolt Metadata Backend

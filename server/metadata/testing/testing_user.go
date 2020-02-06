@@ -95,52 +95,89 @@ LOOP:
 	return user, nil
 }
 
-// UpdateUser update user metadata
-func (b *Backend) UpdateUser(user *common.User, tx common.UserTx) (u *common.User, err error) {
+// AddUserToken add a token to the user
+func (b *Backend) AddUserToken(user *common.User, token *common.Token) (err error) {
 	if user == nil {
-		return nil, fmt.Errorf("missing user")
+		return fmt.Errorf("missing user")
+	}
+
+	if token == nil {
+		return fmt.Errorf("missing token")
+	}
+
+	if token.Token == "" {
+		return fmt.Errorf("token is not initialized")
 	}
 
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
 	if b.err != nil {
-		return nil, b.err
+		return b.err
 	}
 
+	// Get user
 	user, ok := b.users[user.ID]
 	if !ok {
-		err = tx(u)
-		if err != nil {
-			return nil, err
+		return fmt.Errorf("user not found")
+	}
+
+	// Check that the token does not already exists
+	for _, t := range user.Tokens {
+		if t.Token == token.Token {
+			return fmt.Errorf("token already exists")
 		}
-		return nil, fmt.Errorf("user tx without user should return an error")
 	}
 
-	u, err = defCopyUser(user)
+	// Create a defensive copy
+	t, err := defCopyToken(token)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	err = tx(u)
-	if err != nil {
-		return nil, err
+	// Add token
+	user.Tokens = append(user.Tokens, t)
+
+	return nil
+}
+
+
+// AddUserToken add a token to the user
+func (b *Backend) RemoveUserToken(user *common.User, token *common.Token) (err error) {
+	if user == nil {
+		return fmt.Errorf("missing user")
 	}
 
-	u, err = defCopyUser(u)
-	if err != nil {
-		return nil, err
+	if token == nil {
+		return fmt.Errorf("missing token")
 	}
 
-	// Avoid the possibility to override an other user by changing the user.ID in the tx
-	b.users[user.ID] = u
-
-	u, err = defCopyUser(u)
-	if err != nil {
-		return nil, err
+	if token.Token == "" {
+		return fmt.Errorf("token is not initialized")
 	}
 
-	return u, nil
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	if b.err != nil {
+		return b.err
+	}
+
+	// Get user
+	user, ok := b.users[user.ID]
+	if !ok {
+		return fmt.Errorf("user not found")
+	}
+
+	// Find and remove the token
+	for i, t := range user.Tokens {
+		if t.Token == token.Token {
+			user.Tokens = append(user.Tokens[:i], user.Tokens[i+1:]...)
+			break
+		}
+	}
+
+	return nil
 }
 
 // RemoveUser remove user metadata
@@ -240,4 +277,18 @@ func defCopyUser(user *common.User) (u *common.User, err error) {
 		return nil, err
 	}
 	return u, err
+}
+
+// Create a defensive copy of the token object
+func defCopyToken(token *common.Token) (t *common.Token, err error) {
+	t = &common.Token{}
+	j, err := json.Marshal(token)
+	if err != nil {
+		return nil, err
+	}
+	err = json.Unmarshal(j, t)
+	if err != nil {
+		return nil, err
+	}
+	return t, err
 }

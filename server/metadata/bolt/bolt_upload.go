@@ -149,7 +149,7 @@ func (b *Backend) AddOrUpdateFile(upload *common.Upload, file *common.File, stat
 		}
 
 		if status == "" {
-			// Insert file, verify it does not already exist
+			// Insert file, verify it does not already exists
 			if _, ok := upload.Files[file.ID]; ok {
 				return fmt.Errorf("file already exist")
 			}
