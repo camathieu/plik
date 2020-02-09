@@ -28,11 +28,11 @@ func NewBackend() (b *Backend) {
 
 // GetFile implementation for steam data backend will search
 // on filesystem the requested steam and return its reading filehandle
-func (b *Backend) GetFile(upload *common.Upload, file *common.File) (stream io.ReadCloser, err error) {
+func (b *Backend) GetFile(file *common.File) (stream io.ReadCloser, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	storeID := upload.ID + "/" + file.ID
+	storeID := file.UploadID + "/" + file.ID
 	stream, ok := b.store[storeID]
 	if !ok {
 		return nil, fmt.Errorf("missing reader")
@@ -45,8 +45,8 @@ func (b *Backend) GetFile(upload *common.Upload, file *common.File) (stream io.R
 
 // AddFile implementation for steam data backend will creates a new steam for the given upload
 // and save it on filesystem with the given steam reader
-func (b *Backend) AddFile(upload *common.Upload, file *common.File, stream io.Reader) (backendDetails string, err error) {
-	storeID := upload.ID + "/" + file.ID
+func (b *Backend) AddFile(file *common.File, stream io.Reader) (backendDetails string, err error) {
+	storeID := file.UploadID + "/" + file.ID
 
 	pipeReader, pipeWriter := io.Pipe()
 
@@ -65,6 +65,6 @@ func (b *Backend) AddFile(upload *common.Upload, file *common.File, stream io.Re
 }
 
 // RemoveFile is not implemented
-func (b *Backend) RemoveFile(upload *common.Upload, file *common.File) (err error) {
+func (b *Backend) RemoveFile(file *common.File) (err error) {
 	return nil
 }

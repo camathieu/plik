@@ -222,7 +222,7 @@ func TestCreateOneShotWhenOneShotIsDisabled(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	CreateUpload(ctx, rr, req)
 
-	context.TestBadRequest(t, rr, "one shot downloads are not enabled")
+	context.TestBadRequest(t, rr, "one shot uploads are not enabled")
 }
 
 func TestCreateOneShotWhenRemovableIsDisabled(t *testing.T) {

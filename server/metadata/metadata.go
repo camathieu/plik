@@ -8,9 +8,7 @@ import (
 	_ "github.com/jinzhu/gorm/dialects/mysql"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
-	"github.com/root-gg/logger"
 	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/plik/server/data"
 	"github.com/root-gg/utils"
 	"gopkg.in/gormigrate.v1"
 )
@@ -37,18 +35,13 @@ type Backend struct {
 	Config *Config
 
 	db *gorm.DB
-
-	dataBackend data.Backend
-	log         *logger.Logger
 }
 
 // NewBackend instantiate a new File Data Backend
 // from configuration passed as argument
-func NewBackend(config *Config, dataBackend data.Backend, log *logger.Logger) (b *Backend, err error) {
+func NewBackend(config *Config) (b *Backend, err error) {
 	b = new(Backend)
 	b.Config = config
-	b.dataBackend = dataBackend
-	b.log = log
 
 	if config.Driver == "sqlite3" && config.EraseFirst {
 		_ = os.Remove(config.ConnectionString)
@@ -90,13 +83,19 @@ func (b *Backend) initializeDB() (err error){
 		err := tx.AutoMigrate(
 			&common.Upload{},
 			&common.File{},
+			&common.User{},
+			&common.Token{},
 		).Error
 		if err != nil {
 			return err
 		}
 
 		if b.Config.Driver == "mysql" {
-			err := tx.Model(&common.File{}).AddForeignKey("upload_id", "uploads(id)", "RESTRICT", "RESTRICT").Error
+			err = tx.Model(&common.Upload{}).AddForeignKey("user", "users(id)", "RESTRICT", "RESTRICT").Error
+			if err != nil {
+				return err
+			}
+			err = tx.Model(&common.Upload{}).AddForeignKey("token", "tokens(token)", "RESTRICT", "RESTRICT").Error
 			if err != nil {
 				return err
 			}

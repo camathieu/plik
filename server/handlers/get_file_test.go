@@ -17,9 +17,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func createTestFile(ctx *context.Context, upload *common.Upload, file *common.File, reader io.Reader) (err error) {
+func createTestFile(ctx *context.Context, file *common.File, reader io.Reader) (err error) {
 	dataBackend := ctx.GetDataBackend()
-	_, err = dataBackend.AddFile(upload, file, reader)
+	_, err = dataBackend.AddFile(file, reader)
 	return err
 }
 
@@ -38,7 +38,7 @@ func TestGetFile(t *testing.T) {
 	file.Size = int64(len(data))
 	createTestUpload(t, ctx, upload)
 
-	err := createTestFile(ctx, upload, file, bytes.NewBuffer([]byte(data)))
+	err := createTestFile(ctx, file, bytes.NewBuffer([]byte(data)))
 	require.NoError(t, err, "unable to create test file")
 
 	ctx.SetUpload(upload)
@@ -72,7 +72,7 @@ func TestGetOneShotFile(t *testing.T) {
 	createTestUpload(t, ctx, upload)
 
 	data := "data"
-	err := createTestFile(ctx, upload, file, bytes.NewBuffer([]byte(data)))
+	err := createTestFile(ctx, file, bytes.NewBuffer([]byte(data)))
 	require.NoError(t, err, "unable to create test file")
 
 	ctx.SetUpload(upload)
@@ -100,7 +100,7 @@ func TestGetRemovedFile(t *testing.T) {
 	file.Status = common.FileRemoved
 	createTestUpload(t, ctx, upload)
 
-	err := createTestFile(ctx, upload, file, bytes.NewBuffer([]byte("data")))
+	err := createTestFile(ctx, file, bytes.NewBuffer([]byte("data")))
 	require.NoError(t, err, "unable to create test file")
 
 	ctx.SetUpload(upload)
@@ -124,7 +124,7 @@ func TestGetDeletedFile(t *testing.T) {
 	file.Status = common.FileDeleted
 	createTestUpload(t, ctx, upload)
 
-	err := createTestFile(ctx, upload, file, bytes.NewBuffer([]byte("data")))
+	err := createTestFile(ctx, file, bytes.NewBuffer([]byte("data")))
 	require.NoError(t, err, "unable to create test file")
 
 	ctx.SetUpload(upload)
@@ -192,7 +192,7 @@ func TestGetHtmlFile(t *testing.T) {
 	file := upload.NewFile()
 	file.Type = "html"
 	file.Status = "uploaded"
-	err := createTestFile(ctx, upload, file, bytes.NewBuffer([]byte("data")))
+	err := createTestFile(ctx, file, bytes.NewBuffer([]byte("data")))
 	require.NoError(t, err, "unable to create test file")
 
 	ctx.SetUpload(upload)
@@ -217,7 +217,7 @@ func TestGetFileNoType(t *testing.T) {
 
 	file := upload.NewFile()
 	file.Status = "uploaded"
-	err := createTestFile(ctx, upload, file, bytes.NewBuffer([]byte("data")))
+	err := createTestFile(ctx, file, bytes.NewBuffer([]byte("data")))
 	require.NoError(t, err, "unable to create test file")
 
 	ctx.SetUpload(upload)
@@ -243,7 +243,7 @@ func TestGetFileDataBackendError(t *testing.T) {
 	file := upload.NewFile()
 	file.Name = "file"
 	file.Status = "uploaded"
-	err := createTestFile(ctx, upload, file, bytes.NewBuffer([]byte("data")))
+	err := createTestFile(ctx, file, bytes.NewBuffer([]byte("data")))
 	require.NoError(t, err, "unable to create test file")
 
 	ctx.SetUpload(upload)
@@ -269,7 +269,7 @@ func TestGetFileDataBackendError(t *testing.T) {
 //
 //	file := upload.NewFile()
 //	file.Status = "uploaded"
-//	err := createTestFile(ctx, upload, file, bytes.NewBuffer([]byte("data")))
+//	err := createTestFile(ctx, file, bytes.NewBuffer([]byte("data")))
 //	require.NoError(t, err, "unable to create test file")
 //
 //	ctx.SetUpload(upload)

@@ -42,14 +42,14 @@ func NewBackend(config *Config) (b *Backend) {
 }
 
 // GetFile implementation for Swift Data Backend
-func (b *Backend) GetFile(upload *common.Upload, file *common.File) (reader io.ReadCloser, err error) {
+func (b *Backend) GetFile(file *common.File) (reader io.ReadCloser, err error) {
 	err = b.auth()
 	if err != nil {
 		return nil, err
 	}
 
 	reader, pipeWriter := io.Pipe()
-	objectID := objectID(upload, file)
+	objectID := objectID(file)
 	go func() {
 		_, err = b.connection.ObjectGet(b.config.Container, objectID, pipeWriter, true, nil)
 		defer func() { _ = pipeWriter.Close() }()
@@ -62,13 +62,13 @@ func (b *Backend) GetFile(upload *common.Upload, file *common.File) (reader io.R
 }
 
 // AddFile implementation for Swift Data Backend
-func (b *Backend) AddFile(upload *common.Upload, file *common.File, fileReader io.Reader) (backendDetails string, err error) {
+func (b *Backend) AddFile(file *common.File, fileReader io.Reader) (backendDetails string, err error) {
 	err = b.auth()
 	if err != nil {
 		return "", err
 	}
 
-	objectId := objectID(upload, file)
+	objectId := objectID(file)
 	object, err := b.connection.ObjectCreate(b.config.Container, objectId, true, "", "", nil)
 
 	_, err = io.Copy(object, fileReader)
@@ -84,13 +84,13 @@ func (b *Backend) AddFile(upload *common.Upload, file *common.File, fileReader i
 }
 
 // RemoveFile implementation for Swift Data Backend
-func (b *Backend) RemoveFile(upload *common.Upload, file *common.File) (err error) {
+func (b *Backend) RemoveFile(file *common.File) (err error) {
 	err = b.auth()
 	if err != nil {
 		return err
 	}
 
-	objectID := objectID(upload, file)
+	objectID := objectID(file)
 	err = b.connection.ObjectDelete(b.config.Container, objectID)
 	if err != nil {
 		return err
@@ -99,8 +99,8 @@ func (b *Backend) RemoveFile(upload *common.Upload, file *common.File) (err erro
 	return
 }
 
-func objectID(upload *common.Upload, file *common.File) string {
-	return upload.ID + "." + file.ID
+func objectID(file *common.File) string {
+	return file.UploadID + "." + file.ID
 }
 
 func (b *Backend) auth() (err error) {

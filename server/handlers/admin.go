@@ -1,7 +1,13 @@
 package handlers
 
+import (
+	"net/http"
+
+	"github.com/root-gg/plik/server/context"
+)
+
 // GetUsers return users information ( name / email / tokens / ... )
-//func GetUsers(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
+func GetUsers(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
 //	log := ctx.GetLogger()
 //
 //	if !ctx.IsAdmin() {
@@ -91,4 +97,4 @@ package handlers
 //	}
 //
 //	_, _ = resp.Write(json)
-//}
+}

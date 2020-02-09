@@ -25,7 +25,7 @@ type Upload struct {
 	UploadToken string `json:"uploadToken,omitempty"`
 	User        string `json:"user,omitempty"`
 	Token       string `json:"token,omitempty"`
-	Admin       bool   `json:"admin"`
+	IsAdmin     bool   `json:"admin"`
 
 	Stream    bool `json:"stream"`
 	OneShot   bool `json:"oneShot"`
@@ -36,7 +36,8 @@ type Upload struct {
 	Password            string `json:"password,omitempty"`
 
 	CreatedAt time.Time  `json:"createdAt"`
-	ExpiredAt *time.Time `json:"expireAt"`
+	DeletedAt *time.Time  `json:"-"`
+	ExpireAt  *time.Time `json:"expireAt"`
 }
 
 // NewFile creates a new file and add it to the current upload
@@ -96,8 +97,8 @@ func GenerateRandomID(length int) string {
 
 // IsExpired check if the upload is expired
 func (upload *Upload) IsExpired() bool {
-	if upload.ExpiredAt != nil {
-		if time.Now().After(*upload.ExpiredAt) {
+	if upload.ExpireAt != nil {
+		if time.Now().After(*upload.ExpireAt) {
 			return true
 		}
 	}
@@ -123,7 +124,7 @@ func (upload *Upload) PrepareInsert(config *Configuration) (err error) {
 	}
 
 	if upload.OneShot && !config.OneShot {
-		return fmt.Errorf("one shot downloads are not enabled")
+		return fmt.Errorf("one shot uploads are not enabled")
 	}
 
 	if upload.Removable && !config.Removable {
@@ -161,7 +162,7 @@ func (upload *Upload) PrepareInsert(config *Configuration) (err error) {
 
 	if upload.TTL > 0 {
 		deadline := time.Now().Add(time.Duration(upload.TTL) * time.Second)
-		upload.ExpiredAt = &deadline
+		upload.ExpireAt = &deadline
 	}
 
 	for _, file := range upload.Files {
@@ -180,9 +181,9 @@ func (upload *Upload) PrepareInsertForTests() {
 		upload.ID = GenerateRandomID(16)
 	}
 
-	if upload.TTL > 0 {
+	if upload.ExpireAt == nil && upload.TTL > 0 {
 		deadline := time.Now().Add(time.Duration(upload.TTL) * time.Second)
-		upload.ExpiredAt = &deadline
+		upload.ExpireAt = &deadline
 	}
 
 	for _, file := range upload.Files {

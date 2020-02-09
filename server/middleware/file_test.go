@@ -25,7 +25,7 @@ func TestFileNoUpload(t *testing.T) {
 
 func TestFileNoFileID(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	ctx.SetUpload(common.NewUpload())
+	ctx.SetUpload(&common.Upload{})
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
 	require.NoError(t, err, "unable to create new request")
@@ -33,12 +33,12 @@ func TestFileNoFileID(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	File(ctx, common.DummyHandler).ServeHTTP(rr, req)
 
-	context.TestMissingParameter(t, rr, "file id")
+	context.TestMissingParameter(t, rr, "file ID")
 }
 
 func TestFileNoFileName(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	ctx.SetUpload(common.NewUpload())
+	ctx.SetUpload(&common.Upload{})
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
 	require.NoError(t, err, "unable to create new request")
@@ -57,7 +57,7 @@ func TestFileNoFileName(t *testing.T) {
 
 func TestFileNotFound(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	ctx.SetUpload(common.NewUpload())
+	ctx.SetUpload(&common.Upload{})
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
 	require.NoError(t, err, "unable to create new request")
@@ -81,8 +81,11 @@ func TestFileInvalidFileName(t *testing.T) {
 	upload := &common.Upload{}
 	file := upload.NewFile()
 	file.Name = "filename"
-
 	ctx.SetUpload(upload)
+
+	upload.PrepareInsertForTests()
+	err := ctx.GetMetadataBackend().CreateUpload(upload)
+	require.NoError(t, err, "create upload error")
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
 	require.NoError(t, err, "unable to create new request")
@@ -106,8 +109,11 @@ func TestFile(t *testing.T) {
 	upload := &common.Upload{}
 	file := upload.NewFile()
 	file.Name = "filename"
-
 	ctx.SetUpload(upload)
+
+	upload.PrepareInsertForTests()
+	err := ctx.GetMetadataBackend().CreateUpload(upload)
+	require.NoError(t, err, "create upload error")
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
 	require.NoError(t, err, "unable to create new request")
@@ -126,5 +132,5 @@ func TestFile(t *testing.T) {
 
 	f := ctx.GetFile()
 	require.NotNil(t, f, "missing file from context")
-	require.Equal(t, file, f, "invalid file from context")
+	require.Equal(t, file.ID, f.ID, "invalid file from context")
 }

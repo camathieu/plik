@@ -98,7 +98,7 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 		}
 
 		// Update metadata
-		err = ctx.GetMetadataBackend().CreateFile(upload, file)
+		err = ctx.GetMetadataBackend().CreateFile(file)
 		if err != nil {
 			ctx.InternalServerError("unable to create file", err)
 			return
@@ -142,7 +142,7 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 		backend = ctx.GetDataBackend()
 	}
 
-	_, err = backend.AddFile(upload, file, preprocessReader)
+	_, err = backend.AddFile(file, preprocessReader)
 	if err != nil {
 		// TODO : file status is left to common.FileUploading we should set it to some common.FileUploadError
 		// TODO : or we can set it back to common.FileMissing if we are sure data backends will handle that

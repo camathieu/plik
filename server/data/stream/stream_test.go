@@ -12,13 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newTestingContext(config *common.Configuration) (ctx *context.Context) {
-	ctx = &context.Context{}
-	ctx.SetConfig(config)
-	ctx.SetLogger(config.NewLogger())
-	return ctx
-}
-
 func TestAddGetFile(t *testing.T) {
 	config := NewConfig(make(map[string]interface{}))
 	backend := NewBackend(config)

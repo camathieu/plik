@@ -6,20 +6,12 @@ import (
 	"testing"
 
 	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/plik/server/context"
 	"github.com/root-gg/plik/server/data"
 	"github.com/stretchr/testify/require"
 )
 
 // Ensure Testing Data Backend implements data.Backend interface
 var _ data.Backend = (*Backend)(nil)
-
-func newTestingContext(config *common.Configuration) (ctx *context.Context) {
-	ctx = &context.Context{}
-	ctx.SetConfig(config)
-	ctx.SetLogger(config.NewLogger())
-	return ctx
-}
 
 func TestAddFileError(t *testing.T) {
 	backend := NewBackend()

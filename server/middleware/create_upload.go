@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"github.com/root-gg/plik/server/common"
 	"net/http"
 
 	"github.com/root-gg/plik/server/context"
@@ -14,7 +15,11 @@ func CreateUpload(ctx *context.Context, next http.Handler) http.Handler {
 			return
 		}
 
-		upload := ctx.CreateUploadFromContext()
+		// Create upload
+		upload := &common.Upload{}
+
+		// Assign context parameters ( ip / user / token )
+		ctx.SetUploadContext(upload)
 
 		// Set and validate upload parameters
 		err := upload.PrepareInsert(ctx.GetConfig())

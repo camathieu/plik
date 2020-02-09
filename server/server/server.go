@@ -2,11 +2,9 @@ package server
 
 import (
 	goContext "context"
-	"crypto/rand"
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"math/big"
 	"net/http"
 	"os"
 	"strconv"
@@ -248,14 +246,19 @@ func (ps *PlikServer) getHTTPHandler() (handler http.Handler) {
 	return handler
 }
 
+// WithDataBackend configure the data backend to use ( call before Start() )
+func (ps *PlikServer) WithMetadataBackend(backend *metadata.Backend) *PlikServer {
+	if ps.metadataBackend == nil {
+		ps.metadataBackend = backend
+	}
+	return ps
+}
+
 // Initialize metadata backend from type found in configuration
 func (ps *PlikServer) initializeMetadataBackend() (err error) {
 	if ps.metadataBackend == nil {
-		if ps.dataBackend == nil {
-			return fmt.Errorf("data backend must be initialized first")
-		}
 		config := metadata.NewConfig(ps.config.MetadataBackendConfig)
-		ps.metadataBackend, err = metadata.NewBackend(config, ps.dataBackend, ps.config.NewLogger())
+		ps.metadataBackend, err = metadata.NewBackend(config)
 		if err != nil {
 			return err
 		}
@@ -307,32 +310,6 @@ func (ps *PlikServer) initializeStreamBackend() (err error) {
 	}
 
 	return nil
-}
-
-// UploadsCleaningRoutine periodicaly remove expired uploads
-func (ps *PlikServer) uploadsCleaningRoutine() {
-	log := ps.config.NewLogger()
-	for {
-		if ps.done {
-			break
-		}
-		// Sleep between 2 hours and 3 hours
-		// This is a dirty trick to avoid frontends doing this at the same time
-		r, _ := rand.Int(rand.Reader, big.NewInt(int64(ps.cleaningRandomDelay)))
-		randomSleep := r.Int64() + int64(ps.cleaningMinOffset)
-
-		log.Infof("Will clean old uploads in %d seconds.", randomSleep)
-		time.Sleep(time.Duration(randomSleep) * time.Second)
-		log.Infof("Cleaning expired uploads...")
-
-		removed, err := ps.metadataBackend.DeleteExpiredUploads()
-		if removed > 0 {
-			log.Infof("removed %d expired upload", removed)
-		}
-		if err != nil {
-			log.Warning(err.Error())
-		}
-	}
 }
 
 // GetConfig return the server configuration

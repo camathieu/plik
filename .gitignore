@@ -1,7 +1,9 @@
 */plik
 plikd
 clients
-server/plik.db
+*.db
+*.db-wal
+*.db-shm
 server/files
 server/public/public
 clients

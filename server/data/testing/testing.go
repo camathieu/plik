@@ -31,7 +31,7 @@ func NewBackend() (b *Backend) {
 
 // GetFile implementation for testing data backend will search
 // on filesystem the asked file and return its reading filehandle
-func (b *Backend) GetFile(upload *common.Upload, file *common.File) (reader io.ReadCloser, err error) {
+func (b *Backend) GetFile(file *common.File) (reader io.ReadCloser, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -48,7 +48,7 @@ func (b *Backend) GetFile(upload *common.Upload, file *common.File) (reader io.R
 
 // AddFile implementation for testing data backend will creates a new file for the given upload
 // and save it on filesystem with the given file reader
-func (b *Backend) AddFile(upload *common.Upload, file *common.File, fileReader io.Reader) (backendDetails string, err error) {
+func (b *Backend) AddFile(file *common.File, fileReader io.Reader) (backendDetails string, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -72,7 +72,7 @@ func (b *Backend) AddFile(upload *common.Upload, file *common.File, fileReader i
 
 // RemoveFile implementation for testing data backend will delete the given
 // file from filesystem
-func (b *Backend) RemoveFile(upload *common.Upload, file *common.File) (err error) {
+func (b *Backend) RemoveFile(file *common.File) (err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 

@@ -85,29 +85,6 @@ func GetQrCode(ctx *context.Context, resp http.ResponseWriter, req *http.Request
 	}
 }
 
-//// RemoveEmptyUpload iterates on upload files and remove upload files
-//// and metadata if all the files have been downloaded (useful for OneShot uploads)
-//func RemoveEmptyUpload(ctx *context.Context, upload *common.Upload) {
-//	log := ctx.GetLogger()
-//
-//	// Test if there are remaining files
-//	filesInUpload := len(upload.Files)
-//	for _, f := range upload.Files {
-//		if f.Status == common.FileDeleted {
-//			filesInUpload--
-//		}
-//	}
-//
-//	if filesInUpload == 0 {
-//		err := ctx.GetMetadataBackend().RemoveUpload(upload)
-//		if err != nil {
-//			log.Warningf("unable to remove upload : %s", err)
-//			return
-//		}
-//	}
-//
-//	return
-//}
 
 // If a download domain is specified verify that the request comes from this specific domain
 func checkDownloadDomain(ctx *context.Context) bool {

@@ -31,7 +31,7 @@ func TestGetArchive(t *testing.T) {
 
 	createTestUpload(t, ctx, upload)
 
-	err := createTestFile(ctx, upload, file, bytes.NewBuffer([]byte(data)))
+	err := createTestFile(ctx, file, bytes.NewBuffer([]byte(data)))
 	require.NoError(t, err, "unable to create test file")
 
 	ctx.SetUpload(upload)
@@ -131,7 +131,7 @@ func TestGetArchiveOneShot(t *testing.T) {
 	file.Status = common.FileUploaded
 	createTestUpload(t, ctx, upload)
 
-	err := createTestFile(ctx, upload, file, bytes.NewBuffer([]byte(data)))
+	err := createTestFile(ctx, file, bytes.NewBuffer([]byte(data)))
 	require.NoError(t, err, "unable to create test file")
 
 	ctx.SetUpload(upload)
@@ -169,8 +169,10 @@ func TestGetArchiveOneShot(t *testing.T) {
 	require.NoError(t, err, "unable to read archived file")
 	require.Equal(t, data, string(content), "invalid archived file content")
 
-	_, err = ctx.GetDataBackend().GetFile(upload, file)
-	require.Error(t, err, "downloaded file still exists")
+	file, err = ctx.GetMetadataBackend().GetFile(file.ID)
+	require.NoError(t, err, "get file error")
+	require.Equal(t, common.FileRemoved, file.Status, "get file error")
+
 }
 
 func TestGetArchiveNoArchiveName(t *testing.T) {
@@ -183,7 +185,7 @@ func TestGetArchiveNoArchiveName(t *testing.T) {
 	file.Status = "uploaded"
 	createTestUpload(t, ctx, upload)
 
-	err := createTestFile(ctx, upload, file, bytes.NewBuffer([]byte(data)))
+	err := createTestFile(ctx, file, bytes.NewBuffer([]byte(data)))
 	require.NoError(t, err, "unable to create test file")
 
 	ctx.SetUpload(upload)
@@ -207,7 +209,7 @@ func TestGetArchiveInvalidArchiveName(t *testing.T) {
 	file.Status = "uploaded"
 	createTestUpload(t, ctx, upload)
 
-	err := createTestFile(ctx, upload, file, bytes.NewBuffer([]byte(data)))
+	err := createTestFile(ctx, file, bytes.NewBuffer([]byte(data)))
 	require.NoError(t, err, "unable to create test file")
 
 	ctx.SetUpload(upload)
@@ -237,7 +239,7 @@ func TestGetArchiveDataBackendError(t *testing.T) {
 	file.Status = "uploaded"
 	createTestUpload(t, ctx, upload)
 
-	err := createTestFile(ctx, upload, file, bytes.NewBuffer([]byte(data)))
+	err := createTestFile(ctx, file, bytes.NewBuffer([]byte(data)))
 	require.NoError(t, err, "unable to create test file")
 
 	ctx.SetUpload(upload)
@@ -270,7 +272,7 @@ func TestGetArchiveDataBackendError(t *testing.T) {
 //	file.Status = "uploaded"
 //	createTestUpload(t, ctx, upload)
 //
-//	err := createTestFile(ctx, upload, file, bytes.NewBuffer([]byte(data)))
+//	err := createTestFile(ctx, file, bytes.NewBuffer([]byte(data)))
 //	require.NoError(t, err, "unable to create test file")
 //
 //	ctx.SetUpload(upload)

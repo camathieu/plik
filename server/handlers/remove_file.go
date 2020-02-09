@@ -29,7 +29,7 @@ func RemoveFile(ctx *context.Context, resp http.ResponseWriter, req *http.Reques
 	}
 
 	// Delete file
-	err := ctx.GetMetadataBackend().DeleteFile(upload, file)
+	err := ctx.GetMetadataBackend().RemoveFile(file)
 	if err != nil {
 		ctx.InternalServerError("unable to delete file", err)
 		return

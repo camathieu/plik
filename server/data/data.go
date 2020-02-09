@@ -6,10 +6,10 @@ import (
 	"github.com/root-gg/plik/server/common"
 )
 
-// Backend interface describes methods that data backends
+// Backend interface describes methods that data backend
 // must implements to be compatible with plik.
 type Backend interface {
-	AddFile(upload *common.Upload, file *common.File, reader io.Reader) (backendDetails string, err error)
-	GetFile(upload *common.Upload, file *common.File) (reader io.ReadCloser, err error)
-	RemoveFile(upload *common.Upload, file *common.File) (err error)
+	AddFile(file *common.File, reader io.Reader) (backendDetails string, err error)
+	GetFile(file *common.File) (reader io.ReadCloser, err error)
+	RemoveFile(file *common.File) (err error)
 }

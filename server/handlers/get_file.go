@@ -46,21 +46,11 @@ func GetFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 	}
 
 	if req.Method == "GET" && upload.OneShot {
-
 		// Update file status
 		err := ctx.GetMetadataBackend().UpdateFileStatus(file, file.Status, common.FileRemoved)
 		if err != nil {
 			ctx.InternalServerError("unable to update file status", err)
 		}
-
-		// From now on we'll try to delete the file from the data backend whatever happens
-		// TODO recover the status to uploaded and do not delete file on io.Copy error
-		defer func() {
-			err := ctx.GetMetadataBackend().DeleteFile(upload, file)
-			if err != nil {
-				log.Warningf("unable to delete file %s (%s) : %s", file.Name, file.ID, err)
-			}
-		}()
 	}
 
 	// Avoid rendering HTML in browser
@@ -114,7 +104,7 @@ func GetFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 			backend = ctx.GetDataBackend()
 		}
 
-		fileReader, err := backend.GetFile(upload, file)
+		fileReader, err := backend.GetFile(file)
 		if err != nil {
 			ctx.InternalServerError("unable to get file from data backend", err)
 			return

@@ -21,19 +21,19 @@ func TestRemoveUpload(t *testing.T) {
 	data := "data"
 
 	upload := &common.Upload{}
-	file1 := upload.NewFile()
-	file1.Name = "file1"
-	file1.Status = "uploaded"
+	file := upload.NewFile()
+	file.Name = "file"
+	file.Status = "uploaded"
 	upload.PrepareInsertForTests()
 
-	err := createTestFile(ctx, upload, file1, bytes.NewBuffer([]byte(data)))
+	err := createTestFile(ctx, file, bytes.NewBuffer([]byte(data)))
 	require.NoError(t, err, "unable to create test file 1")
 
 	createTestUpload(t, ctx, upload)
 
 	ctx.SetUpload(upload)
 
-	req, err := http.NewRequest("DELETE", "/file/"+upload.ID+"/"+file1.ID+"/"+file1.Name, bytes.NewBuffer([]byte{}))
+	req, err := http.NewRequest("DELETE", "/file/"+upload.ID+"/"+file.ID+"/"+file.Name, bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
 	rr := ctx.NewRecorder(req)
@@ -48,8 +48,9 @@ func TestRemoveUpload(t *testing.T) {
 	require.NoError(t, err, "unexpected get upload error")
 	require.Nil(t, u, "removed upload still exists")
 
-	_, err = ctx.GetDataBackend().GetFile(upload, file1)
-	require.Error(t, err, "removed file still exists")
+	file, err = ctx.GetMetadataBackend().GetFile(file.ID)
+	require.NoError(t, err, "get file error")
+	require.Equal(t, common.FileRemoved, file.Status, "removed file invalid status")
 }
 
 func TestRemoveUploadNotAdmin(t *testing.T) {
@@ -62,7 +63,7 @@ func TestRemoveUploadNotAdmin(t *testing.T) {
 	file1.Name = "file1"
 	file1.Status = "uploaded"
 
-	err := createTestFile(ctx, upload, file1, bytes.NewBuffer([]byte(data)))
+	err := createTestFile(ctx, file1, bytes.NewBuffer([]byte(data)))
 	require.NoError(t, err, "unable to create test file 1")
 
 	createTestUpload(t, ctx, upload)

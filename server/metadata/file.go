@@ -6,7 +6,7 @@ import (
 	"github.com/root-gg/plik/server/common"
 )
 
-func (b *Backend) CreateFile(upload *common.Upload, file *common.File) (err error) {
+func (b *Backend) CreateFile(file *common.File) (err error) {
 	return b.db.Create(file).Error
 }
 
@@ -57,9 +57,9 @@ func (b *Backend) UpdateFileStatus(file *common.File, oldStatus string, newStatu
 	return nil
 }
 
-func (b *Backend) DeleteFile(upload *common.Upload, file *common.File) error {
+func (b *Backend) RemoveFile(file *common.File) error {
 	switch file.Status {
-	case common.FileDeleted:
+	case common.FileRemoved, common.FileDeleted:
 		return nil
 	case common.FileMissing, common.FileUploading:
 		return b.UpdateFileStatus(file, file.Status, common.FileDeleted)
@@ -68,16 +68,6 @@ func (b *Backend) DeleteFile(upload *common.Upload, file *common.File) error {
 		if err != nil {
 			return err
 		}
-		fallthrough
-	case common.FileRemoved:
-		if !upload.Stream {
-			err := b.dataBackend.RemoveFile(upload, file)
-			if err != nil {
-				return fmt.Errorf("error while deleting file %s (%s) : %s", file.Name, file.ID, err)
-			}
-		}
-
-		return b.UpdateFileStatus(file, file.Status, common.FileDeleted)
 	}
 
 	return nil
@@ -85,10 +75,32 @@ func (b *Backend) DeleteFile(upload *common.Upload, file *common.File) error {
 
 func (b *Backend) ForEachUploadFiles(upload *common.Upload, f func(file *common.File) error) (err error) {
 	rows, err := b.db.Model(&common.File{}).Where(&common.File{UploadID: upload.ID}).Rows()
-	defer func() { _ = rows.Close() }()
 	if err != nil {
 		return err
 	}
+	defer func() { _ = rows.Close() }()
+
+	for rows.Next() {
+		file := &common.File{}
+		err = b.db.ScanRows(rows, file)
+		if err != nil {
+			return err
+		}
+		err = f(file)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (b *Backend) ForEachRemovedFile(f func(file *common.File) error) (err error) {
+	rows, err := b.db.Model(&common.File{}).Where(&common.File{Status: common.FileRemoved}).Rows()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		file := &common.File{}

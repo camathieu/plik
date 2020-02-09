@@ -8,19 +8,15 @@ import (
 
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
-	"github.com/root-gg/logger"
 	"github.com/root-gg/plik/server/common"
-	data_test "github.com/root-gg/plik/server/data/testing"
 	"github.com/root-gg/utils"
 	"github.com/stretchr/testify/require"
 )
 
-var dataBackend = data_test.NewBackend()
-
 func newTestMetadataBackend() *Backend {
 	config := &Config{Driver: "sqlite3", ConnectionString: "/tmp/plik.test.db", EraseFirst: true}
 
-	b, err := NewBackend(config, dataBackend, logger.NewLogger())
+	b, err := NewBackend(config)
 	if err != nil {
 		panic("unable to create metadata backend")
 	}
@@ -186,14 +182,14 @@ func TestMetadataExpiredCursor(t *testing.T) {
 	require.NoError(t, err, "unable to create upload")
 
 	expire := time.Now().Add(time.Hour)
-	err = b.db.Create(&common.Upload{ID: "upload 2", ExpiredAt: &expire}).Error
+	err = b.db.Create(&common.Upload{ID: "upload 2", ExpireAt: &expire}).Error
 	require.NoError(t, err, "unable to create upload")
 
-	expire = time.Now().Add(-time.Hour)
-	err = b.db.Create(&common.Upload{ID: "upload 3", ExpiredAt: &expire}).Error
+	expire2 := time.Now().Add(-time.Hour)
+	err = b.db.Create(&common.Upload{ID: "upload 3", ExpireAt: &expire2}).Error
 	require.NoError(t, err, "unable to create upload")
 
-	rows, err := b.db.Model(&common.Upload{}).Where("expired_at > ?", time.Now()).Rows()
+	rows, err := b.db.Model(&common.Upload{}).Where("expire_at < ?", time.Now()).Rows()
 	require.NoError(t, err, "unable to fetch uploads")
 
 	var ids []string
@@ -204,7 +200,7 @@ func TestMetadataExpiredCursor(t *testing.T) {
 		ids = append(ids, upload.ID)
 	}
 
-	require.Equal(t, []string{"upload 2"}, ids, "mismatch")
+	require.Equal(t, []string{"upload 3"}, ids, "mismatch")
 }
 
 // https://github.com/mattn/go-sqlite3/issues/569
@@ -229,4 +225,51 @@ func TestMetadataCursorLock(t *testing.T) {
 		err = b.db.Save(upload).Error
 		require.NoError(t, err, "unable to save upload")
 	}
+}
+
+func TestUnscoped(t *testing.T) {
+	b := newTestMetadataBackend()
+
+	uploadID := "azertiop"
+	upload := &common.Upload{ID: uploadID}
+
+	err := b.db.Create(upload).Error
+	require.NoError(t, err, "unable to create upload")
+
+	var count int
+	err = b.db.Model(&common.Upload{}).Unscoped().Where("deleted_at IS NOT NULL").Count(&count).Error
+	require.NoError(t, err, "get deleted upload error")
+	require.Equal(t, 0, count, "get deleted upload count error")
+
+	err = b.db.Delete(&upload).Error
+	require.NoError(t, err, "unable to delete upload")
+
+	upload = &common.Upload{}
+	err = b.db.Take(upload, &common.Upload{ID: uploadID}).Error
+	require.True(t, gorm.IsRecordNotFoundError(err), "get upload error")
+
+	upload = &common.Upload{}
+	err = b.db.Unscoped().Take(upload, &common.Upload{ID: uploadID}).Error
+	require.NoError(t, err, "get upload error")
+	require.NotNil(t, upload, "get upload nil")
+
+	err = b.db.Model(&common.Upload{}).Unscoped().Where("deleted_at IS NOT NULL").Count(&count).Error
+	require.NoError(t, err, "get deleted upload error")
+	require.Equal(t, 1, count, "get deleted upload count error")
+}
+
+func TestDoubleDelete(t *testing.T) {
+	b := newTestMetadataBackend()
+
+	uploadID := "azertiop"
+	upload := &common.Upload{ID: uploadID}
+
+	err := b.db.Create(upload).Error
+	require.NoError(t, err, "unable to create upload")
+
+	err = b.db.Delete(&upload).Error
+	require.NoError(t, err, "unable to delete upload")
+
+	err = b.db.Delete(&upload).Error
+	require.NoError(t, err, "unable to delete upload")
 }

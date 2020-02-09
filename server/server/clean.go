@@ -1,0 +1,90 @@
+package server
+
+import (
+	"crypto/rand"
+	"github.com/root-gg/plik/server/common"
+	"math/big"
+	"time"
+)
+
+// UploadsCleaningRoutine periodicaly remove expired uploads
+func (ps *PlikServer) uploadsCleaningRoutine() {
+	log := ps.config.NewLogger()
+	for {
+		if ps.done {
+			break
+		}
+		// Sleep between 2 hours and 3 hours
+		// This is a dirty trick to avoid frontends doing this at the same time
+		r, _ := rand.Int(rand.Reader, big.NewInt(int64(ps.cleaningRandomDelay)))
+		randomSleep := r.Int64() + int64(ps.cleaningMinOffset)
+
+		log.Infof("Will clean old uploads in %d seconds.", randomSleep)
+		time.Sleep(time.Duration(randomSleep) * time.Second)
+		log.Infof("Cleaning expired uploads...")
+
+		ps.Clean()
+	}
+}
+
+func (ps *PlikServer) Clean() {
+	log := ps.config.NewLogger()
+
+	// 1 - soft delete expired uploads
+	removed, err := ps.metadataBackend.DeleteExpiredUploads()
+	if removed > 0 {
+		log.Infof("removed %d expired uploads", removed)
+	}
+	if err != nil {
+		log.Warning(err.Error())
+	}
+
+	// 2 - delete removed files
+
+
+	// 3 - purge deleted uploads
+
+	purged, err := ps.metadataBackend.PurgeDeletedUploads()
+	if purged > 0 {
+		log.Infof("purged %d deleted uploads", purged)
+	}
+	if err != nil {
+		log.Warning(err.Error())
+	}
+}
+
+func (ps *PlikServer) PurgeDeletedFiles() {
+	log := ps.config.NewLogger()
+
+	deleted := 0
+	var errors []error
+	f := func(file *common.File) (err error){
+		err = ps.dataBackend.RemoveFile(file)
+		if err != nil {
+			errors = append(errors, err)
+			log.Warningf("unable to delete file %s/%s : %s", file.UploadID, file.ID, err)
+			return
+		}
+
+		err = ps.metadataBackend.UpdateFileStatus(file, common.FileRemoved, common.FileDeleted)
+		if err != nil {
+			errors = append(errors, err)
+			log.Warningf("unable to update deleted file %s/%s : %s", file.UploadID, file.ID, err)
+			return
+		}
+
+		deleted++
+		return nil
+	}
+
+	err := ps.metadataBackend.ForEachRemovedFile(f)
+	if err != nil {
+		log.Warning(err.Error())
+	}
+	if deleted > 0 {
+		log.Infof("purged %d deleted files", deleted)
+	}
+	if len(errors) > 0 {
+		log.Infof("unable to delete %s files", len(errors))
+	}
+}

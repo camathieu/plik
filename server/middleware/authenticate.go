@@ -18,27 +18,23 @@ func Authenticate(allowToken bool) context.Middleware {
 					// Get user from token header
 					tokenHeader := req.Header.Get("X-PlikToken")
 					if tokenHeader != "" {
-						user, err := ctx.GetMetadataBackend().GetUserFromToken(tokenHeader)
+						token, err := ctx.GetMetadataBackend().GetToken(tokenHeader)
 						if err != nil {
-							ctx.InternalServerError("unable to get user from token", err)
+							ctx.InternalServerError("unable to get token", err)
 							return
 						}
-						if user == nil {
+						if token == nil {
 							ctx.Forbidden("invalid token")
 							return
 						}
 
-						// Get token from user
-						var token *common.Token
-						for _, t := range user.Tokens {
-							if t.Token == tokenHeader {
-								token = t
-								break
-							}
+						user, err := ctx.GetMetadataBackend().GetUser(token.UserID)
+						if err != nil {
+							ctx.InternalServerError("unable to get user", err)
+							return
 						}
-						if token == nil {
-							// THIS SHOULD NEVER HAPPEN
-							ctx.InternalServerError("token not found", nil)
+						if user == nil {
+							ctx.Forbidden("invalid token")
 							return
 						}
 

@@ -116,7 +116,7 @@ func (upload *Upload) getParams() (params *common.Upload) {
 	upload.lock.Lock()
 	defer upload.lock.Unlock()
 
-	params = common.NewUpload()
+	params = &common.Upload{}
 	params.Stream = upload.Stream
 	params.OneShot = upload.OneShot
 	params.Removable = upload.Removable
@@ -136,10 +136,8 @@ func (upload *Upload) getParams() (params *common.Upload) {
 		if fileParams.ID == "" {
 			reference := strconv.Itoa(i)
 			fileParams.Reference = reference
-			params.Files[reference] = fileParams
-		} else {
-			params.Files[fileParams.ID] = fileParams
 		}
+		params.Files = append(params.Files, fileParams)
 	}
 
 	return params

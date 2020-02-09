@@ -14,7 +14,7 @@ func File(ctx *context.Context, next http.Handler) http.Handler {
 		// Get upload from context
 		upload := ctx.GetUpload()
 		if upload == nil {
-			ctx.NotFound("upload not found", nil)
+			ctx.InternalServerError("missing upload from context", nil)
 			return
 		}
 

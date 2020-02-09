@@ -3,20 +3,29 @@ package common
 import (
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
 	uuid "github.com/nu7hatch/gouuid"
 )
 
+// ProviderGoogle for authentication
+const ProviderGoogle = "google"
+
+// ProviderOVH for authentication
+const ProviderOVH = "ovh"
+
+// ProviderLocal for authentication
+const ProviderLocal = "local"
+
 // User is a plik user
 type User struct {
-	ID      string `json:"id,omitempty"`
-	Login   string `json:"login,omitempty"`
-	Name    string `json:"name,omitempty"`
-	Email   string `json:"email,omitempty"`
-	IsAdmin bool   `json:"admin"`
+	ID       string `json:"id,omitempty"`
+	Provider string `json:"provider"`
+	Login    string `json:"login,omitempty"`
+	Name     string `json:"name,omitempty"`
+	Email    string `json:"email,omitempty"`
+	IsAdmin  bool   `json:"admin"`
 
 	Tokens []*Token `json:"tokens,omitempty"`
 
@@ -26,35 +35,47 @@ type User struct {
 }
 
 // NewUser create a new user object
-func NewUser() *User {
-	return &User{}
+func NewUser(provider string, providerID string) (user *User) {
+	user = &User{}
+	user.ID = fmt.Sprintf("%s:%s", provider, providerID)
+	user.Provider = provider
+	return user
 }
 
 // NewToken add a new token to a user
 func (user *User) NewToken() (token *Token) {
 	token = NewToken()
+	token.UserID = user.ID
 	user.Tokens = append(user.Tokens, token)
 	return token
 }
 
+func (config *Configuration) getSignatureKey(provider string) (key string, err error) {
+	switch provider {
+	case ProviderGoogle:
+		if config.GoogleAPISecret == "" {
+			return "", fmt.Errorf("Google authentication is disabled")
+		}
+		return config.GoogleAPISecret, nil
+	case ProviderOVH:
+		if config.OvhAPISecret == "" {
+			return "", fmt.Errorf("OVH authentication is disabled")
+		}
+		return config.OvhAPISecret, nil
+	case ProviderLocal:
+		// TODO
+		return "TODO", nil
+	default:
+		return "", fmt.Errorf("unknown authentication provider")
+	}
+}
+
 // GenAuthCookies generate a sign a jwt session cookie to authenticate a user
 func GenAuthCookies(user *User, config *Configuration) (sessionCookie *http.Cookie, xsrfCookie *http.Cookie, err error) {
-	var provider string
-	var sig string
-	if strings.HasPrefix(user.ID, "ovh:") {
-		provider = "ovh"
-		sig = config.OvhAPISecret
-	} else if strings.HasPrefix(user.ID, "google:") {
-		provider = "google"
-		sig = config.GoogleAPISecret
-	} else {
-		return nil, nil, fmt.Errorf("invlid user id from unknown provider")
-	}
-
 	// Generate session jwt
 	session := jwt.New(jwt.SigningMethodHS256)
 	session.Claims.(jwt.MapClaims)["uid"] = user.ID
-	session.Claims.(jwt.MapClaims)["provider"] = provider
+	session.Claims.(jwt.MapClaims)["provider"] = user.Provider
 
 	// Generate xsrf token
 	xsrfToken, err := uuid.NewV4()
@@ -63,7 +84,12 @@ func GenAuthCookies(user *User, config *Configuration) (sessionCookie *http.Cook
 	}
 	session.Claims.(jwt.MapClaims)["xsrf"] = xsrfToken.String()
 
-	sessionString, err := session.SignedString([]byte(sig))
+	signatureKey, err := config.getSignatureKey(user.Provider)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	sessionString, err := session.SignedString([]byte(signatureKey))
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to sign session cookie : %s", err)
 	}
@@ -98,25 +124,22 @@ func ParseSessionCookie(value string, config *Configuration) (uid string, xsrf s
 		}
 
 		// Get authentication provider
-		provider, ok := t.Claims.(jwt.MapClaims)["provider"]
+		providerValue, ok := t.Claims.(jwt.MapClaims)["provider"]
 		if !ok {
 			return nil, fmt.Errorf("missing authentication provider")
 		}
 
-		switch provider {
-		case "google":
-			if config.GoogleAPISecret == "" {
-				return nil, fmt.Errorf("missing Google API credentials")
-			}
-			return []byte(config.GoogleAPISecret), nil
-		case "ovh":
-			if config.OvhAPISecret == "" {
-				return nil, fmt.Errorf("missing OVH API credentials")
-			}
-			return []byte(config.OvhAPISecret), nil
-		default:
-			return nil, fmt.Errorf("invalid authentication provider : %s", provider)
+		provider, ok := providerValue.(string)
+		if !ok {
+			return nil, fmt.Errorf("invalid authentication provider")
 		}
+
+		signatureKey, err := config.getSignatureKey(provider)
+		if err != nil {
+			return nil, err
+		}
+
+		return []byte(signatureKey), nil
 	})
 	if err != nil {
 		return "", "", err

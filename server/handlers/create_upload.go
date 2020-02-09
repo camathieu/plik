@@ -2,8 +2,8 @@ package handlers
 
 import (
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
+	"github.com/root-gg/plik/server/common"
 	"io/ioutil"
 	"net/http"
 
@@ -21,7 +21,7 @@ func CreateUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Requ
 		return
 	}
 
-	upload := ctx.CreateUploadFromContext()
+	// TODO NOT A GOOD IDEA HERE !!!
 
 	// Read request body
 	defer func() { _ = req.Body.Close() }()
@@ -32,14 +32,20 @@ func CreateUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Requ
 		return
 	}
 
+	// Create upload
+	upload := &common.Upload{}
+
 	// Deserialize json body
+	version := 0
 	if len(body) > 0 {
-		err = json.Unmarshal(body, upload)
+		version, err = common.UnmarshalUpload(body, upload)
 		if err != nil {
-			ctx.BadRequest("unable to deserialize request body : %s", err)
-			return
+			ctx.BadRequest("unable to unserialize upload : %s", err.Error())
 		}
 	}
+
+	// Assign context parameters ( ip / user / token )
+	ctx.SetUploadContext(upload)
 
 	// Update request logger prefix
 	prefix := fmt.Sprintf("%s[%s]", log.Prefix, upload.ID)
@@ -87,12 +93,12 @@ func CreateUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Requ
 
 	// Show upload token since its an upload creation
 	upload.UploadToken = uploadToken
-	upload.Admin = true
+	upload.IsAdmin = true
 
 	// Print upload metadata in the json response.
-	var bytes []byte
-	if bytes, err = utils.ToJson(upload); err != nil {
-		panic(fmt.Errorf("unable to serialize json response : %s", err))
+	bytes, err := common.MarshalUpload(upload, version)
+	if err != nil {
+		ctx.InternalServerError("unable to serialize upload", err)
 	}
 
 	_, _ = resp.Write(bytes)

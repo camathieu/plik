@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"bytes"
-	"errors"
 	"io/ioutil"
 	"net/http"
 
@@ -10,7 +9,6 @@ import (
 
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
-	data_test "github.com/root-gg/plik/server/data/testing"
 	"github.com/stretchr/testify/require"
 )
 
@@ -27,14 +25,14 @@ func TestRemoveFile(t *testing.T) {
 
 	upload.PrepareInsertForTests()
 
-	err := createTestFile(ctx, upload, file1, bytes.NewBuffer([]byte(data)))
+	err := createTestFile(ctx, file1, bytes.NewBuffer([]byte(data)))
 	require.NoError(t, err, "unable to create test file 1")
 
 	file2 := upload.NewFile()
 	file2.Name = "file2"
 	file2.Status = "uploaded"
 
-	err = createTestFile(ctx, upload, file2, bytes.NewBuffer([]byte(data)))
+	err = createTestFile(ctx, file2, bytes.NewBuffer([]byte(data)))
 	require.NoError(t, err, "unable to create test file 2")
 
 	createTestUpload(t, ctx, upload)
@@ -56,10 +54,7 @@ func TestRemoveFile(t *testing.T) {
 	file1, err = ctx.GetMetadataBackend().GetFile(file1.ID)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(upload.Files), "invalid upload files count")
-	require.Equal(t, common.FileDeleted, upload.GetFile(file1.ID).Status, "invalid removed file status")
-
-	_, err = ctx.GetDataBackend().GetFile(upload, file1)
-	require.Error(t, err, "removed file still exists")
+	require.Equal(t, common.FileRemoved, upload.GetFile(file1.ID).Status, "invalid removed file status")
 }
 
 func TestRemoveFileNotAdmin(t *testing.T) {
@@ -73,7 +68,7 @@ func TestRemoveFileNotAdmin(t *testing.T) {
 	file1.Status = "uploaded"
 	upload.PrepareInsertForTests()
 
-	err := createTestFile(ctx, upload, file1, bytes.NewBuffer([]byte(data)))
+	err := createTestFile(ctx, file1, bytes.NewBuffer([]byte(data)))
 	require.NoError(t, err, "unable to create test file 1")
 
 	createTestUpload(t, ctx, upload)
@@ -102,7 +97,7 @@ func TestRemoveRemovedFile(t *testing.T) {
 	file.Status = common.FileRemoved
 	upload.PrepareInsertForTests()
 
-	err := createTestFile(ctx, upload, file, bytes.NewBuffer([]byte(data)))
+	err := createTestFile(ctx, file, bytes.NewBuffer([]byte(data)))
 	require.NoError(t, err, "unable to create test file 1")
 
 	createTestUpload(t, ctx, upload)
@@ -215,34 +210,3 @@ func TestRemoveFileNoFile(t *testing.T) {
 //	RemoveFile(ctx, rr, req)
 //	context.TestInternalServerError(t, rr, "unable to update upload metadata : metadata backend error")
 //}
-
-func TestRemoveFileDataBackendError(t *testing.T) {
-	ctx := newTestingContext(common.NewConfiguration())
-	ctx.SetUploadAdmin(true)
-
-	data := "data"
-
-	upload := &common.Upload{}
-	upload.PrepareInsertForTests()
-
-	file1 := upload.NewFile()
-	file1.Name = "file1"
-	file1.Status = "uploaded"
-
-	err := createTestFile(ctx, upload, file1, bytes.NewBuffer([]byte(data)))
-	require.NoError(t, err, "unable to create test file 1")
-
-	createTestUpload(t, ctx, upload)
-
-	ctx.SetUpload(upload)
-	ctx.SetFile(file1)
-
-	req, err := http.NewRequest("DELETE", "/file/uploadID/fileID/fileName", bytes.NewBuffer([]byte{}))
-	require.NoError(t, err, "unable to create new request")
-
-	ctx.GetDataBackend().(*data_test.Backend).SetError(errors.New("data backend error"))
-
-	rr := ctx.NewRecorder(req)
-	RemoveFile(ctx, rr, req)
-	context.TestInternalServerError(t, rr, "data backend error")
-}

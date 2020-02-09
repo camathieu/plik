@@ -24,7 +24,7 @@ func GetUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Request
 	upload.DownloadDomain = config.DownloadDomain
 
 	if ctx.IsUploadAdmin() {
-		upload.Admin = true
+		upload.IsAdmin = true
 	}
 
 	// Print upload metadata in the json response.

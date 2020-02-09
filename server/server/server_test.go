@@ -1,13 +1,13 @@
 package server
 
 import (
-	"errors"
+	"bytes"
+	"github.com/root-gg/plik/server/metadata"
 	"testing"
 	"time"
 
 	"github.com/root-gg/plik/server/common"
 	data_test "github.com/root-gg/plik/server/data/testing"
-	metadata_test "github.com/root-gg/plik/server/metadata/testing"
 	"github.com/stretchr/testify/require"
 )
 
@@ -16,8 +16,17 @@ func newPlikServer() (ps *PlikServer) {
 	ps.config.ListenAddress = "127.0.0.1"
 	ps.config.ListenPort = common.APIMockServerDefaultPort
 	ps.config.AutoClean(false)
+
+	metadataBackendConfig := &metadata.Config{Driver: "sqlite3", ConnectionString: "plik.test.db", EraseFirst: true}
+	metadataBackend, err := metadata.NewBackend(metadataBackendConfig)
+	if err != nil {
+		panic(err)
+	}
+	ps.WithMetadataBackend(metadataBackend)
+
 	ps.WithDataBackend(data_test.NewBackend())
 	ps.WithStreamBackend(data_test.NewBackend())
+
 	return ps
 }
 
@@ -89,13 +98,20 @@ func TestClean(t *testing.T) {
 	defer ps.ShutdownNow()
 
 	upload := &common.Upload{}
-	upload.Create()
+	file := upload.NewFile()
+	file.Status = common.FileUploaded
 	upload.TTL = 1
-	upload.Creation = time.Now().Add(-10 * time.Minute).Unix()
+	deadline := time.Now().Add(-10 * time.Minute)
+	upload.ExpireAt = &deadline
+	upload.PrepareInsertForTests()
+
 	require.True(t, upload.IsExpired(), "upload should be expired")
 
 	err := ps.metadataBackend.CreateUpload(upload)
 	require.NoError(t, err, "unable to save upload")
+
+	_, err = ps.dataBackend.AddFile(file, bytes.NewBufferString("data data data"))
+	require.NoError(t, err, "unable to save file")
 
 	ps.Clean()
 
@@ -103,8 +119,8 @@ func TestClean(t *testing.T) {
 	require.NoError(t, err, "unexpected unable to get upload")
 	require.Nil(t, u, "should be unable to get expired upload after clean")
 
-	ps.metadataBackend.(*metadata_test.Backend).SetError(errors.New("error"))
-	ps.Clean()
+	_, err = ps.dataBackend.GetFile(file)
+	require.Error(t, err, "missing get file error")
 }
 
 func TestAutoClean(t *testing.T) {
@@ -119,10 +135,13 @@ func TestAutoClean(t *testing.T) {
 	require.NoError(t, err, "unable to start plik server")
 
 	upload := &common.Upload{}
-	upload.Create()
 	upload.TTL = 1
-	upload.Creation = time.Now().Add(-10 * time.Minute).Unix()
+	deadline := time.Now().Add(-10 * time.Minute)
+	upload.ExpireAt = &deadline
+	upload.PrepareInsertForTests()
+
 	require.True(t, upload.IsExpired(), "upload should be expired")
+
 
 	err = ps.metadataBackend.CreateUpload(upload)
 	require.NoError(t, err, "unable to save upload")
@@ -133,3 +152,4 @@ func TestAutoClean(t *testing.T) {
 	require.NoError(t, err, "unexpected unable to get upload")
 	require.Nil(t, u, "should be unable to get expired upload after clean")
 }
+

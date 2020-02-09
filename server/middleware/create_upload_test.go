@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"bytes"
-	"errors"
 	"net"
 	"net/http"
 	"testing"
@@ -14,10 +13,11 @@ import (
 
 func TestCreateUpload(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	ctx.GetConfig().OneShot = true
+	ctx.GetConfig().Authentication = true
+
 	ctx.SetSourceIP(net.ParseIP("1.2.3.4"))
 	ctx.SetUser(&common.User{ID: "user"})
-	ctx.SetToken(common.NewToken())
+	ctx.SetToken(&common.Token{Token: "token"})
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
 	require.NoError(t, err, "unable to create new request")
@@ -32,7 +32,6 @@ func TestCreateUpload(t *testing.T) {
 	upload, err := ctx.GetMetadataBackend().GetUpload(ctx.GetUpload().ID)
 	require.NoError(t, err, "metadata backend error")
 
-	require.True(t, upload.OneShot, "upload should be one shot")
 	require.Equal(t, ctx.GetConfig().DefaultTTL, upload.TTL, "invalid ttl")
 	require.Equal(t, ctx.GetSourceIP().String(), upload.RemoteIP, "invalid source ip")
 	require.Equal(t, ctx.GetUser().ID, upload.User, "invalid source ip")

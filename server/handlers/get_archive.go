@@ -111,26 +111,13 @@ func GetArchive(ctx *context.Context, resp http.ResponseWriter, req *http.Reques
 			return
 		}
 
-		if upload.OneShot {
-			// From now on we'll try to delete the files from the data backend whatever happens
-			// TODO maybe recover if download was not successful ?
-			defer func() {
-				for _, file := range files {
-					err := ctx.GetMetadataBackend().DeleteFile(upload, file)
-					if err != nil {
-						log.Warningf("Unable to delete file %s (%s) : %s", file.Name, file.ID, err)
-					}
-				}
-			}()
-		}
-
 		backend := ctx.GetDataBackend()
 
 		// The zip archive is piped directly to http response body without buffering
 		archive := zip.NewWriter(resp)
 
 		for _, file := range files {
-			fileReader, err := backend.GetFile(upload, file)
+			fileReader, err := backend.GetFile(file)
 			if err != nil {
 				ctx.InternalServerError("unable to get file from data backend", err)
 				return

@@ -2,9 +2,7 @@ package context
 
 import "github.com/root-gg/plik/server/common"
 
-func (ctx *Context) CreateUploadFromContext() (upload *common.Upload) {
-	upload = &common.Upload{}
-
+func (ctx *Context) SetUploadContext(upload *common.Upload) {
 	if ctx.GetSourceIP() != nil {
 		// Set upload remote IP
 		upload.RemoteIP = ctx.GetSourceIP().String()
@@ -22,6 +20,4 @@ func (ctx *Context) CreateUploadFromContext() (upload *common.Upload) {
 			}
 		}
 	}
-
-	return upload
 }
