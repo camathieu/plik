@@ -85,40 +85,6 @@ func GetQrCode(ctx *context.Context, resp http.ResponseWriter, req *http.Request
 	}
 }
 
-// DeleteRemovedFile deletes a removed file
-func DeleteRemovedFile(ctx *context.Context, upload *common.Upload, file *common.File) (err error) {
-
-	if upload == nil {
-		return fmt.Errorf("upload parameter is nil")
-	}
-
-	if file == nil {
-		return fmt.Errorf("file parameter is nil")
-	}
-
-	if file.Status != common.FileRemoved {
-		return
-	}
-
-	backend := ctx.GetDataBackend()
-	err = backend.RemoveFile(upload, file.ID)
-	if err != nil {
-		return fmt.Errorf("error while deleting file %s (%s) from upload %s : %s", file.Name, file.ID, upload.ID, err)
-	}
-
-	file.Status = common.FileDeleted
-
-	err = ctx.GetMetadataBackend().AddOrUpdateFile(upload, file, common.FileRemoved)
-	if err != nil {
-		return fmt.Errorf("unable to update file metadata : %s", err)
-	}
-
-	// Remove upload if no files anymore
-	//RemoveEmptyUpload(ctx, upload)
-
-	return nil
-}
-
 //// RemoveEmptyUpload iterates on upload files and remove upload files
 //// and metadata if all the files have been downloaded (useful for OneShot uploads)
 //func RemoveEmptyUpload(ctx *context.Context, upload *common.Upload) {

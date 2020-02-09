@@ -3,7 +3,6 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
 )
 
@@ -22,36 +21,9 @@ func RemoveUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Requ
 		return
 	}
 
-	var files []*common.File
-	for _, file := range upload.Files {
-		if file.Status == common.FileUploaded {
-			files = append(files, file)
-		}
-
-		if file.Status == common.FileRemoved || file.Status == common.FileDeleted {
-			continue
-		}
-
-		currentStatus := file.Status
-		file.Status = common.FileRemoved
-		err := ctx.GetMetadataBackend().AddOrUpdateFile(upload, file, currentStatus)
-		if err != nil {
-			ctx.InternalServerError("unable to update file metadata", err)
-			return
-		}
-
-		if currentStatus == common.FileUploaded {
-			err = DeleteRemovedFile(ctx, upload, file)
-			if err != nil {
-				ctx.InternalServerError("unable to remove file", err)
-				return
-			}
-		}
-	}
-
-	err := ctx.GetMetadataBackend().RemoveUpload(upload)
+	err := ctx.GetMetadataBackend().DeleteUpload(upload)
 	if err != nil {
-		ctx.InternalServerError("unable to remove upload metadata", err)
+		ctx.InternalServerError("unable to delete upload", err)
 		return
 	}
 

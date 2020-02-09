@@ -2,13 +2,13 @@ package common
 
 import (
 	"fmt"
-	"github.com/root-gg/logger"
 	"net"
 	"net/url"
 	"strings"
 
 	"github.com/BurntSushi/toml"
 	"github.com/GeertJohan/yubigo"
+	"github.com/root-gg/logger"
 )
 
 // Configuration object
@@ -34,10 +34,6 @@ type Configuration struct {
 	NoWebInterface bool
 	DownloadDomain string `json:"downloadDomain"`
 
-	YubikeyEnabled   bool   `json:"yubikeyEnabled"`
-	YubikeyAPIKey    string `json:"-"`
-	YubikeyAPISecret string `json:"-"`
-
 	SourceIPHeader  string   `json:"-"`
 	UploadWhitelist []string `json:"-"`
 
@@ -45,6 +41,7 @@ type Configuration struct {
 	NoAnonymousUploads   bool     `json:"-"`
 	OneShot              bool     `json:"oneShot"`
 	Removable            bool     `json:"removable"`
+	Stream               bool     `json:"stream"`
 	ProtectedByPassword  bool     `json:"protectedByPassword"`
 	GoogleAuthentication bool     `json:"googleAuthentication"`
 	GoogleAPISecret      string   `json:"-"`
@@ -56,14 +53,10 @@ type Configuration struct {
 	OvhAPISecret         string   `json:"-"`
 	Admins               []string `json:"-"`
 
-	MetadataBackend       string                 `json:"-"`
 	MetadataBackendConfig map[string]interface{} `json:"-"`
 
 	DataBackend       string                 `json:"-"`
 	DataBackendConfig map[string]interface{} `json:"-"`
-
-	StreamMode          bool                   `json:"streamMode"`
-	StreamBackendConfig map[string]interface{} `json:"-"`
 
 	yubiAuth          *yubigo.YubiAuth
 	downloadDomainURL *url.URL
@@ -78,13 +71,12 @@ func NewConfiguration() (config *Configuration) {
 	config.ListenAddress = "0.0.0.0"
 	config.ListenPort = 8080
 	config.DataBackend = "file"
-	config.MetadataBackend = "bolt"
 	config.MaxFileSize = 10737418240 // 10GB
 	config.MaxFilePerUpload = 1000
 	config.DefaultTTL = 2592000 // 30 days
 	config.MaxTTL = 0
 	config.SslEnabled = false
-	config.StreamMode = true
+	config.Stream = true
 	config.OneShot = true
 	config.Removable = true
 	config.ProtectedByPassword = true
@@ -122,15 +114,6 @@ func (config *Configuration) Initialize() (err error) {
 
 	config.Path = strings.TrimSuffix(config.Path, "/")
 
-	// Do user specified a ApiKey and ApiSecret for Yubikey
-	if config.YubikeyEnabled {
-		yubiAuth, err := yubigo.NewYubiAuth(config.YubikeyAPIKey, config.YubikeyAPISecret)
-		if err != nil {
-			return fmt.Errorf("Failed to load yubikey backend : %s", err)
-		}
-		config.yubiAuth = yubiAuth
-	}
-
 	// UploadWhitelist is only parsed once at startup time
 	for _, cidr := range config.UploadWhitelist {
 		if !strings.Contains(cidr, "/") {
@@ -139,7 +122,7 @@ func (config *Configuration) Initialize() (err error) {
 		if _, cidr, err := net.ParseCIDR(cidr); err == nil {
 			config.uploadWhitelist = append(config.uploadWhitelist, cidr)
 		} else {
-			return fmt.Errorf("Failed to parse upload whitelist : %s", cidr)
+			return fmt.Errorf("failed to parse upload whitelist : %s", cidr)
 		}
 	}
 
@@ -164,7 +147,7 @@ func (config *Configuration) Initialize() (err error) {
 		strings.Trim(config.DownloadDomain, "/ ")
 		var err error
 		if config.downloadDomainURL, err = url.Parse(config.DownloadDomain); err != nil {
-			return fmt.Errorf("Invalid download domain URL %s : %s", config.DownloadDomain, err)
+			return fmt.Errorf("invalid download domain URL %s : %s", config.DownloadDomain, err)
 		}
 	}
 

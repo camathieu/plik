@@ -14,7 +14,7 @@ func File(ctx *context.Context, next http.Handler) http.Handler {
 		// Get upload from context
 		upload := ctx.GetUpload()
 		if upload == nil {
-			ctx.InternalServerError("missing upload from context", nil)
+			ctx.NotFound("upload not found", nil)
 			return
 		}
 
@@ -22,7 +22,7 @@ func File(ctx *context.Context, next http.Handler) http.Handler {
 		vars := mux.Vars(req)
 		fileID := vars["fileID"]
 		if fileID == "" {
-			ctx.MissingParameter("file id")
+			ctx.MissingParameter("file ID")
 			return
 		}
 
@@ -33,10 +33,19 @@ func File(ctx *context.Context, next http.Handler) http.Handler {
 			return
 		}
 
-		// Get file object in upload metadata
-		file, ok := upload.Files[fileID]
-		if !ok {
+		// Get upload metadata
+		file, err := ctx.GetMetadataBackend().GetFile(fileID)
+		if err != nil {
+			ctx.InternalServerError("unable to get file metadata", err)
+			return
+		}
+		if file == nil {
 			ctx.NotFound("file %s not found", fileID)
+			return
+		}
+
+		if file.UploadID != upload.ID {
+			ctx.InternalServerError("invalid file upload id", nil)
 			return
 		}
 

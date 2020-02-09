@@ -23,7 +23,7 @@ func TestAddGetFile(t *testing.T) {
 	config := NewConfig(make(map[string]interface{}))
 	backend := NewBackend(config)
 
-	upload := common.NewUpload()
+	upload := &common.Upload{}
 	upload.Create()
 	file := upload.NewFile()
 
@@ -39,7 +39,7 @@ func TestAddGetFile(t *testing.T) {
 
 	f := func() {
 		for {
-			reader, err := backend.GetFile(upload, file.ID)
+			reader, err := backend.GetFile(upload, file)
 			if err != nil {
 				time.Sleep(50 * time.Millisecond)
 				continue
@@ -65,21 +65,10 @@ func TestRemoveFile(t *testing.T) {
 	config := NewConfig(make(map[string]interface{}))
 	backend := NewBackend(config)
 
-	upload := common.NewUpload()
+	upload := &common.Upload{}
 	upload.Create()
 	file := upload.NewFile()
 
-	err := backend.RemoveFile(upload, file.ID)
-	require.Error(t, err, "able to remove file")
-}
-
-func TestRemoveUpload(t *testing.T) {
-	config := NewConfig(make(map[string]interface{}))
-	backend := NewBackend(config)
-
-	upload := common.NewUpload()
-	upload.Create()
-
-	err := backend.RemoveUpload(upload)
-	require.Error(t, err, "able to remove upload")
+	err := backend.RemoveFile(upload, file)
+	require.NoError(t, err)
 }

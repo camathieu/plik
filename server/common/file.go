@@ -1,5 +1,10 @@
 package common
 
+import (
+	"fmt"
+	"time"
+)
+
 // FileMissing when a file is waiting to be uploaded
 const FileMissing = "missing"
 
@@ -17,15 +22,21 @@ const FileDeleted = "deleted"
 
 // File object
 type File struct {
-	ID             string                 `json:"id" bson:"fileId"`
-	Name           string                 `json:"fileName" bson:"fileName"`
-	Md5            string                 `json:"fileMd5" bson:"fileMd5"`
-	Status         string                 `json:"status" bson:"status"`
-	Type           string                 `json:"fileType" bson:"fileType"`
-	UploadDate     int64                  `json:"fileUploadDate" bson:"fileUploadDate"`
-	CurrentSize    int64                  `json:"fileSize" bson:"fileSize"`
-	BackendDetails map[string]interface{} `json:"backendDetails,omitempty" bson:"backendDetails"`
-	Reference      string                 `json:"reference" bson:"reference"`
+	ID       string `json:"id"`
+	UploadID string `json:"-"  gorm:"type:varchar(255) REFERENCES uploads(id) ON UPDATE RESTRICT ON DELETE RESTRICT"`
+	Name     string `json:"fileName"`
+
+	Status string `json:"status"`
+
+	Md5       string `json:"fileMd5"`
+	Type      string `json:"fileType"`
+	Size      int64  `json:"fileSize"`
+	Reference string `json:"reference"`
+
+	BackendDetails string `json:"-"`
+
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
 }
 
 // NewFile instantiate a new object
@@ -44,5 +55,31 @@ func (file *File) GenerateID() {
 // Sanitize removes sensible information from
 // object. Used to hide information in API.
 func (file *File) Sanitize() {
-	file.BackendDetails = nil
+	file.BackendDetails = ""
+}
+
+func (file *File) PrepareInsert(config *Configuration, upload *Upload) (err error){
+	if upload == nil {
+		return fmt.Errorf("missing upload")
+	}
+
+	if upload.ID == "" {
+		return fmt.Errorf("upload not initialized")
+	}
+
+	file.UploadID = upload.ID
+
+	if file.Name == "" {
+		return fmt.Errorf("missing file name")
+	}
+
+	// Check file name length
+	if len(file.Name) > 1024 {
+		return fmt.Errorf("file name %s... is too long, maximum length is 1024 characters", file.Name[:20])
+	}
+
+	file.GenerateID()
+	file.Status = FileMissing
+
+	return nil
 }

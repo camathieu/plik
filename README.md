@@ -16,7 +16,6 @@ Plik is a scalable & friendly temporary file upload system ( wetransfer like ) i
    - Removable : Give the ability to the uploader to remove files at any time
    - TTL : Custom expiration date
    - Password : Protect upload with login/password (Auth Basic)
-   - Yubikey : Protect upload with your yubikey. (One Time Password)
    - Comments : Add custom message (in Markdown format)
    - User authentication : Google / OVH
    - Upload restriction : Source IP / Token
@@ -101,7 +100,6 @@ Options:
   --comments COMMENT        Set comments of the upload ( MarkDown compatible )
   -p                        Protect the upload with login and password
   --password PASSWD         Protect the upload with login:password ( if omitted default login is "plik" )
-  -y, --yubikey             Protect the upload with a Yubikey OTP
   -a                        Archive upload using default archive params ( see ~/.plikrc )
   --archive MODE            Archive upload using specified archive backend : tar|zip
   --compress MODE           [tar] Compression codec : gzip|bzip2|xz|lzip|lzma|lzop|compress|no

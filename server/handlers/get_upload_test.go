@@ -16,11 +16,11 @@ import (
 func TestGetUpload(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	upload := common.NewUpload()
-	upload.Create()
+	upload := &common.Upload{}
+	upload.PrepareInsertForTests()
 	upload.Login = "secret"
 	upload.Password = "secret"
-	createTestUpload(ctx, upload)
+	createTestUpload(t, ctx, upload)
 	ctx.SetUpload(upload)
 
 	req, err := http.NewRequest("GET", "/upload/"+upload.ID, bytes.NewBuffer([]byte{}))
@@ -39,7 +39,7 @@ func TestGetUpload(t *testing.T) {
 	require.NoError(t, err, "unable to unmarshal response body")
 
 	require.Equal(t, upload.ID, uploadResult.ID, "invalid upload id")
-	require.Equal(t, upload.Creation, uploadResult.Creation, "invalid upload creation date")
+	require.NotZero(t, upload.CreatedAt, "missing creation date")
 	require.Equal(t, upload.UploadToken, uploadResult.UploadToken, "invalid upload token")
 	require.Equal(t, "", uploadResult.Login, "invalid upload login")
 	require.Equal(t, "", uploadResult.Password, "invalid upload password")

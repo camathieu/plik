@@ -43,7 +43,7 @@ func TestCreateUpload(t *testing.T) {
 	err := start(ps)
 	require.NoError(t, err, "unable to start plik server")
 
-	upload := common.NewUpload()
+	upload := &common.Upload{}
 	uploadParams, err := pc.create(upload)
 	require.NoError(t, err, "unable to create upload")
 	require.NotNil(t, uploadParams, "invalid nil uploads params")
@@ -104,7 +104,7 @@ func TestUploadFileNoUpload(t *testing.T) {
 	err = common.CheckHTTPServer(ps.GetConfig().ListenPort)
 	require.NoError(t, err, "server unreachable")
 
-	upload := common.NewUpload()
+	upload := &common.Upload{}
 	upload.Create()
 	file := &common.File{}
 	file.Name = "filename"
@@ -123,7 +123,7 @@ func TestUploadFileReaderError(t *testing.T) {
 	err = common.CheckHTTPServer(ps.GetConfig().ListenPort)
 	require.NoError(t, err, "server unreachable")
 
-	upload := common.NewUpload()
+	upload := &common.Upload{}
 	upload.Create()
 	file := &common.File{}
 

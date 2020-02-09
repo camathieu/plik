@@ -78,7 +78,7 @@ func TestFileNotFound(t *testing.T) {
 func TestFileInvalidFileName(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	upload := common.NewUpload()
+	upload := &common.Upload{}
 	file := upload.NewFile()
 	file.Name = "filename"
 
@@ -103,7 +103,7 @@ func TestFileInvalidFileName(t *testing.T) {
 func TestFile(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	upload := common.NewUpload()
+	upload := &common.Upload{}
 	file := upload.NewFile()
 	file.Name = "filename"
 

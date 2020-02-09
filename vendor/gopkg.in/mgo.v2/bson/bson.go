@@ -475,7 +475,7 @@ func handleErr(err *error) {
 //
 //     "[<key>][,<flag1>[,<flag2>]]"
 //
-//     `(...) bson:"[<key>][,<flag1>[,<flag2>]]" (...)`
+//     `(...) (...)`
 //
 // The following flags are currently supported:
 //
@@ -518,7 +518,7 @@ func Marshal(in interface{}) (out []byte, err error) {
 //
 //     "[<key>][,<flag1>[,<flag2>]]"
 //
-//     `(...) bson:"[<key>][,<flag1>[,<flag2>]]" (...)`
+//     `(...) (...)`
 //
 // The following flags are currently supported during unmarshal (see the
 // Marshal method for other flags):

@@ -67,7 +67,7 @@ func TestUploadMetadataBackendError(t *testing.T) {
 func TestUpload(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	upload := common.NewUpload()
+	upload := &common.Upload{}
 	upload.Create()
 
 	err := ctx.GetMetadataBackend().CreateUpload(upload)
@@ -92,7 +92,7 @@ func TestUpload(t *testing.T) {
 func TestUploadExpired(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	upload := common.NewUpload()
+	upload := &common.Upload{}
 	upload.Create()
 	upload.TTL = 60
 	upload.Creation = time.Now().Add(-10 * time.Minute).Unix()
@@ -118,7 +118,7 @@ func TestUploadExpired(t *testing.T) {
 func TestUploadToken(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	upload := common.NewUpload()
+	upload := &common.Upload{}
 	upload.Create()
 	upload.UploadToken = "token"
 
@@ -152,7 +152,7 @@ func TestUploadUser(t *testing.T) {
 	user.ID = "user"
 	ctx.SetUser(user)
 
-	upload := common.NewUpload()
+	upload := &common.Upload{}
 	upload.Create()
 	upload.User = user.ID
 
@@ -183,7 +183,7 @@ func TestUploadUserToken(t *testing.T) {
 	token := common.NewToken()
 	ctx.SetToken(token)
 
-	upload := common.NewUpload()
+	upload := &common.Upload{}
 	upload.Create()
 	upload.Token = token.Token
 
@@ -216,7 +216,7 @@ func TestUploadUserAdmin(t *testing.T) {
 	ctx.SetAdmin(true)
 	ctx.SetUser(user)
 
-	upload := common.NewUpload()
+	upload := &common.Upload{}
 	upload.Create()
 
 	err := ctx.GetMetadataBackend().CreateUpload(upload)
@@ -243,7 +243,7 @@ func TestUploadPasswordMissingHeader(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 	ctx.GetConfig().Authentication = true
 
-	upload := common.NewUpload()
+	upload := &common.Upload{}
 	upload.ProtectedByPassword = true
 	upload.Create()
 
@@ -269,7 +269,7 @@ func TestUploadPasswordInvalidHeader(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 	ctx.GetConfig().Authentication = true
 
-	upload := common.NewUpload()
+	upload := &common.Upload{}
 	upload.ProtectedByPassword = true
 	upload.Create()
 
@@ -297,7 +297,7 @@ func TestUploadPasswordInvalidScheme(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 	ctx.GetConfig().Authentication = true
 
-	upload := common.NewUpload()
+	upload := &common.Upload{}
 	upload.ProtectedByPassword = true
 	upload.Create()
 
@@ -325,7 +325,7 @@ func TestUploadPasswordInvalidPassword(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 	ctx.GetConfig().Authentication = true
 
-	upload := common.NewUpload()
+	upload := &common.Upload{}
 	upload.ProtectedByPassword = true
 	upload.Create()
 
@@ -355,7 +355,7 @@ func TestUploadPassword(t *testing.T) {
 
 	var err error
 
-	upload := common.NewUpload()
+	upload := &common.Upload{}
 	upload.ProtectedByPassword = true
 	upload.Login = "login"
 	upload.Password = "password"

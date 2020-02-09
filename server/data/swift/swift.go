@@ -42,16 +42,16 @@ func NewBackend(config *Config) (b *Backend) {
 }
 
 // GetFile implementation for Swift Data Backend
-func (b *Backend) GetFile(upload *common.Upload, fileID string) (reader io.ReadCloser, err error) {
+func (b *Backend) GetFile(upload *common.Upload, file *common.File) (reader io.ReadCloser, err error) {
 	err = b.auth()
 	if err != nil {
 		return nil, err
 	}
 
 	reader, pipeWriter := io.Pipe()
-	uuid := b.getFileID(upload, fileID)
+	objectID := objectID(upload, file)
 	go func() {
-		_, err = b.connection.ObjectGet(b.config.Container, uuid, pipeWriter, true, nil)
+		_, err = b.connection.ObjectGet(b.config.Container, objectID, pipeWriter, true, nil)
 		defer func() { _ = pipeWriter.Close() }()
 		if err != nil {
 			return
@@ -62,36 +62,36 @@ func (b *Backend) GetFile(upload *common.Upload, fileID string) (reader io.ReadC
 }
 
 // AddFile implementation for Swift Data Backend
-func (b *Backend) AddFile(upload *common.Upload, file *common.File, fileReader io.Reader) (backendDetails map[string]interface{}, err error) {
+func (b *Backend) AddFile(upload *common.Upload, file *common.File, fileReader io.Reader) (backendDetails string, err error) {
 	err = b.auth()
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
-	uuid := b.getFileID(upload, file.ID)
-	object, err := b.connection.ObjectCreate(b.config.Container, uuid, true, "", "", nil)
+	objectId := objectID(upload, file)
+	object, err := b.connection.ObjectCreate(b.config.Container, objectId, true, "", "", nil)
 
 	_, err = io.Copy(object, fileReader)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	err = object.Close()
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
 	return backendDetails, nil
 }
 
 // RemoveFile implementation for Swift Data Backend
-func (b *Backend) RemoveFile(upload *common.Upload, fileID string) (err error) {
+func (b *Backend) RemoveFile(upload *common.Upload, file *common.File) (err error) {
 	err = b.auth()
 	if err != nil {
 		return err
 	}
 
-	uuid := b.getFileID(upload, fileID)
-	err = b.connection.ObjectDelete(b.config.Container, uuid)
+	objectID := objectID(upload, file)
+	err = b.connection.ObjectDelete(b.config.Container, objectID)
 	if err != nil {
 		return err
 	}
@@ -99,27 +99,8 @@ func (b *Backend) RemoveFile(upload *common.Upload, fileID string) (err error) {
 	return
 }
 
-// RemoveUpload implementation for Swift Data Backend
-// Iterates on each upload file and call removeFile
-func (b *Backend) RemoveUpload(upload *common.Upload) (err error) {
-	err = b.auth()
-	if err != nil {
-		return
-	}
-
-	for fileID := range upload.Files {
-		uuid := b.getFileID(upload, fileID)
-		err = b.connection.ObjectDelete(b.config.Container, uuid)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (b *Backend) getFileID(upload *common.Upload, fileID string) string {
-	return upload.ID + "." + fileID
+func objectID(upload *common.Upload, file *common.File) string {
+	return upload.ID + "." + file.ID
 }
 
 func (b *Backend) auth() (err error) {

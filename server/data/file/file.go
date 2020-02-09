@@ -42,114 +42,77 @@ func NewBackend(config *Config) (b *Backend) {
 
 // GetFile implementation for file data backend will search
 // on filesystem the asked file and return its reading filehandle
-func (b *Backend) GetFile(upload *common.Upload, id string) (file io.ReadCloser, err error) {
-	// Get upload directory
-	directory, err := b.getDirectoryFromUploadID(upload.ID)
+func (b *Backend) GetFile(upload *common.Upload, file *common.File) (reader io.ReadCloser, err error) {
+	path, err := b.getPath(upload, file)
 	if err != nil {
-		return nil, fmt.Errorf("unable to get upload directory : %s", err)
+		return nil, err
 	}
-
-	// Get file path
-	fullPath := directory + "/" + id
 
 	// The file content will be piped directly
 	// to the client response body
-	file, err = os.Open(fullPath)
+	reader, err = os.Open(path)
 	if err != nil {
-		return nil, fmt.Errorf("unable to open file %s : %s", fullPath, err)
+		return nil, fmt.Errorf("unable to open file %s : %s", path, err)
 	}
 
-	return file, nil
+	return reader, nil
 }
 
 // AddFile implementation for file data backend will creates a new file for the given upload
 // and save it on filesystem with the given file reader
-func (b *Backend) AddFile(upload *common.Upload, file *common.File, fileReader io.Reader) (backendDetails map[string]interface{}, err error) {
-	// Get upload directory
-	directory, err := b.getDirectoryFromUploadID(upload.ID)
+func (b *Backend) AddFile(upload *common.Upload, file *common.File, fileReader io.Reader) (backendDetails string, err error) {
+
+	path, err := b.getPath(upload, file)
 	if err != nil {
-		return nil, fmt.Errorf("unable to get upload directory : %s", err)
+		return "", err
 	}
 
-	// Get file path
-	fullPath := directory + "/" + file.ID
-
 	// Create directory
-	_, err = os.Stat(directory)
+	err = os.MkdirAll(b.Config.Directory, 0777)
 	if err != nil {
-		err = os.MkdirAll(directory, 0777)
-		if err != nil {
-			return nil, fmt.Errorf("unable to create upload directory %s : %s", directory, err)
-		}
+		return "", fmt.Errorf("unable to create upload directory")
 	}
 
 	// Create file
-	out, err := os.Create(fullPath)
+	out, err := os.Create(path)
 	if err != nil {
-		return nil, fmt.Errorf("unable to create file %s : %s", fullPath, err)
+		return "", fmt.Errorf("unable to create file %s : %s", path, err)
 	}
 
 	// Copy file data from the client request body
 	// to the file system
 	_, err = io.Copy(out, fileReader)
 	if err != nil {
-		return nil, fmt.Errorf("unable to save file %s : %s", fullPath, err)
+		return "", fmt.Errorf("unable to save file %s : %s", path, err)
 	}
 
-	backendDetails = make(map[string]interface{})
-	backendDetails["path"] = fullPath
-	return backendDetails, nil
+	return path, nil
 }
 
 // RemoveFile implementation for file data backend will delete the given
 // file from filesystem
-func (b *Backend) RemoveFile(upload *common.Upload, id string) (err error) {
-	// Get upload directory
-	directory, err := b.getDirectoryFromUploadID(upload.ID)
-	if err != nil {
-		return fmt.Errorf("unable to get upload directory : %s", err)
-	}
+func (b *Backend) RemoveFile(upload *common.Upload, file *common.File) (err error) {
 
-	// Get file path
-	fullPath := directory + "/" + id
+	path, err := b.getPath(upload, file)
+	if err != nil {
+		return err
+	}
 
 	// Remove file
-	err = os.Remove(fullPath)
+	err = os.Remove(path)
 	if err != nil {
-		return fmt.Errorf("unable to remove %s : %s", fullPath, err)
+		return fmt.Errorf("unable to remove %s : %s", path, err)
 	}
 
 	return nil
 }
 
-// RemoveUpload implementation for file data backend will
-// delete the whole upload. Given that an upload is a directory,
-// we remove the whole directory at once.
-func (b *Backend) RemoveUpload(upload *common.Upload) (err error) {
-	// Get upload directory
-	fullPath, err := b.getDirectoryFromUploadID(upload.ID)
-	if err != nil {
-		return fmt.Errorf("unable to get upload directory : %s", err)
+func (b *Backend) getPath(upload *common.Upload, file *common.File) (path string, err error) {
+	if upload == nil || upload.ID == "" {
+		return "", fmt.Errorf("upload not initialized")
 	}
-
-	// Remove everything at once
-	err = os.RemoveAll(fullPath)
-	if err != nil {
-		return fmt.Errorf("unable to remove %s : %s", fullPath, err)
+	if file == nil || file.ID == "" {
+		return "", fmt.Errorf("file not initialized")
 	}
-
-	return nil
-}
-
-func (b *Backend) getDirectoryFromUploadID(uploadID string) (string, error) {
-	// To avoid too many files in the same directory
-	// data directory is splitted in two levels the
-	// first level is the 2 first chars from the upload id
-	// it gives 3844 possibilities reaching 65535 files per
-	// directory at ~250.000.000 files uploaded.
-
-	if len(uploadID) < 3 {
-		return "", fmt.Errorf("invalid upload ID %s", uploadID)
-	}
-	return b.Config.Directory + "/" + uploadID[:2] + "/" + uploadID, nil
+	return fmt.Sprintf("%s/%s-%s", b.Config.Directory, upload.ID, file.ID), nil
 }

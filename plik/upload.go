@@ -24,8 +24,6 @@ type UploadParams struct {
 
 	Login    string // HttpBasic protection for the upload
 	Password string // Login and Password
-
-	Yubikey string // Yubikey OTP
 }
 
 // Upload store the necessary data to upload files to a Plik server

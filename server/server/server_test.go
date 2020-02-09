@@ -16,7 +16,6 @@ func newPlikServer() (ps *PlikServer) {
 	ps.config.ListenAddress = "127.0.0.1"
 	ps.config.ListenPort = common.APIMockServerDefaultPort
 	ps.config.AutoClean(false)
-	ps.WithMetadataBackend(metadata_test.NewBackend())
 	ps.WithDataBackend(data_test.NewBackend())
 	ps.WithStreamBackend(data_test.NewBackend())
 	return ps
@@ -57,7 +56,6 @@ func TestNewPlikServerNoHTTPSCertificates(t *testing.T) {
 	ps.config.ListenAddress = "127.0.0.1"
 	ps.config.ListenPort = 44142
 	ps.config.AutoClean(false)
-	ps.config.MetadataBackend = "testing"
 	ps.config.DataBackend = "testing"
 
 	ps.config.SslEnabled = true
@@ -70,13 +68,8 @@ func TestNewPlikServerWithCustomBackends(t *testing.T) {
 	ps := newPlikServer()
 	defer ps.ShutdownNow()
 
-	ps.WithMetadataBackend(metadata_test.NewBackend())
-	err := ps.initializeMetadataBackend()
-	require.NoError(t, err, "invalid error")
-	require.NotNil(t, ps.GetMetadataBackend(), "missing metadata backend")
-
 	ps.WithDataBackend(data_test.NewBackend())
-	err = ps.initializeDataBackend()
+	err := ps.initializeDataBackend()
 	require.NoError(t, err, "invalid error")
 	require.NotNil(t, ps.GetDataBackend(), "missing data backend")
 
@@ -85,13 +78,17 @@ func TestNewPlikServerWithCustomBackends(t *testing.T) {
 	require.NoError(t, err, "invalid error")
 	require.NotNil(t, ps.GetStreamBackend(), "missing stream backend")
 
+	err = ps.initializeMetadataBackend()
+	require.NoError(t, err, "invalid error")
+	require.NotNil(t, ps.GetMetadataBackend(), "missing metadata backend")
+
 }
 
 func TestClean(t *testing.T) {
 	ps := newPlikServer()
 	defer ps.ShutdownNow()
 
-	upload := common.NewUpload()
+	upload := &common.Upload{}
 	upload.Create()
 	upload.TTL = 1
 	upload.Creation = time.Now().Add(-10 * time.Minute).Unix()
@@ -121,7 +118,7 @@ func TestAutoClean(t *testing.T) {
 	err := ps.Start()
 	require.NoError(t, err, "unable to start plik server")
 
-	upload := common.NewUpload()
+	upload := &common.Upload{}
 	upload.Create()
 	upload.TTL = 1
 	upload.Creation = time.Now().Add(-10 * time.Minute).Unix()

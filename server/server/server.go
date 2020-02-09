@@ -22,12 +22,8 @@ import (
 	"github.com/root-gg/plik/server/data/stream"
 	"github.com/root-gg/plik/server/data/swift"
 	data_test "github.com/root-gg/plik/server/data/testing"
-	"github.com/root-gg/plik/server/data/weedfs"
 	"github.com/root-gg/plik/server/handlers"
 	"github.com/root-gg/plik/server/metadata"
-	"github.com/root-gg/plik/server/metadata/bolt"
-	"github.com/root-gg/plik/server/metadata/mongo"
-	metadata_test "github.com/root-gg/plik/server/metadata/testing"
 	"github.com/root-gg/plik/server/middleware"
 )
 
@@ -35,7 +31,7 @@ import (
 type PlikServer struct {
 	config *common.Configuration
 
-	metadataBackend metadata.Backend
+	metadataBackend *metadata.Backend
 	dataBackend     data.Backend
 	streamBackend   data.Backend
 
@@ -204,7 +200,7 @@ func (ps *PlikServer) getHTTPHandler() (handler http.Handler) {
 	stdChainWithRedirect := context.NewChain(middleware.RedirectOnFailure).AppendChain(stdChain)
 	authChainWithRedirect := context.NewChain(middleware.RedirectOnFailure).AppendChain(tokenChain)
 
-	getFileChain := context.NewChain(middleware.Upload, middleware.Yubikey, middleware.File)
+	getFileChain := context.NewChain(middleware.Upload, middleware.File)
 
 	// HTTP Api routes configuration
 	router := mux.NewRouter()
@@ -218,12 +214,9 @@ func (ps *PlikServer) getHTTPHandler() (handler http.Handler) {
 	router.Handle("/file/{uploadID}/{fileID}/{filename}", tokenChain.Append(middleware.Upload, middleware.File).Then(handlers.AddFile)).Methods("POST")
 	router.Handle("/file/{uploadID}/{fileID}/{filename}", tokenChain.Append(middleware.Upload, middleware.File).Then(handlers.RemoveFile)).Methods("DELETE")
 	router.Handle("/file/{uploadID}/{fileID}/{filename}", authChainWithRedirect.AppendChain(getFileChain).Then(handlers.GetFile)).Methods("HEAD", "GET")
-	router.Handle("/file/{uploadID}/{fileID}/{filename}/yubikey/{yubikey}", authChainWithRedirect.AppendChain(getFileChain).Then(handlers.GetFile)).Methods("HEAD", "GET")
 	router.Handle("/stream/{uploadID}/{fileID}/{filename}", tokenChain.Append(middleware.Upload, middleware.File).Then(handlers.AddFile)).Methods("POST")
 	router.Handle("/stream/{uploadID}/{fileID}/{filename}", authChainWithRedirect.AppendChain(getFileChain).Then(handlers.GetFile)).Methods("HEAD", "GET")
-	router.Handle("/stream/{uploadID}/{fileID}/{filename}/yubikey/{yubikey}", authChainWithRedirect.AppendChain(getFileChain).Then(handlers.GetFile)).Methods("HEAD", "GET")
-	router.Handle("/archive/{uploadID}/{filename}", authChainWithRedirect.Append(middleware.Upload, middleware.Yubikey).Then(handlers.GetArchive)).Methods("HEAD", "GET")
-	router.Handle("/archive/{uploadID}/{filename}/yubikey/{yubikey}", authChainWithRedirect.Append(middleware.Upload, middleware.Yubikey).Then(handlers.GetArchive)).Methods("HEAD", "GET")
+	router.Handle("/archive/{uploadID}/{filename}", authChainWithRedirect.Append(middleware.Upload).Then(handlers.GetArchive)).Methods("HEAD", "GET")
 	router.Handle("/auth/google/login", authChain.Then(handlers.GoogleLogin)).Methods("GET")
 	router.Handle("/auth/google/callback", stdChainWithRedirect.Then(handlers.GoogleCallback)).Methods("GET")
 	router.Handle("/auth/ovh/login", authChain.Then(handlers.OvhLogin)).Methods("GET")
@@ -236,8 +229,8 @@ func (ps *PlikServer) getHTTPHandler() (handler http.Handler) {
 	router.Handle("/me/uploads", authChain.Then(handlers.GetUserUploads)).Methods("GET")
 	router.Handle("/me/uploads", authChain.Then(handlers.RemoveUserUploads)).Methods("DELETE")
 	router.Handle("/me/stats", authChain.Then(handlers.GetUserStatistics)).Methods("GET")
-	router.Handle("/stats", authChain.Then(handlers.GetServerStatistics)).Methods("GET")
-	router.Handle("/users", authChain.Then(handlers.GetUsers)).Methods("GET")
+	//router.Handle("/stats", authChain.Then(handlers.GetServerStatistics)).Methods("GET")
+	//router.Handle("/users", authChain.Then(handlers.GetUsers)).Methods("GET")
 	router.Handle("/qrcode", stdChain.Then(handlers.GetQrCode)).Methods("GET")
 
 	if !ps.config.NoWebInterface {
@@ -255,34 +248,16 @@ func (ps *PlikServer) getHTTPHandler() (handler http.Handler) {
 	return handler
 }
 
-// WithMetadataBackend configure the metadata backend to use ( call before Start() )
-func (ps *PlikServer) WithMetadataBackend(backend metadata.Backend) *PlikServer {
-	if ps.metadataBackend == nil {
-		ps.metadataBackend = backend
-	}
-	return ps
-}
-
 // Initialize metadata backend from type found in configuration
 func (ps *PlikServer) initializeMetadataBackend() (err error) {
 	if ps.metadataBackend == nil {
-		switch ps.config.MetadataBackend {
-		case "mongo":
-			config := mongo.NewConfig(ps.config.MetadataBackendConfig)
-			ps.metadataBackend, err = mongo.NewBackend(config)
-			if err != nil {
-				return err
-			}
-		case "bolt":
-			config := bolt.NewConfig(ps.config.MetadataBackendConfig)
-			ps.metadataBackend, err = bolt.NewBackend(config)
-			if err != nil {
-				return err
-			}
-		case "testing":
-			ps.metadataBackend = metadata_test.NewBackend()
-		default:
-			return fmt.Errorf("Invalid metadata backend %s", ps.config.MetadataBackend)
+		if ps.dataBackend == nil {
+			return fmt.Errorf("data backend must be initialized first")
+		}
+		config := metadata.NewConfig(ps.config.MetadataBackendConfig)
+		ps.metadataBackend, err = metadata.NewBackend(config, ps.dataBackend, ps.config.NewLogger())
+		if err != nil {
+			return err
 		}
 	}
 
@@ -307,9 +282,6 @@ func (ps *PlikServer) initializeDataBackend() (err error) {
 		case "swift":
 			config := swift.NewConfig(ps.config.DataBackendConfig)
 			ps.dataBackend = swift.NewBackend(config)
-		case "weedfs":
-			config := weedfs.NewConfig(ps.config.DataBackendConfig)
-			ps.dataBackend = weedfs.NewBackend(config)
 		case "testing":
 			ps.dataBackend = data_test.NewBackend()
 		default:
@@ -330,9 +302,8 @@ func (ps *PlikServer) WithStreamBackend(backend data.Backend) *PlikServer {
 
 // Initialize data backend from type found in configuration
 func (ps *PlikServer) initializeStreamBackend() (err error) {
-	if ps.streamBackend == nil && ps.config.StreamMode {
-		config := stream.NewConfig(ps.config.StreamBackendConfig)
-		ps.streamBackend = stream.NewBackend(config)
+	if ps.streamBackend == nil && ps.config.Stream {
+		ps.streamBackend = stream.NewBackend()
 	}
 
 	return nil
@@ -353,41 +324,13 @@ func (ps *PlikServer) uploadsCleaningRoutine() {
 		log.Infof("Will clean old uploads in %d seconds.", randomSleep)
 		time.Sleep(time.Duration(randomSleep) * time.Second)
 		log.Infof("Cleaning expired uploads...")
-		ps.Clean()
-	}
-}
 
-// Clean removes expired uploads from the servers
-func (ps *PlikServer) Clean() {
-	log := ps.config.NewLogger()
-
-	// Get uploads that needs to be removed
-	uploadIds, err := ps.metadataBackend.GetUploadsToRemove()
-	if err != nil {
-		log.Warningf("Failed to get expired uploads : %s", err)
-	} else {
-		// Remove them
-		for _, uploadID := range uploadIds {
-			log.Infof("Removing expired upload %s", uploadID)
-			// Get upload metadata
-			upload, err := ps.metadataBackend.GetUpload(uploadID)
-			if err != nil {
-				log.Warningf("Unable to get infos for upload: %s", err)
-				continue
-			}
-
-			// Remove from data backend
-			err = ps.dataBackend.RemoveUpload(upload)
-			if err != nil {
-				log.Warningf("Unable to remove upload data : %s", err)
-				continue
-			}
-
-			// Remove from metadata backend
-			err = ps.metadataBackend.RemoveUpload(upload)
-			if err != nil {
-				log.Warningf("Unable to remove upload metadata : %s", err)
-			}
+		removed, err := ps.metadataBackend.DeleteExpiredUploads()
+		if removed > 0 {
+			log.Infof("removed %d expired upload", removed)
+		}
+		if err != nil {
+			log.Warning(err.Error())
 		}
 	}
 }
@@ -398,7 +341,7 @@ func (ps *PlikServer) GetConfig() *common.Configuration {
 }
 
 // GetMetadataBackend return the configured Backend
-func (ps *PlikServer) GetMetadataBackend() metadata.Backend {
+func (ps *PlikServer) GetMetadataBackend() *metadata.Backend {
 	return ps.metadataBackend
 }
 

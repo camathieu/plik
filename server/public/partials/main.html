@@ -42,16 +42,6 @@
                        uib-tooltip="Protect your upload with credentials. You will be prompted for them before the upload and before the download.">?</a>
                 </label>
             </div>
-            <!-- YUBIKEY -->
-            <div class="menu-item" ng-show="config.yubikeyEnabled">
-                <label class="switch-input">
-                    <input name="checkbox-yubikey" type="checkbox" ng-model="$parent.yubikey"
-                           ng-change="upload.yubikey = ''">
-                    <i data-swoff-text="OFF" data-swon-text="ON"></i> Yubikey
-                    <a tooltip-placement="right"
-                       uib-tooltip="Protect you upload with a Yubikey. You will be prompted for OTP before the upload and before the download.">?</a>
-                </label>
-            </div>
             <!-- COMMENTS -->
             <div class="menu-item">
                 <label class="switch-input">
@@ -121,17 +111,11 @@
         <!-- DOWNLOAD AS ZIP BUTTON -->
         <div class="tile menu" ng-if="mode == 'download' && somethingToDownload() && !upload.stream">
             <div class="menu-item">
-                <!-- WITHOUT YUBIKEY -->
-                <a href="{{getZipArchiveUrl()}}" ng-show="!upload.protectedByYubikey">
+                <a href="{{getZipArchiveUrl()}}">
                     <button type="button" class="btn btn-lg btn-primary btn-block">
                         <i class="glyphicon glyphicon-cloud-download"></i> Zip archive
                     </button>
                 </a>
-                <!-- WITH YUBIKEY -->
-                <button type="button" class="btn btn-lg btn-primary btn-block"
-                        ng-show="upload.protectedByYubikey" ng-click="downloadArchiveWithYubikey()">
-                    <i class="glyphicon glyphicon-cloud-download"></i> Zip archive
-                </button>
             </div>
         </div>
         <!-- ADD FILES BUTTON -->
@@ -255,19 +239,12 @@
                         </div>
                         <!-- DOWNLOAD BUTTONS -->
                         <div ng-show="file.metadata.status == 'uploaded'">
-                            <!-- DOWNLOAD WITHOUT YUBIKEY -->
-                            <a href="{{getFileUrl(file,1)}}" ng-show="!upload.protectedByYubikey">
+                            <a href="{{getFileUrl(file,1)}}">
                                 <button data-action="share" title="Download" type="button"
                                         class="btn btn-success btn-sm"><span
                                         class="glyphicon glyphicon-cloud-download"></span><span
                                         class="hidden-xs hidden-sm"> Download</span></button>
                             </a>
-                            <!-- DOWNLOAD WITH YUBIKEY -->
-                            <button title="Download" type="button" class="btn btn-success"
-                                    ng-show="upload.protectedByYubikey"
-                                    ng-click="downloadFileWithYubikey(file)"><span
-                                    class="glyphicon glyphicon-cloud-download"></span><span
-                                    class="hidden-xs hidden-sm hidden-md"> Download</span></button>
                             <!-- QR CODE -->
                             <button title="Display QRCode" type="button" class="btn btn-success btn-sm hidden-xs"
                                     ng-click="displayQRCodeFile(file)">

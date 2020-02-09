@@ -3,7 +3,6 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"io/ioutil"
 	"net/http"
 
@@ -12,19 +11,17 @@ import (
 
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
-	metadatadata_test "github.com/root-gg/plik/server/metadata/testing"
 	"github.com/stretchr/testify/require"
 )
 
-func createTestUpload(ctx *context.Context, uploadToCreate *common.Upload) {
-	uploadToCreate.Create()
-	for _, file := range uploadToCreate.Files {
-		if file.Status == "" {
-			file.Status = common.FileMissing
-		}
+func createTestUpload(t *testing.T, ctx *context.Context, upload *common.Upload) {
+	upload.PrepareInsertForTests()
+	err := ctx.GetMetadataBackend().CreateUpload(upload)
+	require.NoError(t, err, "create upload error")
+	ctx.SetUpload(upload)
+	if len(upload.Files) == 1 {
+		ctx.SetFile(upload.Files[0])
 	}
-	metadataBackend := ctx.GetMetadataBackend()
-	_ = metadataBackend.CreateUpload(uploadToCreate)
 }
 
 func TestCreateUploadWithoutOptions(t *testing.T) {
@@ -50,7 +47,10 @@ func TestCreateUploadWithoutOptions(t *testing.T) {
 }
 
 func TestCreateUploadWithOptions(t *testing.T) {
-	ctx := newTestingContext(common.NewConfiguration())
+	config := common.NewConfiguration()
+	config.Authentication = true
+
+	ctx := newTestingContext(config)
 
 	uploadToCreate := &common.Upload{}
 	uploadToCreate.OneShot = true
@@ -65,8 +65,7 @@ func TestCreateUploadWithOptions(t *testing.T) {
 	fileToUpload := &common.File{}
 	fileToUpload.Name = "file"
 	fileToUpload.Reference = "0"
-	uploadToCreate.Files = make(map[string]*common.File)
-	uploadToCreate.Files[fileToUpload.Reference] = fileToUpload
+	uploadToCreate.Files = append(uploadToCreate.Files, fileToUpload)
 
 	reqBody, err := json.Marshal(uploadToCreate)
 	require.NoError(t, err, "unable to marshal request body")
@@ -98,9 +97,8 @@ func TestCreateUploadWithOptions(t *testing.T) {
 	require.Equal(t, "", upload.Password, "invalid upload password")
 	require.Equal(t, len(uploadToCreate.Files), len(upload.Files), "invalid upload password")
 
-	for id, file := range upload.Files {
+	for _, file := range upload.Files {
 		require.NotEqual(t, "", file.ID, "missing file id")
-		require.Equal(t, id, file.ID, "invalid file id")
 		require.Equal(t, fileToUpload.Name, file.Name, "invalid file name")
 		require.Equal(t, fileToUpload.Reference, file.Reference, "invalid file reference")
 		require.Equal(t, "missing", file.Status, "invalid file status")
@@ -112,7 +110,6 @@ func TestCreateWithForbiddenOptions(t *testing.T) {
 
 	uploadToCreate := &common.Upload{}
 	uploadToCreate.ID = "custom"
-	uploadToCreate.Creation = 12345
 	uploadToCreate.DownloadDomain = "hack.me"
 	uploadToCreate.UploadToken = "token"
 
@@ -135,7 +132,6 @@ func TestCreateWithForbiddenOptions(t *testing.T) {
 	require.NoError(t, err, "unable to unmarshal response body")
 
 	require.NotEqual(t, uploadToCreate.ID, upload.ID, "invalid upload id")
-	require.NotEqual(t, uploadToCreate.Creation, upload.Creation, "invalid upload creation date")
 	require.NotEqual(t, uploadToCreate.UploadToken, upload.UploadToken, "invalid upload token")
 	require.NotEqual(t, uploadToCreate.DownloadDomain, upload.DownloadDomain, "invalid download domain")
 	require.Equal(t, 0, len(upload.Files), "invalid upload files count")
@@ -155,7 +151,7 @@ func TestCreateWithoutAnonymousUpload(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	CreateUpload(ctx, rr, req)
 
-	context.TestBadRequest(t, rr, "anonymous uploads are disabled, please authenticate first")
+	context.TestBadRequest(t, rr, "anonymous uploads are disabled")
 }
 
 func TestCreateNotWhitelisted(t *testing.T) {
@@ -192,12 +188,11 @@ func TestCreateTooManyFiles(t *testing.T) {
 	ctx.GetConfig().MaxFilePerUpload = 2
 
 	uploadToCreate := &common.Upload{}
-	uploadToCreate.Files = make(map[string]*common.File)
 
 	for i := 0; i < 10; i++ {
 		fileToUpload := &common.File{}
 		fileToUpload.Reference = strconv.Itoa(i)
-		uploadToCreate.Files[fileToUpload.Reference] = fileToUpload
+		uploadToCreate.Files = append(uploadToCreate.Files, fileToUpload)
 	}
 
 	reqBody, err := json.Marshal(uploadToCreate)
@@ -250,7 +245,7 @@ func TestCreateOneShotWhenRemovableIsDisabled(t *testing.T) {
 
 func TestCreateStreamWhenStreamIsDisabled(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	ctx.GetConfig().StreamMode = false
+	ctx.GetConfig().Stream = false
 
 	uploadToCreate := &common.Upload{}
 	uploadToCreate.Stream = true
@@ -344,34 +339,17 @@ func TestCreateWithPasswordAndDefaultLogin(t *testing.T) {
 	require.NoError(t, err, "unable to unmarshal response body")
 }
 
-func TestCreateWithYubikeyWhenYubikeyIsNotEnabled(t *testing.T) {
-	ctx := newTestingContext(common.NewConfiguration())
-
-	uploadToCreate := &common.Upload{}
-	uploadToCreate.Yubikey = "yubikey"
-	reqBody, err := json.Marshal(uploadToCreate)
-	require.NoError(t, err, "unable to marshal request body")
-
-	req, err := http.NewRequest("POST", "/upload", bytes.NewBuffer(reqBody))
-	require.NoError(t, err, "unable to create new request")
-
-	rr := ctx.NewRecorder(req)
-	CreateUpload(ctx, rr, req)
-
-	context.TestBadRequest(t, rr, "yubikey are disabled on this server")
-}
-
 func TestCreateWithFilenameTooLong(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	uploadToCreate := common.NewUpload()
+	uploadToCreate := &common.Upload{}
 	file := common.NewFile()
 	name := make([]byte, 2000)
 	for i := range name {
 		name[i] = 'x'
 	}
 	file.Name = string(name)
-	uploadToCreate.Files[file.ID] = file
+	uploadToCreate.Files = append(uploadToCreate.Files, file)
 
 	reqBody, err := json.Marshal(uploadToCreate)
 	require.NoError(t, err, "unable to marshal request body")
@@ -382,25 +360,25 @@ func TestCreateWithFilenameTooLong(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	CreateUpload(ctx, rr, req)
 
-	context.TestBadRequest(t, rr, "at least one file name is too long, maximum length is 1024 characters")
+	context.TestBadRequest(t, rr, "is too long")
 }
 
-func TestCreateWithMetadataBackendError(t *testing.T) {
-	ctx := newTestingContext(common.NewConfiguration())
-	ctx.GetMetadataBackend().(*metadatadata_test.Backend).SetError(errors.New("metadata backend error"))
-
-	uploadToCreate := common.NewUpload()
-	file := common.NewFile()
-	file.Name = "name"
-	uploadToCreate.Files[file.ID] = file
-
-	reqBody, err := json.Marshal(uploadToCreate)
-	require.NoError(t, err, "unable to marshal request body")
-
-	req, err := http.NewRequest("POST", "/upload", bytes.NewBuffer(reqBody))
-	require.NoError(t, err, "unable to create new request")
-
-	rr := ctx.NewRecorder(req)
-	CreateUpload(ctx, rr, req)
-	context.TestInternalServerError(t, rr, "create upload error : metadata backend error")
-}
+//func TestCreateWithMetadataBackendError(t *testing.T) {
+//	ctx := newTestingContext(common.NewConfiguration())
+//	ctx.GetMetadataBackend().(*metadatadata_test.Backend).SetError(errors.New("metadata backend error"))
+//
+//	uploadToCreate := common.NewUpload()
+//	file := common.NewFile()
+//	file.Name = "name"
+//	uploadToCreate.Files[file.ID] = file
+//
+//	reqBody, err := json.Marshal(uploadToCreate)
+//	require.NoError(t, err, "unable to marshal request body")
+//
+//	req, err := http.NewRequest("POST", "/upload", bytes.NewBuffer(reqBody))
+//	require.NoError(t, err, "unable to create new request")
+//
+//	rr := ctx.NewRecorder(req)
+//	CreateUpload(ctx, rr, req)
+//	context.TestInternalServerError(t, rr, "create upload error : metadata backend error")
+//}

@@ -1,60 +1,119 @@
 package metadata
 
 import (
+	"fmt"
+	"os"
+
+	"github.com/jinzhu/gorm"
+	_ "github.com/jinzhu/gorm/dialects/mysql"
+	_ "github.com/jinzhu/gorm/dialects/postgres"
+	_ "github.com/jinzhu/gorm/dialects/sqlite"
+	"github.com/root-gg/logger"
 	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/plik/server/data"
+	"github.com/root-gg/utils"
+	"gopkg.in/gormigrate.v1"
 )
 
-// Backend interface describes methods that metadata backends
-// must implements to be compatible with plik.
-type Backend interface {
-	// Create upload metadata
-	// TODO : Return nil but no error if upload not found
-	CreateUpload(upload *common.Upload) (err error)
+// Config describes configuration for File Databackend
+type Config struct {
+	Driver           string
+	ConnectionString string
+	EraseFirst       bool
+}
 
-	// Get upload metadata
-	GetUpload(uploadID string) (upload *common.Upload, err error)
+// NewConfig instantiate a new default configuration
+// and override it with configuration passed as argument
+func NewConfig(params map[string]interface{}) (config *Config) {
+	config = new(Config)
+	config.Driver = "sqlite3"
+	config.ConnectionString = "plik.db"
+	utils.Assign(config, params)
+	return
+}
 
-	// Update upload metadata
-	//UpdateUpload(upload *common.Upload, tx common.UploadTx) (u *common.Upload, err error)
+// Backend object
+type Backend struct {
+	Config *Config
 
-	// Add or update file metadata
-	AddOrUpdateFile(upload *common.Upload, file *common.File, status string) (err error)
+	db *gorm.DB
 
-	// Remove upload metadata
-	RemoveUpload(upload *common.Upload) (err error)
+	dataBackend data.Backend
+	log         *logger.Logger
+}
 
-	// Create user metadata
-	CreateUser(user *common.User) (err error)
+// NewBackend instantiate a new File Data Backend
+// from configuration passed as argument
+func NewBackend(config *Config, dataBackend data.Backend, log *logger.Logger) (b *Backend, err error) {
+	b = new(Backend)
+	b.Config = config
+	b.dataBackend = dataBackend
+	b.log = log
 
-	// Get user metadata
-	// Return nil but no error if user not found
-	GetUser(userID string) (user *common.User, err error)
+	if config.Driver == "sqlite3" && config.EraseFirst {
+		_ = os.Remove(config.ConnectionString)
+	}
 
-	// Get user metadata from token
-	// Return nil but no error if user not found
-	GetUserFromToken(token string) (user *common.User, err error)
+	b.db, err = gorm.Open(b.Config.Driver, b.Config.ConnectionString)
+	if err != nil {
+		return nil, err
+	}
 
-	// Create user token
-	AddUserToken(user *common.User, token *common.Token) (err error)
+	if config.Driver == "sqlite3" {
+		err = b.db.Exec("PRAGMA journal_mode=WAL;").Error
+		if err != nil {
+			_ = b.db.Close()
+			return nil, err
+		}
 
-	// Remove user token
-	RemoveUserToken(user *common.User, token *common.Token) (err error)
+		err = b.db.Exec("PRAGMA foreign_keys = ON").Error
+		if err != nil {
+			_ = b.db.Close()
+			return nil, err
+		}
+	}
 
-	// Remove user metadata
-	RemoveUser(user *common.User) (err error)
+	err = b.initializeDB()
+	if err != nil {
+		return nil, err
+	}
 
-	// Get all upload for a given user
-	GetUserUploads(user *common.User, token *common.Token) (ids []string, err error)
+	return b, err
+}
 
-	// Get statistics for a given user
-	GetUserStatistics(user *common.User, token *common.Token) (stats *common.UserStats, err error)
+func (b *Backend) initializeDB() (err error){
+	m := gormigrate.New(b.db, gormigrate.DefaultOptions, []*gormigrate.Migration{
+		// you migrations here
+	})
 
-	// Get all users
-	GetUsers() (ids []string, err error)
+	m.InitSchema(func(tx *gorm.DB) error {
+		err := tx.AutoMigrate(
+			&common.Upload{},
+			&common.File{},
+		).Error
+		if err != nil {
+			return err
+		}
 
-	// Get server statistics
-	GetServerStatistics() (stats *common.ServerStats, err error)
+		if b.Config.Driver == "mysql" {
+			err := tx.Model(&common.File{}).AddForeignKey("upload_id", "uploads(id)", "RESTRICT", "RESTRICT").Error
+			if err != nil {
+				return err
+			}
+		}
 
-	// Return uploads that needs to be removed from the server
-	GetUploadsToRemove() (ids []string, err error)
+		// all other foreign keys...
+		return nil
+
+	})
+
+	if err = m.Migrate(); err != nil {
+		return fmt.Errorf("could not migrate: %v", err)
+	}
+
+	return nil
+}
+
+func (b *Backend) Shutdown() (err error) {
+	return b.db.Close()
 }

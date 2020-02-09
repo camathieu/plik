@@ -80,46 +80,48 @@ func GetArchive(ctx *context.Context, resp http.ResponseWriter, req *http.Reques
 	// GET  Request => Print file content
 	if req.Method == "GET" {
 		// Get files to archive
-		var files []*common.File
 
-		for _, f := range upload.Files {
+		var files []*common.File
+		f := func(file *common.File) error {
 			// Ignore uploading, missing, removed, one shot already downloaded,...
-			if f.Status != common.FileUploaded {
-				continue
+			if file.Status != common.FileUploaded {
+				return nil
 			}
 
-			files = append(files, f)
+			if upload.OneShot {
+				// Update file status
+				err := ctx.GetMetadataBackend().UpdateFileStatus(file, file.Status, common.FileRemoved)
+				if err != nil {
+					return fmt.Errorf("unable to update file status : %s", err)
+				}
+			}
+
+			files = append(files, file)
+
+			return nil
 		}
 
-		if upload.OneShot {
-			// If this is a one shot upload we have to ensure it's downloaded only once now
-			for _, file := range files {
-
-				// Update file status
-				file.Status = common.FileRemoved
-
-				err := ctx.GetMetadataBackend().AddOrUpdateFile(upload, file, common.FileUploaded)
-				if err != nil {
-					ctx.InternalServerError("unable to update upload metadata", err)
-					return
-				}
-			}
-
-			// From now on we'll try to delete the files from the data backend whatever happens
-			// TODO maybe recover if download was not successful ?
-			defer func() {
-				for _, file := range files {
-					err := DeleteRemovedFile(ctx, upload, file)
-					if err != nil {
-						log.Warningf("Unable to delete file %s (%s) : %s", file.Name, file.ID, err)
-					}
-				}
-			}()
+		err := ctx.GetMetadataBackend().ForEachUploadFiles(upload, f)
+		if err != nil {
+			ctx.InternalServerError("unable to update file status", err)
 		}
 
 		if len(files) == 0 {
 			ctx.BadRequest("nothing to archive")
 			return
+		}
+
+		if upload.OneShot {
+			// From now on we'll try to delete the files from the data backend whatever happens
+			// TODO maybe recover if download was not successful ?
+			defer func() {
+				for _, file := range files {
+					err := ctx.GetMetadataBackend().DeleteFile(upload, file)
+					if err != nil {
+						log.Warningf("Unable to delete file %s (%s) : %s", file.Name, file.ID, err)
+					}
+				}
+			}()
 		}
 
 		backend := ctx.GetDataBackend()
@@ -128,7 +130,7 @@ func GetArchive(ctx *context.Context, resp http.ResponseWriter, req *http.Reques
 		archive := zip.NewWriter(resp)
 
 		for _, file := range files {
-			fileReader, err := backend.GetFile(upload, file.ID)
+			fileReader, err := backend.GetFile(upload, file)
 			if err != nil {
 				ctx.InternalServerError("unable to get file from data backend", err)
 				return
@@ -152,7 +154,7 @@ func GetArchive(ctx *context.Context, resp http.ResponseWriter, req *http.Reques
 			}
 		}
 
-		err := archive.Close()
+		err = archive.Close()
 		if err != nil {
 			log.Warningf("error while closing zip archive : %s", err)
 			return

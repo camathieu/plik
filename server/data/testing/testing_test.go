@@ -25,7 +25,7 @@ func TestAddFileError(t *testing.T) {
 	backend := NewBackend()
 	backend.SetError(errors.New("error"))
 
-	upload := common.NewUpload()
+	upload := &common.Upload{}
 	file := upload.NewFile()
 
 	_, err := backend.AddFile(upload, file, &bytes.Buffer{})
@@ -36,7 +36,7 @@ func TestAddFileError(t *testing.T) {
 func TestAddFileReaderError(t *testing.T) {
 	backend := NewBackend()
 
-	upload := common.NewUpload()
+	upload := &common.Upload{}
 	file := upload.NewFile()
 	reader := common.NewErrorReader(errors.New("io error"))
 
@@ -47,7 +47,7 @@ func TestAddFileReaderError(t *testing.T) {
 
 func TestAddFile(t *testing.T) {
 	backend := NewBackend()
-	upload := common.NewUpload()
+	upload := &common.Upload{}
 	file := upload.NewFile()
 
 	_, err := backend.AddFile(upload, file, &bytes.Buffer{})
@@ -58,7 +58,7 @@ func TestGetFileError(t *testing.T) {
 	backend := NewBackend()
 	backend.SetError(errors.New("error"))
 
-	upload := common.NewUpload()
+	upload := &common.Upload{}
 	file := upload.NewFile()
 
 	_, err := backend.GetFile(upload, file.ID)
@@ -68,7 +68,7 @@ func TestGetFileError(t *testing.T) {
 
 func TestGetFile(t *testing.T) {
 	backend := NewBackend()
-	upload := common.NewUpload()
+	upload := &common.Upload{}
 	file := upload.NewFile()
 
 	_, err := backend.AddFile(upload, file, &bytes.Buffer{})
@@ -82,7 +82,7 @@ func TestRemoveFileError(t *testing.T) {
 	backend := NewBackend()
 	backend.SetError(errors.New("error"))
 
-	upload := common.NewUpload()
+	upload := &common.Upload{}
 	file := upload.NewFile()
 
 	err := backend.RemoveFile(upload, file.ID)
@@ -93,7 +93,7 @@ func TestRemoveFileError(t *testing.T) {
 func TestRemoveFile(t *testing.T) {
 	backend := NewBackend()
 
-	upload := common.NewUpload()
+	upload := &common.Upload{}
 	file := upload.NewFile()
 
 	_, err := backend.AddFile(upload, file, &bytes.Buffer{})
@@ -114,7 +114,7 @@ func TestRemoveUploadError(t *testing.T) {
 	backend := NewBackend()
 	backend.SetError(errors.New("error"))
 
-	upload := common.NewUpload()
+	upload := &common.Upload{}
 
 	err := backend.RemoveUpload(upload)
 	require.Error(t, err, "missing error")
@@ -124,7 +124,7 @@ func TestRemoveUploadError(t *testing.T) {
 func TestRemoveUpload(t *testing.T) {
 	backend := NewBackend()
 
-	upload := common.NewUpload()
+	upload := &common.Upload{}
 	file := upload.NewFile()
 
 	upload2 := common.NewUpload()

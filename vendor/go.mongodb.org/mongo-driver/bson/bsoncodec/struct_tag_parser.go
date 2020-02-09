@@ -69,7 +69,7 @@ type StructTags struct {
 //
 //     "[<key>][,<flag1>[,<flag2>]]"
 //
-//     `(...) bson:"[<key>][,<flag1>[,<flag2>]]" (...)`
+//     `(...) (...)`
 //
 // An example:
 //

@@ -10,24 +10,19 @@ import (
 	uuid "github.com/nu7hatch/gouuid"
 )
 
-// UserTx is used to mutate user metadata
-type UserTx func(*User) error
-
 // User is a plik user
 type User struct {
-	ID      string   `json:"id,omitempty" bson:"id"`
-	Login   string   `json:"login,omitempty" bson:"login"`
-	Name    string   `json:"name,omitempty" bson:"name"`
-	Email   string   `json:"email,omitempty" bson:"email"`
-	Tokens  []*Token `json:"tokens,omitempty" bson:"tokens"`
-	IsAdmin bool     `json:"admin" bson:"-"`
-}
+	ID      string `json:"id,omitempty"`
+	Login   string `json:"login,omitempty"`
+	Name    string `json:"name,omitempty"`
+	Email   string `json:"email,omitempty"`
+	IsAdmin bool   `json:"admin"`
 
-// UserStats represents the user statistics
-type UserStats struct {
-	Uploads   int   `json:"uploads"`
-	Files     int   `json:"files"`
-	TotalSize int64 `json:"totalSize"`
+	Tokens []*Token `json:"tokens,omitempty"`
+
+	CreatedAt time.Time  `json:"createdAt"`
+	UpdatedAt time.Time  `json:"updatedAt"`
+	DeletedAt *time.Time `json:"deletedAt, omitempty"`
 }
 
 // NewUser create a new user object

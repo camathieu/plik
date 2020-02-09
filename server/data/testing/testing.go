@@ -8,7 +8,11 @@ import (
 	"sync"
 
 	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/plik/server/data"
 )
+
+// Ensure Testing Data Backend implements data.Backend interface
+var _ data.Backend = (*Backend)(nil)
 
 // Backend object
 type Backend struct {
@@ -27,7 +31,7 @@ func NewBackend() (b *Backend) {
 
 // GetFile implementation for testing data backend will search
 // on filesystem the asked file and return its reading filehandle
-func (b *Backend) GetFile(upload *common.Upload, id string) (file io.ReadCloser, err error) {
+func (b *Backend) GetFile(upload *common.Upload, file *common.File) (reader io.ReadCloser, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -35,8 +39,8 @@ func (b *Backend) GetFile(upload *common.Upload, id string) (file io.ReadCloser,
 		return nil, b.err
 	}
 
-	if data, ok := b.files[id]; ok {
-		return ioutil.NopCloser(bytes.NewBuffer(data)), nil
+	if content, ok := b.files[file.ID]; ok {
+		return ioutil.NopCloser(bytes.NewBuffer(content)), nil
 	}
 
 	return nil, errors.New("file not found")
@@ -44,31 +48,31 @@ func (b *Backend) GetFile(upload *common.Upload, id string) (file io.ReadCloser,
 
 // AddFile implementation for testing data backend will creates a new file for the given upload
 // and save it on filesystem with the given file reader
-func (b *Backend) AddFile(upload *common.Upload, file *common.File, fileReader io.Reader) (backendDetails map[string]interface{}, err error) {
+func (b *Backend) AddFile(upload *common.Upload, file *common.File, fileReader io.Reader) (backendDetails string, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
 	if b.err != nil {
-		return nil, b.err
+		return "", b.err
 	}
 
 	if _, ok := b.files[file.ID]; ok {
-		return nil, errors.New("file exists")
+		return "", errors.New("file exists")
 	}
 
-	data, err := ioutil.ReadAll(fileReader)
+	content, err := ioutil.ReadAll(fileReader)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
-	b.files[file.ID] = data
+	b.files[file.ID] = content
 
-	return nil, nil
+	return "", nil
 }
 
 // RemoveFile implementation for testing data backend will delete the given
 // file from filesystem
-func (b *Backend) RemoveFile(upload *common.Upload, id string) (err error) {
+func (b *Backend) RemoveFile(upload *common.Upload, file *common.File) (err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -76,25 +80,7 @@ func (b *Backend) RemoveFile(upload *common.Upload, id string) (err error) {
 		return b.err
 	}
 
-	delete(b.files, id)
-
-	return nil
-}
-
-// RemoveUpload implementation for testing data backend will
-// delete the whole upload. Given that an upload is a directory,
-// we remove the whole directory at once.
-func (b *Backend) RemoveUpload(upload *common.Upload) (err error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	if b.err != nil {
-		return b.err
-	}
-
-	for id := range upload.Files {
-		delete(b.files, id)
-	}
+	delete(b.files, file.ID)
 
 	return nil
 }

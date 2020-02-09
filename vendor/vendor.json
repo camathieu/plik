@@ -70,6 +70,30 @@
 			"revisionTime": "2019-03-04T09:57:49Z"
 		},
 		{
+			"checksumSHA1": "RY1OtIlGh0IUuTXNYwIoRlMUHw8=",
+			"path": "github.com/denisenkom/go-mssqldb",
+			"revision": "bbfc9a55622eeb8e47808e0f7270efcf5ae3dce2",
+			"revisionTime": "2020-02-06T14:57:37Z"
+		},
+		{
+			"checksumSHA1": "wu8t19t2rmyrrfDfdu9v7f/+iag=",
+			"path": "github.com/denisenkom/go-mssqldb/internal/cp",
+			"revision": "bbfc9a55622eeb8e47808e0f7270efcf5ae3dce2",
+			"revisionTime": "2020-02-06T14:57:37Z"
+		},
+		{
+			"checksumSHA1": "Kvwtq+/9H6FYcVoYisDdj+XrHao=",
+			"path": "github.com/denisenkom/go-mssqldb/internal/decimal",
+			"revision": "bbfc9a55622eeb8e47808e0f7270efcf5ae3dce2",
+			"revisionTime": "2020-02-06T14:57:37Z"
+		},
+		{
+			"checksumSHA1": "zKX5r8sv52kDL+qQ/qb5OobqCSo=",
+			"path": "github.com/denisenkom/go-mssqldb/internal/querytext",
+			"revision": "bbfc9a55622eeb8e47808e0f7270efcf5ae3dce2",
+			"revisionTime": "2020-02-06T14:57:37Z"
+		},
+		{
 			"checksumSHA1": "blOHP3HPYU+IeV6yWCalQuuM+zE=",
 			"path": "github.com/dgrijalva/jwt-go",
 			"revision": "3af4c746e1c248ee8491a3e0c6f7a9cd831e95f8",
@@ -82,11 +106,23 @@
 			"revisionTime": "2018-01-11T23:17:33Z"
 		},
 		{
+			"checksumSHA1": "wz4Kx/zldlOzE68Bn8zQCiddS2Y=",
+			"path": "github.com/go-sql-driver/mysql",
+			"revision": "17ef3dd9d98b69acec3e85878995ada9533a9370",
+			"revisionTime": "2020-01-07T16:33:55Z"
+		},
+		{
 			"checksumSHA1": "H8wo+NR5z+VRl0wqPYpVQfC06ks=",
 			"origin": "go.mongodb.org/mongo-driver/vendor/github.com/go-stack/stack",
 			"path": "github.com/go-stack/stack",
 			"revision": "a517f8e2ad40695fca16c3e2069b091352ba7aa9",
 			"revisionTime": "2020-01-23T20:05:54Z"
+		},
+		{
+			"checksumSHA1": "ikmefTNVlcOywmKiyDHTXmr6LL4=",
+			"path": "github.com/golang-sql/civil",
+			"revision": "cb61b32ac6fe84d34b81730175f91965e43d0f90",
+			"revisionTime": "2019-07-19T16:38:53Z"
 		},
 		{
 			"checksumSHA1": "Y2MOwzNZfl4NRNDbLCZa6sgx7O0=",
@@ -138,6 +174,42 @@
 			"revisionTime": "2019-02-27T22:24:58Z"
 		},
 		{
+			"checksumSHA1": "127FjqB8R9+ewoYNxa6svdJgdRU=",
+			"path": "github.com/jinzhu/gorm",
+			"revision": "7180bd0f27d167f18c253c32d548c7de3adc6b0d",
+			"revisionTime": "2020-01-26T15:28:32Z"
+		},
+		{
+			"checksumSHA1": "P5riRpej0L/ClqVeOh6xydQ8VUc=",
+			"path": "github.com/jinzhu/gorm/dialects/mssql",
+			"revision": "7180bd0f27d167f18c253c32d548c7de3adc6b0d",
+			"revisionTime": "2020-01-26T15:28:32Z"
+		},
+		{
+			"checksumSHA1": "eECxSkwh0WmhLwaxHfkvcLOWS08=",
+			"path": "github.com/jinzhu/gorm/dialects/mysql",
+			"revision": "7180bd0f27d167f18c253c32d548c7de3adc6b0d",
+			"revisionTime": "2020-01-26T15:28:32Z"
+		},
+		{
+			"checksumSHA1": "uuiW4hoYTOqWettGpKw4fGfGMFQ=",
+			"path": "github.com/jinzhu/gorm/dialects/postgres",
+			"revision": "7180bd0f27d167f18c253c32d548c7de3adc6b0d",
+			"revisionTime": "2020-01-26T15:28:32Z"
+		},
+		{
+			"checksumSHA1": "4VZ1gLZHMumRjV3fclS1aX8S1aQ=",
+			"path": "github.com/jinzhu/gorm/dialects/sqlite",
+			"revision": "7180bd0f27d167f18c253c32d548c7de3adc6b0d",
+			"revisionTime": "2020-01-26T15:28:32Z"
+		},
+		{
+			"checksumSHA1": "iqeSAF7imnVsW+iqLqf6kkYn1VU=",
+			"path": "github.com/jinzhu/inflection",
+			"revision": "f5c5f50e6090ae76a29240b61ae2a90dd810112e",
+			"revisionTime": "2019-06-03T04:28:36Z"
+		},
+		{
 			"checksumSHA1": "1dbdS+ADojoCJS8oY8pVJs3say0=",
 			"path": "github.com/kardianos/osext",
 			"revision": "2bc1f35cddc0cc527b4bc3dce8578fc2a6c11384",
@@ -179,10 +251,40 @@
 			"revisionTime": "2020-01-23T20:05:54Z"
 		},
 		{
+			"checksumSHA1": "iSGHMfkwqVO2WV9lcUhiZ5lXFKA=",
+			"path": "github.com/lib/pq",
+			"revision": "9eb3fc897d6fd97dd4aad3d0404b54e2f7cc56be",
+			"revisionTime": "2020-01-16T17:15:13Z"
+		},
+		{
+			"checksumSHA1": "EnMmNGgpDa5sNw0Zs5RhvNDcP2g=",
+			"path": "github.com/lib/pq/hstore",
+			"revision": "9eb3fc897d6fd97dd4aad3d0404b54e2f7cc56be",
+			"revisionTime": "2020-01-16T17:15:13Z"
+		},
+		{
+			"checksumSHA1": "AU3fA8Sm33Vj9PBoRPSeYfxLRuE=",
+			"path": "github.com/lib/pq/oid",
+			"revision": "9eb3fc897d6fd97dd4aad3d0404b54e2f7cc56be",
+			"revisionTime": "2020-01-16T17:15:13Z"
+		},
+		{
+			"checksumSHA1": "n0MMCrKKsQuuhv7vLsrtRUGJVA8=",
+			"path": "github.com/lib/pq/scram",
+			"revision": "9eb3fc897d6fd97dd4aad3d0404b54e2f7cc56be",
+			"revisionTime": "2020-01-16T17:15:13Z"
+		},
+		{
 			"checksumSHA1": "qR7D38Zmn9TPUvGn64k+r0+Kq1c=",
 			"path": "github.com/mattn/go-runewidth",
 			"revision": "703b5e6b11ae25aeb2af9ebb5d5fdf8fa2575211",
 			"revisionTime": "2018-12-18T00:06:49Z"
+		},
+		{
+			"checksumSHA1": "XnK7HTKeWPt0RpVHsk3t+4yyjGQ=",
+			"path": "github.com/mattn/go-sqlite3",
+			"revision": "9bdaffc12bf8be15afceb51bb60851edd4afdff5",
+			"revisionTime": "2020-01-28T10:25:19Z"
 		},
 		{
 			"checksumSHA1": "7zLQC+jG19ndjH24FVh/+ZliHac=",
@@ -553,6 +655,12 @@
 			"path": "golang.org/x/crypto/cast5",
 			"revision": "f416ebab96af27ca70b6e5c23d6a0747530da626",
 			"revisionTime": "2018-05-02T16:52:23Z"
+		},
+		{
+			"checksumSHA1": "UDvj5huw3BaGehfVRCB1UGQAtP4=",
+			"path": "golang.org/x/crypto/md4",
+			"revision": "a0c6ece9d31a0ebfbd3ddf2d290cfb1265ba47c7",
+			"revisionTime": "2020-01-13T22:19:10Z"
 		},
 		{
 			"checksumSHA1": "M7MQqB1xKzwQh5aEjckVsVCxpoY=",
@@ -1023,6 +1131,12 @@
 			"path": "google.golang.org/grpc/tap",
 			"revision": "d7af56a5e494ceb44a0749ca576c83cfd3a42bd2",
 			"revisionTime": "2019-04-16T22:54:26Z"
+		},
+		{
+			"checksumSHA1": "PRHJnKr3ImCqJkfpj/AJP7fBmqU=",
+			"path": "gopkg.in/gormigrate.v1",
+			"revision": "ff46dd7d2c0b00a58540e19ca3d3f5e370fa3607",
+			"revisionTime": "2019-07-07T16:31:37Z"
 		},
 		{
 			"checksumSHA1": "/xRHTpN8WOK4nmZjJ1f96ER1b/o=",

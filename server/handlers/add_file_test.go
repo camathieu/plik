@@ -3,7 +3,6 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -14,8 +13,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
-	data_test "github.com/root-gg/plik/server/data/testing"
-	metadata_test "github.com/root-gg/plik/server/metadata/testing"
 	"github.com/stretchr/testify/require"
 )
 
@@ -67,12 +64,10 @@ func TestAddFileWithID(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 	ctx.SetUploadAdmin(true)
 
-	upload := common.NewUpload()
+	upload := &common.Upload{}
 	file := upload.NewFile()
 	file.Name = "file"
-
-	createTestUpload(ctx, upload)
-	ctx.SetUpload(upload)
+	createTestUpload(t, ctx, upload)
 
 	reader, contentType, err := getMultipartFormData(file.Name, bytes.NewBuffer([]byte(content)))
 	require.NoError(t, err, "unable get multipart form data")
@@ -97,20 +92,18 @@ func TestAddFileWithID(t *testing.T) {
 	require.Equal(t, common.FileUploaded, fileResult.Status, "invalid file status")
 	require.Equal(t, contentMD5, fileResult.Md5, "invalid file md5")
 	require.Equal(t, "application/octet-stream", fileResult.Type, "invalid file type")
-	require.Equal(t, int64(len(content)), fileResult.CurrentSize, "invalid file size")
+	require.Equal(t, int64(len(content)), fileResult.Size, "invalid file size")
 }
 
 func TestAddStreamFileWithID(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 	ctx.SetUploadAdmin(true)
 
-	upload := common.NewUpload()
+	upload := &common.Upload{}
 	upload.Stream = true
 	file := upload.NewFile()
 	file.Name = "file"
-
-	createTestUpload(ctx, upload)
-	ctx.SetUpload(upload)
+	createTestUpload(t, ctx, upload)
 
 	reader, contentType, err := getMultipartFormData(file.Name, bytes.NewBuffer([]byte(content)))
 	require.NoError(t, err, "unable get multipart form data")
@@ -135,38 +128,15 @@ func TestAddStreamFileWithID(t *testing.T) {
 	require.Equal(t, common.FileDeleted, fileResult.Status, "invalid file status")
 	require.Equal(t, contentMD5, fileResult.Md5, "invalid file md5")
 	require.Equal(t, "application/octet-stream", fileResult.Type, "invalid file type")
-	require.Equal(t, int64(len(content)), fileResult.CurrentSize, "invalid file size")
-}
-
-func TestAddFileWithInvalidID(t *testing.T) {
-	ctx := newTestingContext(common.NewConfiguration())
-	ctx.SetUploadAdmin(true)
-
-	upload := common.NewUpload()
-
-	file := common.NewFile()
-	file.Name = "file"
-
-	createTestUpload(ctx, upload)
-	ctx.SetUpload(upload)
-
-	reader, contentType, err := getMultipartFormData(file.Name, bytes.NewBuffer([]byte(content)))
-	require.NoError(t, err, "unable get multipart form data")
-
-	req := getUploadRequest(t, upload, file, reader, contentType)
-
-	rr := ctx.NewRecorder(req)
-	AddFile(ctx, rr, req)
-
-	context.TestNotFound(t, rr, fmt.Sprintf("file %s not found", file.ID))
+	require.Equal(t, int64(len(content)), fileResult.Size, "invalid file size")
 }
 
 func TestAddFileWithoutID(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 	ctx.SetUploadAdmin(true)
 
-	upload := common.NewUpload()
-	createTestUpload(ctx, upload)
+	upload := &common.Upload{}
+	createTestUpload(t, ctx, upload)
 	ctx.SetUpload(upload)
 
 	name := "file"
@@ -195,7 +165,7 @@ func TestAddFileWithoutID(t *testing.T) {
 	require.Equal(t, name, fileResult.Name, "invalid file name")
 	require.Equal(t, common.FileUploaded, fileResult.Status, "invalid file status")
 	require.Equal(t, "application/octet-stream", fileResult.Type, "invalid file type")
-	require.Equal(t, int64(len(content)), fileResult.CurrentSize, "invalid file size")
+	require.Equal(t, int64(len(content)), fileResult.Size, "invalid file size")
 }
 
 func TestAddFileWithoutUploadInContext(t *testing.T) {
@@ -214,9 +184,8 @@ func TestAddFileNoUpload(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 	ctx.SetUploadAdmin(true)
 
-	upload := common.NewUpload()
-	upload.Create()
-	ctx.SetUpload(upload)
+	upload := &common.Upload{}
+	upload.PrepareInsertForTests()
 
 	name := "file"
 	reader, contentType, err := getMultipartFormData(name, bytes.NewBuffer([]byte(content)))
@@ -228,21 +197,20 @@ func TestAddFileNoUpload(t *testing.T) {
 	req.Header.Set("Content-Type", contentType)
 
 	rr := ctx.NewRecorder(req)
-	AddFile(ctx, rr, req)
-
-	context.TestInternalServerError(t, rr, "unable to update file metadata")
+	context.TestPanic(t, rr, "missing upload form context", func() {
+		AddFile(ctx, rr, req)
+	})
 }
 
 func TestAddFileStatusUploading(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 	ctx.SetUploadAdmin(true)
 
-	upload := common.NewUpload()
+	upload := &common.Upload{}
 	file := upload.NewFile()
 	file.Name = "file name"
 	file.Status = common.FileUploading
-	createTestUpload(ctx, upload)
-	ctx.SetUpload(upload)
+	createTestUpload(t, ctx, upload)
 
 	reader, contentType, err := getMultipartFormData(file.Name, bytes.NewBuffer([]byte(content)))
 	require.NoError(t, err, "unable get multipart form data")
@@ -259,12 +227,11 @@ func TestAddFileStatusUploaded(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 	ctx.SetUploadAdmin(true)
 
-	upload := common.NewUpload()
+	upload := &common.Upload{}
 	file := upload.NewFile()
 	file.Name = "file name"
 	file.Status = common.FileUploaded
-	createTestUpload(ctx, upload)
-	ctx.SetUpload(upload)
+	createTestUpload(t, ctx, upload)
 
 	reader, contentType, err := getMultipartFormData(file.Name, bytes.NewBuffer([]byte(content)))
 	require.NoError(t, err, "unable get multipart form data")
@@ -281,12 +248,11 @@ func TestAddFileStatusRemoved(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 	ctx.SetUploadAdmin(true)
 
-	upload := common.NewUpload()
+	upload := &common.Upload{}
 	file := upload.NewFile()
 	file.Name = "file name"
 	file.Status = common.FileRemoved
-	createTestUpload(ctx, upload)
-	ctx.SetUpload(upload)
+	createTestUpload(t, ctx, upload)
 
 	reader, contentType, err := getMultipartFormData(file.Name, bytes.NewBuffer([]byte(content)))
 	require.NoError(t, err, "unable get multipart form data")
@@ -303,12 +269,11 @@ func TestAddFileStatusDeleted(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 	ctx.SetUploadAdmin(true)
 
-	upload := common.NewUpload()
+	upload := &common.Upload{}
 	file := upload.NewFile()
 	file.Name = "file name"
 	file.Status = common.FileDeleted
-	createTestUpload(ctx, upload)
-	ctx.SetUpload(upload)
+	createTestUpload(t, ctx, upload)
 
 	reader, contentType, err := getMultipartFormData(file.Name, bytes.NewBuffer([]byte(content)))
 	require.NoError(t, err, "unable get multipart form data")
@@ -324,9 +289,8 @@ func TestAddFileStatusDeleted(t *testing.T) {
 func TestAddFileNotAdmin(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	upload := common.NewUpload()
-	createTestUpload(ctx, upload)
-	ctx.SetUpload(upload)
+	upload := &common.Upload{}
+	createTestUpload(t, ctx, upload)
 
 	req, err := http.NewRequest("POST", "/file/uploadID", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -341,10 +305,8 @@ func TestAddFileNoMultipartForm(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 	ctx.SetUploadAdmin(true)
 
-	upload := common.NewUpload()
-
-	createTestUpload(ctx, upload)
-	ctx.SetUpload(upload)
+	upload := &common.Upload{}
+	createTestUpload(t, ctx, upload)
 
 	req, err := http.NewRequest("POST", "/file/"+upload.ID, bytes.NewBuffer([]byte(content)))
 	require.NoError(t, err, "unable to create new request")
@@ -360,14 +322,12 @@ func TestAddFileTooManyFiles(t *testing.T) {
 	ctx.GetConfig().MaxFilePerUpload = 2
 	ctx.SetUploadAdmin(true)
 
-	upload := common.NewUpload()
+	upload := &common.Upload{}
 
 	for i := 0; i < 5; i++ {
 		upload.NewFile()
 	}
-
-	createTestUpload(ctx, upload)
-	ctx.SetUpload(upload)
+	createTestUpload(t, ctx, upload)
 
 	name := "file"
 	reader, contentType, err := getMultipartFormData(name, bytes.NewBuffer([]byte(content)))
@@ -388,12 +348,10 @@ func TestAddFileWithFilenameTooLong(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 	ctx.SetUploadAdmin(true)
 
-	upload := common.NewUpload()
-
+	upload := &common.Upload{}
 	file := upload.NewFile()
-
-	createTestUpload(ctx, upload)
-	ctx.SetUpload(upload)
+	createTestUpload(t, ctx, upload)
+	ctx.SetFile(nil)
 
 	name := make([]byte, 2000)
 	for i := range name {
@@ -408,19 +366,17 @@ func TestAddFileWithFilenameTooLong(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	AddFile(ctx, rr, req)
 
-	context.TestBadRequest(t, rr, "file name is too long")
+	context.TestBadRequest(t, rr, "is too long")
 }
 
 func TestAddFileWithInvalidFileName(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 	ctx.SetUploadAdmin(true)
 
-	upload := common.NewUpload()
+	upload := &common.Upload{}
 	file := upload.NewFile()
 	file.Name = "file name"
-
-	createTestUpload(ctx, upload)
-	ctx.SetUpload(upload)
+	createTestUpload(t, ctx, upload)
 
 	reader, contentType, err := getMultipartFormData("blah", bytes.NewBuffer([]byte(content)))
 	require.NoError(t, err, "unable get multipart form data")
@@ -430,18 +386,16 @@ func TestAddFileWithInvalidFileName(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	AddFile(ctx, rr, req)
 
-	context.TestBadRequest(t, rr, "invalid file name blah, expected file name")
+	context.TestBadRequest(t, rr, "invalid file name")
 }
 
 func TestAddFileWithEmptyName(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 	ctx.SetUploadAdmin(true)
 
-	upload := common.NewUpload()
+	upload := &common.Upload{}
 	file := upload.NewFile()
-
-	createTestUpload(ctx, upload)
-	ctx.SetUpload(upload)
+	createTestUpload(t, ctx, upload)
 
 	reader, contentType, err := getMultipartFormData(file.Name, bytes.NewBuffer([]byte(content)))
 	require.NoError(t, err, "unable get multipart form data")
@@ -458,11 +412,9 @@ func TestAddFileWithInvalidFieldName(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 	ctx.SetUploadAdmin(true)
 
-	upload := common.NewUpload()
+	upload := &common.Upload{}
 	file := upload.NewFile()
-
-	createTestUpload(ctx, upload)
-	ctx.SetUpload(upload)
+	createTestUpload(t, ctx, upload)
 
 	reader, contentType, err := getMultipartFormDataWithField("blah", file.Name, bytes.NewBuffer([]byte(content)))
 	require.NoError(t, err, "unable get multipart form data")
@@ -479,9 +431,8 @@ func TestAddFileWithNoFile(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 	ctx.SetUploadAdmin(true)
 
-	upload := common.NewUpload()
-	createTestUpload(ctx, upload)
-	ctx.SetUpload(upload)
+	upload := &common.Upload{}
+	createTestUpload(t, ctx, upload)
 
 	buffer := new(bytes.Buffer)
 	multipartWriter := multipart.NewWriter(buffer)
@@ -504,9 +455,8 @@ func TestAddFileInvalidMultipartData(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 	ctx.SetUploadAdmin(true)
 
-	upload := common.NewUpload()
-	createTestUpload(ctx, upload)
-	ctx.SetUpload(upload)
+	upload := &common.Upload{}
+	createTestUpload(t, ctx, upload)
 
 	req, err := http.NewRequest("POST", "/file/"+upload.ID, bytes.NewBuffer([]byte("invalid multipart data")))
 	require.NoError(t, err, "unable to create new request")
@@ -517,58 +467,57 @@ func TestAddFileInvalidMultipartData(t *testing.T) {
 	context.TestBadRequest(t, rr, "invalid multipart form")
 }
 
-func TestAddFileWithDataBackendError(t *testing.T) {
-	ctx := newTestingContext(common.NewConfiguration())
-	ctx.GetDataBackend().(*data_test.Backend).SetError(errors.New("data backend error"))
-	ctx.SetUploadAdmin(true)
-
-	upload := common.NewUpload()
-	file := upload.NewFile()
-	file.Name = "name"
-
-	createTestUpload(ctx, upload)
-	ctx.SetUpload(upload)
-
-	reader, contentType, err := getMultipartFormData(file.Name, bytes.NewBuffer([]byte(content)))
-	require.NoError(t, err, "unable get multipart form data")
-
-	req := getUploadRequest(t, upload, file, reader, contentType)
-
-	rr := ctx.NewRecorder(req)
-	AddFile(ctx, rr, req)
-	context.TestInternalServerError(t, rr, "unable to save file : data backend error")
-}
-
-func TestAddFileWithMetadataBackendError(t *testing.T) {
-	ctx := newTestingContext(common.NewConfiguration())
-	ctx.GetMetadataBackend().(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
-	ctx.SetUploadAdmin(true)
-
-	upload := common.NewUpload()
-	file := upload.NewFile()
-	file.Name = "name"
-
-	createTestUpload(ctx, upload)
-	ctx.SetUpload(upload)
-
-	reader, contentType, err := getMultipartFormData(file.Name, bytes.NewBuffer([]byte(content)))
-	require.NoError(t, err, "unable get multipart form data")
-
-	req := getUploadRequest(t, upload, file, reader, contentType)
-
-	rr := ctx.NewRecorder(req)
-	AddFile(ctx, rr, req)
-	context.TestInternalServerError(t, rr, "metadata backend error")
-}
+//func TestAddFileWithDataBackendError(t *testing.T) {
+//	ctx := newTestingContext(common.NewConfiguration())
+//	ctx.GetDataBackend().(*data_test.Backend).SetError(errors.New("data backend error"))
+//	ctx.SetUploadAdmin(true)
+//
+//	upload := &common.Upload{}
+//	file := upload.NewFile()
+//	file.Name = "name"
+//
+//	createTestUpload(t, ctx, upload)
+//	ctx.SetUpload(upload)
+//
+//	reader, contentType, err := getMultipartFormData(file.Name, bytes.NewBuffer([]byte(content)))
+//	require.NoError(t, err, "unable get multipart form data")
+//
+//	req := getUploadRequest(t, upload, file, reader, contentType)
+//
+//	rr := ctx.NewRecorder(req)
+//	AddFile(ctx, rr, req)
+//	context.TestInternalServerError(t, rr, "unable to save file : data backend error")
+//}
+//
+//func TestAddFileWithMetadataBackendError(t *testing.T) {
+//	ctx := newTestingContext(common.NewConfiguration())
+//	ctx.GetMetadataBackend().(*metadata_test.Backend).SetError(errors.New("metadata backend error"))
+//	ctx.SetUploadAdmin(true)
+//
+//	upload := &common.Upload{}
+//	file := upload.NewFile()
+//	file.Name = "name"
+//
+//	createTestUpload(t, ctx, upload)
+//	ctx.SetUpload(upload)
+//
+//	reader, contentType, err := getMultipartFormData(file.Name, bytes.NewBuffer([]byte(content)))
+//	require.NoError(t, err, "unable get multipart form data")
+//
+//	req := getUploadRequest(t, upload, file, reader, contentType)
+//
+//	rr := ctx.NewRecorder(req)
+//	AddFile(ctx, rr, req)
+//	context.TestInternalServerError(t, rr, "metadata backend error")
+//}
 
 func TestAddFileQuick(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 	ctx.SetUploadAdmin(true)
 	ctx.SetQuick(true)
 
-	upload := common.NewUpload()
-	createTestUpload(ctx, upload)
-	ctx.SetUpload(upload)
+	upload := &common.Upload{}
+	createTestUpload(t, ctx, upload)
 
 	name := "file"
 	reader, contentType, err := getMultipartFormData(name, bytes.NewBuffer([]byte(content)))
@@ -586,18 +535,11 @@ func TestAddFileQuick(t *testing.T) {
 	respBody, err := ioutil.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 
-	upload, err = ctx.GetMetadataBackend().GetUpload(upload.ID)
-	require.NoError(t, err, "unable to get upload metadata")
-	require.Len(t, upload.Files, 1, "file count mismatch")
+	files, err := ctx.GetMetadataBackend().GetFiles(upload)
+	require.NoError(t, err, "unable to get upload files")
+	require.Len(t, files, 1, "missing file")
 
-	var file *common.File
-	for _, f := range upload.Files {
-		file = f
-		break
-	}
-	require.NotNil(t, file, "file not found")
-
-	url := fmt.Sprintf("http://127.0.0.1:8080/file/%s/%s/%s\n", upload.ID, file.ID, name)
+	url := fmt.Sprintf("http://127.0.0.1:8080/file/%s/%s/%s\n", upload.ID, files[0].ID, name)
 
 	require.Equal(t, url, string(respBody), "invalid url")
 }
@@ -612,9 +554,8 @@ func TestAddFileQuickDownloadDomain(t *testing.T) {
 	ctx.SetUploadAdmin(true)
 	ctx.SetQuick(true)
 
-	upload := common.NewUpload()
-	createTestUpload(ctx, upload)
-	ctx.SetUpload(upload)
+	upload := &common.Upload{}
+	createTestUpload(t, ctx, upload)
 
 	name := "file"
 	reader, contentType, err := getMultipartFormData(name, bytes.NewBuffer([]byte(content)))
@@ -632,18 +573,11 @@ func TestAddFileQuickDownloadDomain(t *testing.T) {
 	respBody, err := ioutil.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 
-	upload, err = ctx.GetMetadataBackend().GetUpload(upload.ID)
-	require.NoError(t, err, "unable to get upload metadata")
-	require.Len(t, upload.Files, 1, "file count mismatch")
+	files, err := ctx.GetMetadataBackend().GetFiles(upload)
+	require.NoError(t, err, "unable to get upload files")
+	require.Len(t, files, 1, "missing file")
 
-	var file *common.File
-	for _, f := range upload.Files {
-		file = f
-		break
-	}
-	require.NotNil(t, file, "file not found")
-
-	url := fmt.Sprintf("https://plik.root.gg/file/%s/%s/%s\n", upload.ID, file.ID, name)
+	url := fmt.Sprintf("https://plik.root.gg/file/%s/%s/%s\n", upload.ID, files[0].ID, name)
 
 	require.Equal(t, url, string(respBody), "invalid url")
 }
@@ -653,9 +587,8 @@ func TestAddFileTooBig(t *testing.T) {
 	ctx.GetConfig().MaxFileSize = 5
 	ctx.SetUploadAdmin(true)
 
-	upload := common.NewUpload()
-	createTestUpload(ctx, upload)
-	ctx.SetUpload(upload)
+	upload := &common.Upload{}
+	createTestUpload(t, ctx, upload)
 
 	name := "file"
 	reader, contentType, err := getMultipartFormData(name, bytes.NewBuffer([]byte(content)))

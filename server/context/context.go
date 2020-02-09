@@ -11,11 +11,11 @@ import (
 	"github.com/root-gg/plik/server/metadata"
 )
 
-// Context is a scoped request context to be passed throughout the middleware chaine
+// Context to be propagated throughout the middleware chain
 type Context struct {
 	config              *common.Configuration
 	logger              *logger.Logger
-	metadataBackend     metadata.Backend
+	metadataBackend     *metadata.Backend
 	dataBackend         data.Backend
 	streamBackend       data.Backend
 	sourceIP            net.IP
@@ -74,7 +74,7 @@ func (ctx *Context) SetLogger(logger *logger.Logger) {
 }
 
 // GetMetadataBackend get metadataBackend from the context.
-func (ctx *Context) GetMetadataBackend() metadata.Backend {
+func (ctx *Context) GetMetadataBackend() *metadata.Backend {
 	ctx.mu.RLock()
 	defer ctx.mu.RUnlock()
 
@@ -86,7 +86,7 @@ func (ctx *Context) GetMetadataBackend() metadata.Backend {
 }
 
 // SetMetadataBackend set metadataBackend in the context
-func (ctx *Context) SetMetadataBackend(metadataBackend metadata.Backend) {
+func (ctx *Context) SetMetadataBackend(metadataBackend *metadata.Backend) {
 	ctx.mu.Lock()
 	defer ctx.mu.Unlock()
 

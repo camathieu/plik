@@ -3,15 +3,12 @@ package handlers
 import (
 	"crypto/md5"
 	"fmt"
-	"io"
-	"net/http"
-	"time"
-
-	"github.com/gorilla/mux"
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
 	"github.com/root-gg/plik/server/data"
 	"github.com/root-gg/utils"
+	"io"
+	"net/http"
 )
 
 type preprocessOutputReturn struct {
@@ -38,34 +35,6 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 		return
 	}
 
-	// Get the file id from the url params
-	vars := mux.Vars(req)
-	fileID := vars["fileID"]
-
-	var file *common.File
-	if fileID == "" {
-		// Create a new file object
-		file = common.NewFile()
-		file.Type = "application/octet-stream"
-
-		if len(upload.Files) >= config.MaxFilePerUpload {
-			// TODO there is a slight race condition here
-			ctx.BadRequest("maximum number file per upload reached, limit is %d", config.MaxFilePerUpload)
-			return
-		}
-	} else {
-		// Get file object from upload
-		var ok bool
-		file, ok = upload.Files[fileID]
-		if !ok {
-			ctx.NotFound("file %s not found", fileID)
-			return
-		}
-	}
-
-	// Update request logger prefix
-	prefix := fmt.Sprintf("%s[%s]", log.Prefix, file.ID)
-	log.SetPrefix(prefix)
 
 	// Get file handle form multipart request
 	var fileReader io.Reader
@@ -76,6 +45,7 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 	}
 
 	// Read multipart body until the "file" part
+	var fileName string
 	for {
 		part, errPart := multiPartReader.NextPart()
 		if errPart == io.EOF {
@@ -87,22 +57,7 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 		}
 		if part.FormName() == "file" {
 			fileReader = part
-
-			if file.Name != "" {
-				if file.Name != part.FileName() {
-					ctx.BadRequest("invalid file name %s, expected %s", part.FileName(), file.Name)
-					return
-				}
-			} else {
-				// Check file name length
-				if len(part.FileName()) > 1024 {
-					ctx.BadRequest("file name is too long, maximum allowed length is 1024 characters")
-					return
-				}
-
-				file.Name = part.FileName()
-			}
-
+			fileName = part.FileName()
 			break
 		}
 	}
@@ -110,28 +65,64 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 		ctx.MissingParameter("file from multipart form")
 		return
 	}
-	if file.Name == "" {
+	if fileName == "" {
 		ctx.MissingParameter("file name from multipart form")
 		return
 	}
 
+	// Get file from context
+	file := ctx.GetFile()
+	if file == nil {
+		count, err := ctx.GetMetadataBackend().CountUploadFiles(upload)
+		if err != nil {
+			ctx.InternalServerError("unable get upload file count", err)
+			return
+		}
+
+		if count >= config.MaxFilePerUpload {
+			// TODO there is a slight race condition here
+			// THIS SHOULD BE A DB CONSTRAINT
+			ctx.BadRequest("maximum number file per upload reached, limit is %d", config.MaxFilePerUpload)
+			return
+		}
+
+		// Create a new file object
+		file = common.NewFile()
+		file.Name = fileName
+
+		// Set and verify parameters
+		err = file.PrepareInsert(config, upload)
+		if err != nil {
+			ctx.BadRequest(err.Error())
+			return
+		}
+
+		// Update metadata
+		err = ctx.GetMetadataBackend().CreateFile(upload, file)
+		if err != nil {
+			ctx.InternalServerError("unable to create file", err)
+			return
+		}
+	} else {
+		if file.Name != fileName {
+			ctx.BadRequest("invalid file name")
+			return
+		}
+	}
+
 	// Update request logger prefix
-	prefix = fmt.Sprintf("%s[%s]", log.Prefix, file.Name)
+	prefix := fmt.Sprintf("%s[%s]", log.Prefix, file.Name)
 	log.SetPrefix(prefix)
 
-	currentStatus := file.Status
-	if !(currentStatus == "" || currentStatus == common.FileMissing) {
+	if file.Status != common.FileMissing {
 		ctx.BadRequest("invalid file status %s, expected %s", file.Status, common.FileMissing)
 		return
 	}
 
 	// Update file status
-	file.Status = common.FileUploading
-
-	// Update upload metadata
-	err = ctx.GetMetadataBackend().AddOrUpdateFile(upload, file, currentStatus)
+	err = ctx.GetMetadataBackend().UpdateFileStatus(file, file.Status, common.FileUploading)
 	if err != nil {
-		ctx.InternalServerError("unable to update file metadata", err)
+		ctx.InternalServerError("unable to update file status", err)
 		return
 	}
 
@@ -151,7 +142,7 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 		backend = ctx.GetDataBackend()
 	}
 
-	backendDetails, err := backend.AddFile(upload, file, preprocessReader)
+	_, err = backend.AddFile(upload, file, preprocessReader)
 	if err != nil {
 		// TODO : file status is left to common.FileUploading we should set it to some common.FileUploadError
 		// TODO : or we can set it back to common.FileMissing if we are sure data backends will handle that
@@ -170,13 +161,11 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 
 	// Fill-in file information
 	file.Type = preprocessOutput.mimeType
-	file.CurrentSize = preprocessOutput.size
+	file.Size = preprocessOutput.size
 	file.Md5 = preprocessOutput.md5sum
-	file.UploadDate = time.Now().Unix()
-	file.BackendDetails = backendDetails
 
 	// Update file status
-	currentStatus = file.Status
+	//currentStatus = file.Status
 	if upload.Stream {
 		file.Status = common.FileDeleted
 	} else {
@@ -184,7 +173,7 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 	}
 
 	// Update file metadata
-	err = ctx.GetMetadataBackend().AddOrUpdateFile(upload, file, currentStatus)
+	err = ctx.GetMetadataBackend().UpdateFile(file, common.FileUploading)
 	if err != nil {
 		ctx.InternalServerError("unable to update file metadata", err)
 		return

@@ -60,7 +60,6 @@ Options:
   --comments COMMENT        Set comments of the upload ( MarkDown compatible )
   -p                        Protect the upload with login and password ( be prompted )
   --password PASSWD         Protect the upload with "login:password" ( if omitted default login is "plik" )
-  -y, --yubikey             Protect the upload with a Yubikey OTP
   -a                        Archive upload using default archive params ( see ~/.plikrc )
   --archive MODE            Archive upload using the specified archive backend : tar|zip
   --compress MODE           [tar] Compression codec : gzip|bzip2|xz|lzip|lzma|lzop|compress|no
@@ -144,7 +143,6 @@ Options:
 	upload.Comments = config.Comments
 	upload.Login = config.Login
 	upload.Password = config.Password
-	upload.Yubikey = config.yubikeyToken
 
 	if len(config.filePaths) == 0 {
 		upload.AddFileFromReader("STDIN", bufio.NewReader(os.Stdin))

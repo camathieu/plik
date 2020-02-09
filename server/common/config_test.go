@@ -24,24 +24,6 @@ func TestLoadConfigNotFound(t *testing.T) {
 	require.Error(t, err, "unable to load config")
 }
 
-func TestInitializeConfigYubikey(t *testing.T) {
-	config := NewConfiguration()
-	config.YubikeyEnabled = true
-	err := config.Initialize()
-	require.NoError(t, err, "unable to initialize invalid config")
-	require.NotNil(t, config.GetYubiAuth())
-}
-
-func TestInitializeConfigInvalid(t *testing.T) {
-	config := NewConfiguration()
-	config.YubikeyEnabled = true
-	config.YubikeyAPIKey = "key"
-	config.YubikeyAPISecret = "secret"
-
-	err := config.Initialize()
-	require.Error(t, err, "unable to initialize invalid config")
-}
-
 func TestInitializeConfigUploadWhitelist(t *testing.T) {
 	config := NewConfiguration()
 	config.UploadWhitelist = []string{"1.1.1.1", "127.0.0.0/24", "127.0.0.10/24"}

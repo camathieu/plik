@@ -19,7 +19,7 @@ func TestUploadFileTwice(t *testing.T) {
 	err := start(ps)
 	require.NoError(t, err, "unable to start plik server")
 
-	upload := common.NewUpload()
+	upload := &common.Upload{}
 	uploadParams, err := pc.create(upload)
 	require.NoError(t, err, "unable to create upload")
 	require.NotNil(t, uploadParams, "invalid nil uploads params")

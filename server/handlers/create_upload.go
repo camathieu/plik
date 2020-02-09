@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
 	"github.com/root-gg/utils"
 )
@@ -17,18 +16,12 @@ func CreateUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Requ
 	log := ctx.GetLogger()
 	config := ctx.GetConfig()
 
-	user := ctx.GetUser()
-	if user == nil {
-		if config.NoAnonymousUploads {
-			ctx.BadRequest("anonymous uploads are disabled, please authenticate first")
-			return
-		} else if !ctx.IsWhitelisted() {
-			ctx.Forbidden("untrusted source IP address")
-			return
-		}
+	if !ctx.IsWhitelisted() {
+		ctx.Forbidden("untrusted source IP address")
+		return
 	}
 
-	upload := common.NewUpload()
+	upload := ctx.CreateUploadFromContext()
 
 	// Read request body
 	defer func() { _ = req.Body.Close() }()
@@ -48,82 +41,15 @@ func CreateUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Requ
 		}
 	}
 
-	// Limit number of files per upload
-	if len(upload.Files) > config.MaxFilePerUpload {
-		ctx.BadRequest("too many files. maximum is %d", config.MaxFilePerUpload)
-		return
-	}
-
-	// Set upload id, creation date, upload token, ...
-	upload.Create()
-
 	// Update request logger prefix
 	prefix := fmt.Sprintf("%s[%s]", log.Prefix, upload.ID)
 	log.SetPrefix(prefix)
 	ctx.SetUpload(upload)
 
-	// Set upload remote IP
-	upload.RemoteIP = ctx.GetSourceIP().String()
-
-	// Set upload user and token
-	if user != nil {
-		upload.User = user.ID
-		token := ctx.GetToken()
-		if token != nil {
-			token := ctx.GetToken()
-			if token != nil {
-				upload.Token = token.Token
-			}
-		}
-	}
-
-	if upload.OneShot && !config.OneShot {
-		ctx.BadRequest("one shot downloads are not enabled")
-		return
-	}
-
-	if upload.Removable && !config.Removable {
-		ctx.BadRequest("removable uploads are not enabled")
-		return
-	}
-
-	if upload.Stream && !config.StreamMode {
-		ctx.BadRequest("stream mode is not enabled")
-		return
-	}
-
-	// TTL = Time in second before the upload expiration
-	// 0 	-> No ttl specified : default value from configuration
-	// -1	-> No expiration : checking with configuration if that's ok
-	switch upload.TTL {
-	case 0:
-		upload.TTL = config.DefaultTTL
-	case -1:
-		if config.MaxTTL != -1 {
-			ctx.BadRequest("cannot set infinite ttl (maximum allowed is : %d)", config.MaxTTL)
-			return
-		}
-	default:
-		if upload.TTL <= 0 {
-			ctx.InvalidParameter("ttl")
-			return
-		}
-		if config.MaxTTL > 0 && upload.TTL > config.MaxTTL {
-			ctx.InvalidParameter("ttl. (maximum allowed is : %d)", config.MaxTTL)
-			return
-		}
-	}
-
 	// Protect upload with HTTP basic auth
 	// Add Authorization header to the response for convenience
 	// So clients can just copy this header into the next request
 	if upload.Password != "" {
-		if !config.ProtectedByPassword {
-			ctx.BadRequest("password protection is not enabled")
-			return
-		}
-
-		upload.ProtectedByPassword = true
 		if upload.Login == "" {
 			upload.Login = "plik"
 		}
@@ -139,45 +65,11 @@ func CreateUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Requ
 		resp.Header().Add("Authorization", "Basic "+b64str)
 	}
 
-	// Check the token validity with api.yubico.com
-	// Only the Yubikey id part of the token is stored
-	// The yubikey id is the 12 first characters of the token
-	// The 32 lasts characters are the actual OTP
-	if upload.Yubikey != "" {
-		upload.ProtectedByYubikey = true
-
-		if !config.YubikeyEnabled {
-			ctx.BadRequest("yubikey are disabled on this server")
-			return
-		}
-
-		_, ok, err := config.GetYubiAuth().Verify(upload.Yubikey)
-		if err != nil {
-			ctx.InternalServerError("unable to validate yubikey token : %s", err)
-			return
-		}
-
-		if !ok {
-			ctx.InvalidParameter("yubikey token")
-			return
-		}
-
-		upload.Yubikey = upload.Yubikey[:12]
-	}
-
-	// Create files
-	for i, file := range upload.Files {
-
-		// Check file name length
-		if len(file.Name) > 1024 {
-			ctx.InvalidParameter("file name, at least one file name is too long, maximum length is 1024 characters")
-			return
-		}
-
-		file.GenerateID()
-		file.Status = common.FileMissing
-		delete(upload.Files, i)
-		upload.Files[file.ID] = file
+	// Set and validate upload parameters
+	err = upload.PrepareInsert(config)
+	if err != nil {
+		ctx.BadRequest(err.Error())
+		return
 	}
 
 	// Save the metadata

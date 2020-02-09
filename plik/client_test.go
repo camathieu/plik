@@ -330,7 +330,7 @@ func TestRemoveFileNotFound(t *testing.T) {
 	err := start(ps)
 	require.NoError(t, err, "unable to start plik server")
 
-	upload := common.NewUpload()
+	upload := &common.Upload{}
 	upload.Create()
 	file := &common.File{}
 	file.ID = "blah"
@@ -342,7 +342,7 @@ func TestRemoveFileNoServer(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
 	defer shutdown(ps)
 
-	upload := common.NewUpload()
+	upload := &common.Upload{}
 	upload.Create()
 	file := &common.File{}
 	file.ID = "blah"
@@ -382,7 +382,7 @@ func TestDeleteUploadNotFound(t *testing.T) {
 	err := start(ps)
 	require.NoError(t, err, "unable to start plik server")
 
-	upload := common.NewUpload()
+	upload := &common.Upload{}
 	upload.Create()
 	err = pc.removeUpload(upload)
 	common.RequireError(t, err, "not found")
@@ -396,7 +396,7 @@ func TestDeleteUploadNoServer(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
 	defer shutdown(ps)
 
-	upload := common.NewUpload()
+	upload := &common.Upload{}
 	upload.Create()
 	err := pc.removeUpload(upload)
 	common.RequireError(t, err, "connection refused")
@@ -431,7 +431,7 @@ func TestGetArchiveNotFound(t *testing.T) {
 	err := start(ps)
 	require.NoError(t, err, "unable to start plik server")
 
-	upload := common.NewUpload()
+	upload := &common.Upload{}
 	upload.Create()
 	_, err = pc.downloadArchive(upload)
 	common.RequireError(t, err, "not found")
@@ -445,7 +445,7 @@ func TestGetArchiveNoServer(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
 	defer shutdown(ps)
 
-	upload := common.NewUpload()
+	upload := &common.Upload{}
 	upload.Create()
 	_, err := pc.downloadArchive(upload)
 	common.RequireError(t, err, "connection refused")

@@ -10,5 +10,4 @@ func TestNewToken(t *testing.T) {
 	token := NewToken()
 	require.NotNil(t, token, "invalid token")
 	require.NotZero(t, token.Token, "missing token")
-	require.NotZero(t, token.CreationDate, "missing creation date")
 }

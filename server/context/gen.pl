@@ -9,7 +9,7 @@ my $struct = [
 	'config', '*common.Configuration', { panic => 1 },
 	'logger', '*logger.Logger', { panic => 1 },
 
-	'metadataBackend', 'metadata.Backend', { panic => 1 },
+	'metadataBackend', '*metadata.Backend', { panic => 1 },
 	'dataBackend', 'data.Backend', { panic => 1 },
 	'streamBackend', 'data.Backend', { panic => 1 },
 
@@ -129,7 +129,7 @@ sub genStruct
 {
     my $struct = shift;
 
-    my $str = '// Context to be propagated throughout the middleware chain\n';
+    my $str = "// Context to be propagated throughout the middleware chain\n";
     $str .= "type Context struct {\n";
     for (my $i = 0 ; $i < @$struct ; $i += 3)
     {

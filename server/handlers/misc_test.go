@@ -3,6 +3,7 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/root-gg/plik/server/metadata"
 	"io/ioutil"
 	"net/http"
 
@@ -14,7 +15,6 @@ import (
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
 	data_test "github.com/root-gg/plik/server/data/testing"
-	metadata_test "github.com/root-gg/plik/server/metadata/testing"
 )
 
 func newTestingContext(config *common.Configuration) (ctx *context.Context) {
@@ -23,9 +23,17 @@ func newTestingContext(config *common.Configuration) (ctx *context.Context) {
 	ctx.SetConfig(config)
 	ctx.SetLogger(config.NewLogger())
 	ctx.SetWhitelisted(true)
-	ctx.SetMetadataBackend(metadata_test.NewBackend())
 	ctx.SetDataBackend(data_test.NewBackend())
 	ctx.SetStreamBackend(data_test.NewBackend())
+
+	metadataBackendConfig := &metadata.Config{Driver: "sqlite3", ConnectionString: "plik.test.db", EraseFirst: true}
+	metadataBackend, err := metadata.NewBackend(metadataBackendConfig, ctx.GetDataBackend(), config.NewLogger())
+
+	if err != nil {
+		panic(err)
+	}
+
+	ctx.SetMetadataBackend(metadataBackend)
 	return ctx
 }
 

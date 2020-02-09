@@ -30,7 +30,6 @@ type CliConfig struct {
 	ArchiveOptions map[string]interface{}
 	DownloadBinary string
 	Comments       string
-	Yubikey        bool
 	Login          string
 	Password       string
 	TTL            int
@@ -39,7 +38,6 @@ type CliConfig struct {
 
 	filePaths        []string
 	filenameOverride string
-	yubikeyToken     string
 }
 
 // NewUploadConfig construct a new configuration with default values
@@ -65,7 +63,6 @@ func NewUploadConfig() (config *CliConfig) {
 	config.SecureOptions["Options"] = "-md sha256"
 	config.DownloadBinary = "curl"
 	config.Comments = ""
-	config.Yubikey = false
 	config.Login = ""
 	config.Password = ""
 	config.TTL = 86400 * 30
@@ -330,15 +327,6 @@ func (config *CliConfig) UnmarshalArgs(arguments map[string]interface{}) (err er
 		}
 		config.Login = login
 		config.Password = password
-	}
-
-	// Enable Yubikey protection ?
-	if config.Yubikey || arguments["--yubikey"].(bool) {
-		fmt.Printf("Yubikey token : ")
-		_, err := fmt.Scanln(&config.yubikeyToken)
-		if err != nil {
-			return fmt.Errorf("Unable to get yubikey token : %s", err)
-		}
 	}
 
 	// Override upload token ?
