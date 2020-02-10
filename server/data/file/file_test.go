@@ -39,7 +39,7 @@ func TestAddFileInvalidUploadId(t *testing.T) {
 	upload := &common.Upload{}
 	file := upload.NewFile()
 
-	_, err := backend.AddFile(upload, file, &bytes.Buffer{})
+	_, err := backend.AddFile(file, &bytes.Buffer{})
 	require.Error(t, err, "no error with invalid upload id")
 }
 
@@ -51,10 +51,10 @@ func TestAddFileImpossibleToCreateDirectory(t *testing.T) {
 	backend.Config.Directory = string([]byte{0})
 
 	upload := &common.Upload{}
-	upload.Create()
 	file := upload.NewFile()
+	upload.PrepareInsertForTests()
 
-	_, err := backend.AddFile(upload, file, &bytes.Buffer{})
+	_, err := backend.AddFile(file, &bytes.Buffer{})
 	require.Error(t, err, "unable to create directory")
 }
 
@@ -63,11 +63,11 @@ func TestAddFileInvalidReader(t *testing.T) {
 	defer clean()
 
 	upload := &common.Upload{}
-	upload.Create()
 	file := upload.NewFile()
+	upload.PrepareInsertForTests()
 
 	reader := common.NewErrorReader(errors.New("io error"))
-	_, err := backend.AddFile(upload, file, reader)
+	_, err := backend.AddFile(file, reader)
 	require.Error(t, err, "unable to create directory")
 	require.Contains(t, err.Error(), "io error", "invalid error")
 }
@@ -77,11 +77,11 @@ func TestAddFile(t *testing.T) {
 	defer clean()
 
 	upload := &common.Upload{}
-	upload.Create()
 	file := upload.NewFile()
+	upload.PrepareInsertForTests()
 
 	reader := bytes.NewBufferString("data")
-	path, err := backend.AddFile(upload, file, reader)
+	path, err := backend.AddFile(file, reader)
 	require.NoError(t, err, "unable to add file")
 	require.NotZero(t, path, "missing path")
 
@@ -99,13 +99,13 @@ func TestGetFileInvalidDirectory(t *testing.T) {
 	defer clean()
 
 	upload := &common.Upload{}
-	upload.Create()
 	file := upload.NewFile()
+	upload.PrepareInsertForTests()
 
 	// null byte looks like a good invalid dirname value ^^
 	backend.Config.Directory = string([]byte{0})
 
-	_, err := backend.GetFile(upload, file)
+	_, err := backend.GetFile(file)
 	require.Error(t, err, "no error with invalid upload directory")
 }
 
@@ -114,10 +114,10 @@ func TestGetFileMissingFile(t *testing.T) {
 	defer clean()
 
 	upload := &common.Upload{}
-	upload.Create()
 	file := upload.NewFile()
+	upload.PrepareInsertForTests()
 
-	_, err := backend.GetFile(upload, file)
+	_, err := backend.GetFile(file)
 	require.Error(t, err, "no error with missing file")
 	require.Contains(t, err.Error(), "no such file or directory", "invalid error message")
 }
@@ -127,14 +127,14 @@ func TestGetFile(t *testing.T) {
 	defer clean()
 
 	upload := &common.Upload{}
-	upload.Create()
 	file := upload.NewFile()
+	upload.PrepareInsertForTests()
 
 	reader := bytes.NewBufferString("data")
-	_, err := backend.AddFile(upload, file, reader)
+	_, err := backend.AddFile(file, reader)
 	require.NoError(t, err, "unable to add file")
 
-	fileReader, err := backend.GetFile(upload, file)
+	fileReader, err := backend.GetFile(file)
 	require.NoError(t, err, "unable to get file")
 
 	read, err := ioutil.ReadAll(fileReader)
@@ -147,13 +147,13 @@ func TestRemoveFileInvalidDirectory(t *testing.T) {
 	defer clean()
 
 	upload := &common.Upload{}
-	upload.Create()
 	file := upload.NewFile()
+	upload.PrepareInsertForTests()
 
 	// null byte looks like a good invalid dirname value ^^
 	backend.Config.Directory = string([]byte{0})
 
-	err := backend.RemoveFile(upload, file)
+	err := backend.RemoveFile(file)
 	require.Error(t, err, "no error with invalid upload id")
 }
 
@@ -162,10 +162,10 @@ func TestRemoveFileMissingFile(t *testing.T) {
 	defer clean()
 
 	upload := &common.Upload{}
-	upload.Create()
 	file := upload.NewFile()
+	upload.PrepareInsertForTests()
 
-	err := backend.RemoveFile(upload, file)
+	err := backend.RemoveFile(file)
 	require.Error(t, err, "no error with invalid upload id")
 	require.Contains(t, err.Error(), "no such file or directory", "invalid error message")
 }
@@ -175,11 +175,11 @@ func TestRemoveFile(t *testing.T) {
 	defer clean()
 
 	upload := &common.Upload{}
-	upload.Create()
 	file := upload.NewFile()
+	upload.PrepareInsertForTests()
 
 	reader := bytes.NewBufferString("data")
-	path, err := backend.AddFile(upload, file, reader)
+	path, err := backend.AddFile(file, reader)
 	require.NoError(t, err, "unable to add file")
 	require.NotNil(t, path, "missing backend detail")
 
@@ -190,7 +190,7 @@ func TestRemoveFile(t *testing.T) {
 	require.NoError(t, err, "unable to read file")
 	require.Equal(t, "data", string(read), "inavlid file content")
 
-	err = backend.RemoveFile(upload, file)
+	err = backend.RemoveFile(file)
 	require.NoError(t, err, "unable to remove file")
 
 	_, err = os.Open(path)

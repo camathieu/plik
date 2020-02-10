@@ -20,6 +20,8 @@ func TestGetUpload(t *testing.T) {
 	upload.PrepareInsertForTests()
 	upload.Login = "secret"
 	upload.Password = "secret"
+	file := upload.NewFile()
+	file.Name = "file"
 	createTestUpload(t, ctx, upload)
 	ctx.SetUpload(upload)
 
@@ -43,6 +45,9 @@ func TestGetUpload(t *testing.T) {
 	require.Equal(t, upload.UploadToken, uploadResult.UploadToken, "invalid upload token")
 	require.Equal(t, "", uploadResult.Login, "invalid upload login")
 	require.Equal(t, "", uploadResult.Password, "invalid upload password")
+	require.Len(t, uploadResult.Files, 1, "invalid upload files")
+	require.Equal(t, file.ID, uploadResult.Files[0].ID, "invalid upload files")
+	require.Equal(t, file.Name, uploadResult.Files[0].Name, "invalid upload files")
 }
 
 func TestGetUploadMissingUpload(t *testing.T) {

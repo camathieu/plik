@@ -1,11 +1,10 @@
 package handlers
 
 import (
-	"fmt"
+	"github.com/root-gg/utils"
 	"net/http"
 
 	"github.com/root-gg/plik/server/context"
-	"github.com/root-gg/utils"
 )
 
 // GetUpload return upload metadata
@@ -18,6 +17,14 @@ func GetUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Request
 		panic("missing upload from context")
 	}
 
+	files, err := ctx.GetMetadataBackend().GetFiles(upload)
+	if err != nil {
+		ctx.InternalServerError("unable to get upload files", err)
+		return
+	}
+
+	upload.Files = files
+
 	// Remove all private information (ip, data backend details, ...) before
 	// sending metadata back to the client
 	upload.Sanitize()
@@ -28,10 +35,11 @@ func GetUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Request
 	}
 
 	// Print upload metadata in the json response.
-	json, err := utils.ToJson(upload)
+	bytes, err := utils.ToJson(upload)
 	if err != nil {
-		panic(fmt.Errorf("unable to serialize json response : %s", err))
+		ctx.InternalServerError("unable serialize json response", err)
+		return
 	}
 
-	_, _ = resp.Write(json)
+	_, _ = resp.Write(bytes)
 }

@@ -9,13 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewUser(t *testing.T) {
-	user := NewUser()
-	require.NotNil(t, user, "invalid user")
-}
-
 func TestUserNewToken(t *testing.T) {
-	user := NewUser()
+	user := &User{}
 	token := user.NewToken()
 	require.NotNil(t, token, "missing token")
 	require.NotZero(t, token.Token, "missing token initialization")
@@ -27,8 +22,7 @@ func TestAuthCookiesOVH(t *testing.T) {
 	config := NewConfiguration()
 	config.OvhAPISecret = "secret"
 
-	user := NewUser()
-	user.ID = "ovh:gg1-ovh"
+	user := NewUser("ovh", "gg1-ovh")
 
 	sessionCookie, xsrfCookie, err := GenAuthCookies(user, config)
 	require.NoError(t, err, "unable to generate cookies")
@@ -51,8 +45,7 @@ func TestAuthCookiesGoogle(t *testing.T) {
 	config := NewConfiguration()
 	config.GoogleAPISecret = "secret"
 
-	user := NewUser()
-	user.ID = "google:12345"
+	user := NewUser("google", "12345")
 
 	sessionCookie, xsrfCookie, err := GenAuthCookies(user, config)
 	require.NoError(t, err, "unable to generate cookies")
@@ -78,10 +71,9 @@ func TestGenAuthCookiesUnknownProvider(t *testing.T) {
 	config := NewConfiguration()
 	config.GoogleAPISecret = "secret"
 
-	user := NewUser()
-	user.ID = "test:12345"
+	user := NewUser("unknown", "provider")
 	_, _, err := GenAuthCookies(user, config)
-	RequireError(t, err, "unknown provider")
+	RequireError(t, err, "unknown authentication provider")
 }
 
 func TestParseSessionCookieMissingProvider(t *testing.T) {
@@ -102,7 +94,7 @@ func TestAuthenticateInvalidProvider(t *testing.T) {
 	require.NoError(t, err, "unable to sign session cookie")
 
 	_, _, err = ParseSessionCookie(sessionString, NewConfiguration())
-	RequireError(t, err, "invalid authentication provider")
+	RequireError(t, err, "unknown authentication provider")
 }
 
 func TestAuthenticateProviderOvhDisabled(t *testing.T) {
@@ -113,7 +105,7 @@ func TestAuthenticateProviderOvhDisabled(t *testing.T) {
 	require.NoError(t, err, "unable to sign session cookie")
 
 	_, _, err = ParseSessionCookie(sessionString, NewConfiguration())
-	RequireError(t, err, "missing OVH API credentials")
+	RequireError(t, err, "OVH authentication is disabled")
 }
 
 func TestAuthenticateProviderGoogleDisabled(t *testing.T) {
@@ -124,7 +116,7 @@ func TestAuthenticateProviderGoogleDisabled(t *testing.T) {
 	require.NoError(t, err, "unable to sign session cookie")
 
 	_, _, err = ParseSessionCookie(sessionString, NewConfiguration())
-	RequireError(t, err, "missing Google API credentials")
+	RequireError(t, err, "Google authentication is disabled")
 }
 
 func TestLogout(t *testing.T) {

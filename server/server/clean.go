@@ -2,6 +2,7 @@ package server
 
 import (
 	"crypto/rand"
+	"fmt"
 	"github.com/root-gg/plik/server/common"
 	"math/big"
 	"time"
@@ -40,7 +41,13 @@ func (ps *PlikServer) Clean() {
 	}
 
 	// 2 - delete removed files
-
+	deleted, err := ps.PurgeDeletedFiles()
+	if deleted > 0 {
+		log.Infof("purged %d deleted files", deleted)
+	}
+	if err != nil {
+		log.Warning(err.Error())
+	}
 
 	// 3 - purge deleted uploads
 
@@ -53,12 +60,11 @@ func (ps *PlikServer) Clean() {
 	}
 }
 
-func (ps *PlikServer) PurgeDeletedFiles() {
+func (ps *PlikServer) PurgeDeletedFiles() (deleted int, err error) {
 	log := ps.config.NewLogger()
 
-	deleted := 0
 	var errors []error
-	f := func(file *common.File) (err error){
+	f := func(file *common.File) (err error) {
 		err = ps.dataBackend.RemoveFile(file)
 		if err != nil {
 			errors = append(errors, err)
@@ -77,14 +83,12 @@ func (ps *PlikServer) PurgeDeletedFiles() {
 		return nil
 	}
 
-	err := ps.metadataBackend.ForEachRemovedFile(f)
+	err = ps.metadataBackend.ForEachRemovedFile(f)
 	if err != nil {
-		log.Warning(err.Error())
-	}
-	if deleted > 0 {
-		log.Infof("purged %d deleted files", deleted)
+		return deleted, err
 	}
 	if len(errors) > 0 {
-		log.Infof("unable to delete %s files", len(errors))
+		return deleted, fmt.Errorf("unable to delete %d files", len(errors))
 	}
+	return deleted, nil
 }

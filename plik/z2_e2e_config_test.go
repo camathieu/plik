@@ -93,8 +93,7 @@ func TestAnonymousUploadDisabled(t *testing.T) {
 	err := start(ps)
 	require.NoError(t, err, "unable to start plik server")
 
-	user := common.NewUser()
-	user.ID = "ovh:id"
+	user := common.NewUser("ovh", "id")
 	token := user.NewToken()
 	err = ps.GetMetadataBackend().CreateUser(user)
 	require.NoError(t, err, "unable to start plik server")
@@ -193,7 +192,7 @@ func TestOneShotDisabled(t *testing.T) {
 	upload.OneShot = true
 	err = upload.Create()
 	require.Error(t, err, "unable to create upload")
-	require.Contains(t, err.Error(), "one shot downloads are not enabled", "invalid error")
+	require.Contains(t, err.Error(), "one shot uploads are not enabled", "invalid error")
 }
 
 func TestRemovableDisabled(t *testing.T) {

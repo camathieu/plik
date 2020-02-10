@@ -20,8 +20,7 @@ func TestFileGenerateID(t *testing.T) {
 
 func TestFileSanitize(t *testing.T) {
 	file := &File{}
-	file.BackendDetails = make(map[string]interface{})
-	file.BackendDetails["key"] = "value"
+	file.BackendDetails = "value"
 	file.Sanitize()
-	require.Nil(t, file.BackendDetails, "invalid backend details")
+	require.Zero(t, file.BackendDetails, "invalid backend details")
 }

@@ -74,7 +74,7 @@ func NewBackend(config *Config) (b *Backend, err error) {
 	return b, err
 }
 
-func (b *Backend) initializeDB() (err error){
+func (b *Backend) initializeDB() (err error) {
 	m := gormigrate.New(b.db, gormigrate.DefaultOptions, []*gormigrate.Migration{
 		// you migrations here
 	})

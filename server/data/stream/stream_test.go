@@ -8,23 +8,21 @@ import (
 	"time"
 
 	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/plik/server/context"
 	"github.com/stretchr/testify/require"
 )
 
 func TestAddGetFile(t *testing.T) {
-	config := NewConfig(make(map[string]interface{}))
-	backend := NewBackend(config)
+	backend := NewBackend()
 
 	upload := &common.Upload{}
-	upload.Create()
 	file := upload.NewFile()
+	upload.PrepareInsertForTests()
 
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
 		time.Sleep(10 * time.Millisecond)
-		details, err := backend.AddFile(upload, file, bytes.NewBufferString("data"))
+		details, err := backend.AddFile(file, bytes.NewBufferString("data"))
 		require.NoError(t, err, "unable to add file")
 		require.NotNil(t, details, "invalid nil details")
 		wg.Done()
@@ -32,7 +30,7 @@ func TestAddGetFile(t *testing.T) {
 
 	f := func() {
 		for {
-			reader, err := backend.GetFile(upload, file)
+			reader, err := backend.GetFile(file)
 			if err != nil {
 				time.Sleep(50 * time.Millisecond)
 				continue
@@ -55,13 +53,12 @@ func TestAddGetFile(t *testing.T) {
 }
 
 func TestRemoveFile(t *testing.T) {
-	config := NewConfig(make(map[string]interface{}))
-	backend := NewBackend(config)
+	backend := NewBackend()
 
 	upload := &common.Upload{}
-	upload.Create()
 	file := upload.NewFile()
+	upload.PrepareInsertForTests()
 
-	err := backend.RemoveFile(upload, file)
+	err := backend.RemoveFile(file)
 	require.NoError(t, err)
 }

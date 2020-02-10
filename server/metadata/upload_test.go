@@ -10,8 +10,8 @@ import (
 
 func createUpload(t *testing.T, b *Backend, upload *common.Upload) {
 	upload.PrepareInsertForTests()
-    err := b.CreateUpload(upload)
-    require.NoError(t, err, "create upload error : %s", err)
+	err := b.CreateUpload(upload)
+	require.NoError(t, err, "create upload error : %s", err)
 }
 
 func TestBackend_CreateUpload(t *testing.T) {
@@ -20,7 +20,7 @@ func TestBackend_CreateUpload(t *testing.T) {
 	upload := &common.Upload{}
 	file := upload.NewFile()
 
-    createUpload(t, b, upload)
+	createUpload(t, b, upload)
 
 	require.NotZero(t, upload.ID, "missing upload id")
 	require.NotZero(t, upload.CreatedAt, "missing creation date")
@@ -29,14 +29,13 @@ func TestBackend_CreateUpload(t *testing.T) {
 	require.NotZero(t, file.CreatedAt, "missing creation date")
 }
 
-
 func TestBackend_GetUpload(t *testing.T) {
 	b := newTestMetadataBackend()
 
 	upload := &common.Upload{}
 	_ = upload.NewFile()
 
-    createUpload(t, b, upload)
+	createUpload(t, b, upload)
 
 	result, err := b.GetUpload(upload.ID)
 	require.NoError(t, err, "get upload error")
@@ -46,7 +45,6 @@ func TestBackend_GetUpload(t *testing.T) {
 	require.Equal(t, upload.UploadToken, result.UploadToken, "invalid upload token")
 }
 
-
 func TestBackend_GetUpload_NotFound(t *testing.T) {
 	b := newTestMetadataBackend()
 
@@ -55,18 +53,16 @@ func TestBackend_GetUpload_NotFound(t *testing.T) {
 	require.Nil(t, upload, "upload not nil")
 }
 
-
 func TestBackend_DeleteUpload(t *testing.T) {
 	b := newTestMetadataBackend()
 
 	upload := &common.Upload{}
 	_ = upload.NewFile()
 
-    createUpload(t, b, upload)
+	createUpload(t, b, upload)
 
 	err := b.DeleteUpload(upload)
 	require.NoError(t, err, "get upload error")
-
 
 	upload, err = b.GetUpload(upload.ID)
 	require.NoError(t, err, "get upload error")
@@ -79,12 +75,13 @@ func TestBackend_CountUploadFiles(t *testing.T) {
 	upload := &common.Upload{}
 	_ = upload.NewFile()
 
-    createUpload(t, b, upload)
+	createUpload(t, b, upload)
 
 	count, err := b.CountUploadFiles(upload)
 	require.NoError(t, err, "count upload files error")
 	require.Equal(t, 1, count, "count upload files mismatch")
 }
+
 //
 //func TestBackend_DeleteUploadWithFiles(t *testing.T) {
 //	b := newTestMetadataBackend()

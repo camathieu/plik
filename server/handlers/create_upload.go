@@ -40,7 +40,8 @@ func CreateUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Requ
 	if len(body) > 0 {
 		version, err = common.UnmarshalUpload(body, upload)
 		if err != nil {
-			ctx.BadRequest("unable to unserialize upload : %s", err.Error())
+			ctx.BadRequest("unable to deserialize request body : %s", err.Error())
+			return
 		}
 	}
 

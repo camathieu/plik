@@ -75,7 +75,7 @@ func newFileFromParams(upload *Upload, params *common.File) *File {
 	file.upload = upload
 	file.metadata = params
 	file.Name = params.Name
-	file.Size = params.CurrentSize
+	file.Size = params.Size
 	return file
 }
 

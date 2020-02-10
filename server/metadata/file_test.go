@@ -12,7 +12,7 @@ func TestBackend_CreateFile(t *testing.T) {
 
 	upload := &common.Upload{}
 
-    createUpload(t, b, upload)
+	createUpload(t, b, upload)
 
 	file := upload.NewFile()
 	err := b.CreateFile(file)
@@ -38,7 +38,7 @@ func TestBackend_GetFile(t *testing.T) {
 	upload := &common.Upload{}
 	file := upload.NewFile()
 
-    createUpload(t, b, upload)
+	createUpload(t, b, upload)
 
 	result, err := b.GetFile(file.ID)
 	require.NoError(t, err, "create file error")
@@ -47,7 +47,6 @@ func TestBackend_GetFile(t *testing.T) {
 	require.Equal(t, file.ID, result.ID, "invalid file id")
 }
 
-
 func TestBackend_GetFile_NotFound(t *testing.T) {
 	b := newTestMetadataBackend()
 
@@ -55,7 +54,6 @@ func TestBackend_GetFile_NotFound(t *testing.T) {
 	require.NoError(t, err, "get file error")
 	require.Nil(t, file, "file not nil")
 }
-
 
 func TestBackend_GetFiles(t *testing.T) {
 	b := newTestMetadataBackend()
@@ -81,7 +79,7 @@ func TestBackend_UpdateFile(t *testing.T) {
 	upload := &common.Upload{}
 	file := upload.NewFile()
 
-    createUpload(t, b, upload)
+	createUpload(t, b, upload)
 
 	file.Status = common.FileUploaded
 	file.Name = "name"

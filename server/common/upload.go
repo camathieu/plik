@@ -36,7 +36,7 @@ type Upload struct {
 	Password            string `json:"password,omitempty"`
 
 	CreatedAt time.Time  `json:"createdAt"`
-	DeletedAt *time.Time  `json:"-"`
+	DeletedAt *time.Time `json:"-"`
 	ExpireAt  *time.Time `json:"expireAt"`
 }
 

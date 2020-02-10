@@ -8,7 +8,7 @@ import (
 
 func TestUploadCreate(t *testing.T) {
 	upload := &Upload{}
-	upload.Create()
+	upload.PrepareInsertForTests()
 	require.NotZero(t, upload.ID, "missing id")
 }
 

@@ -58,7 +58,7 @@ func (file *File) Sanitize() {
 	file.BackendDetails = ""
 }
 
-func (file *File) PrepareInsert(config *Configuration, upload *Upload) (err error){
+func (file *File) PrepareInsert(config *Configuration, upload *Upload) (err error) {
 	if upload == nil {
 		return fmt.Errorf("missing upload")
 	}

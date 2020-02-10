@@ -32,7 +32,7 @@ func (b *Backend) GetTokens(user *common.User) (tokens []*common.Token, err erro
 }
 
 func (b *Backend) DeleteToken(token *common.Token) error {
-	
+
 	// Delete token
 	err := b.db.Delete(token).Error
 	if err != nil {

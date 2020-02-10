@@ -58,21 +58,21 @@ func TestCreateUploadInvalidParams(t *testing.T) {
 
 	pc.URL = string([]byte{0})
 
-	_, err = pc.create(common.NewUpload())
+	_, err = pc.create(&common.Upload{})
 	common.RequireError(t, err, "")
 }
 
 func TestCreateUploadAPIFail(t *testing.T) {
 	_, pc := newPlikServerAndClient()
 
-	_, err := pc.create(common.NewUpload())
+	_, err := pc.create(&common.Upload{})
 	common.RequireError(t, err, "connection refused")
 
 	shutdown, err := common.StartAPIMockServer(common.DummyHandler)
 	require.NoError(t, err, "unable to start plik server")
 	defer shutdown()
 
-	_, err = pc.create(common.NewUpload())
+	_, err = pc.create(&common.Upload{})
 	common.RequireError(t, err, "")
 }
 
@@ -90,7 +90,7 @@ func TestCreateUploadInvalidJSON(t *testing.T) {
 	defer shutdown()
 	require.NoError(t, err, "unable to start HTTP server server")
 
-	_, err = pc.create(common.NewUpload())
+	_, err = pc.create(&common.Upload{})
 	common.RequireError(t, err, "invalid character 'i' looking for beginning of value")
 }
 
@@ -105,9 +105,9 @@ func TestUploadFileNoUpload(t *testing.T) {
 	require.NoError(t, err, "server unreachable")
 
 	upload := &common.Upload{}
-	upload.Create()
-	file := &common.File{}
+	file := upload.NewFile()
 	file.Name = "filename"
+	upload.PrepareInsertForTests()
 
 	_, err = pc.uploadFile(upload, file, bytes.NewBufferString("data"))
 	common.RequireError(t, err, "upload "+upload.ID+" not found")
@@ -124,8 +124,9 @@ func TestUploadFileReaderError(t *testing.T) {
 	require.NoError(t, err, "server unreachable")
 
 	upload := &common.Upload{}
-	upload.Create()
-	file := &common.File{}
+	file := upload.NewFile()
+	file.Name = "filename"
+	upload.PrepareInsertForTests()
 
 	_, err = pc.uploadFile(upload, file, common.NewErrorReaderString("io error"))
 	common.RequireError(t, err, "io error")
@@ -139,21 +140,21 @@ func TestUploadFileInvalidParams(t *testing.T) {
 
 	pc.URL = string([]byte{0})
 
-	_, err = pc.uploadFile(common.NewUpload(), common.NewFile(), &bytes.Buffer{})
+	_, err = pc.uploadFile(&common.Upload{}, common.NewFile(), &bytes.Buffer{})
 	common.RequireError(t, err, "")
 }
 
 func TestUploadFileAPIFail(t *testing.T) {
 	_, pc := newPlikServerAndClient()
 
-	_, err := pc.uploadFile(common.NewUpload(), common.NewFile(), &bytes.Buffer{})
+	_, err := pc.uploadFile(&common.Upload{}, common.NewFile(), &bytes.Buffer{})
 	common.RequireError(t, err, "connection refused")
 
 	shutdown, err := common.StartAPIMockServer(common.DummyHandler)
 	defer shutdown()
 	require.NoError(t, err, "unable to start HTTP server server")
 
-	_, err = pc.uploadFile(common.NewUpload(), common.NewFile(), &bytes.Buffer{})
+	_, err = pc.uploadFile(&common.Upload{}, common.NewFile(), &bytes.Buffer{})
 	common.RequireError(t, err, "")
 }
 
@@ -171,7 +172,7 @@ func TestUploadFileInvalidJSON(t *testing.T) {
 	defer shutdown()
 	require.NoError(t, err, "unable to start HTTP server server")
 
-	_, err = pc.uploadFile(common.NewUpload(), common.NewFile(), &bytes.Buffer{})
+	_, err = pc.uploadFile(&common.Upload{}, common.NewFile(), &bytes.Buffer{})
 	common.RequireError(t, err, "")
 }
 

@@ -331,9 +331,8 @@ func TestRemoveFileNotFound(t *testing.T) {
 	require.NoError(t, err, "unable to start plik server")
 
 	upload := &common.Upload{}
-	upload.Create()
-	file := &common.File{}
-	file.ID = "blah"
+	file := upload.NewFile()
+	upload.PrepareInsertForTests()
 	err = pc.removeFile(upload, file)
 	common.RequireError(t, err, "not found")
 }
@@ -343,9 +342,8 @@ func TestRemoveFileNoServer(t *testing.T) {
 	defer shutdown(ps)
 
 	upload := &common.Upload{}
-	upload.Create()
-	file := &common.File{}
-	file.ID = "blah"
+	file := upload.NewFile()
+	upload.PrepareInsertForTests()
 	err := pc.removeFile(upload, file)
 	common.RequireError(t, err, "connection refused")
 }
@@ -383,7 +381,7 @@ func TestDeleteUploadNotFound(t *testing.T) {
 	require.NoError(t, err, "unable to start plik server")
 
 	upload := &common.Upload{}
-	upload.Create()
+	upload.PrepareInsertForTests()
 	err = pc.removeUpload(upload)
 	common.RequireError(t, err, "not found")
 
@@ -397,7 +395,7 @@ func TestDeleteUploadNoServer(t *testing.T) {
 	defer shutdown(ps)
 
 	upload := &common.Upload{}
-	upload.Create()
+	upload.PrepareInsertForTests()
 	err := pc.removeUpload(upload)
 	common.RequireError(t, err, "connection refused")
 }
@@ -432,7 +430,7 @@ func TestGetArchiveNotFound(t *testing.T) {
 	require.NoError(t, err, "unable to start plik server")
 
 	upload := &common.Upload{}
-	upload.Create()
+	upload.PrepareInsertForTests()
 	_, err = pc.downloadArchive(upload)
 	common.RequireError(t, err, "not found")
 
@@ -446,7 +444,7 @@ func TestGetArchiveNoServer(t *testing.T) {
 	defer shutdown(ps)
 
 	upload := &common.Upload{}
-	upload.Create()
+	upload.PrepareInsertForTests()
 	_, err := pc.downloadArchive(upload)
 	common.RequireError(t, err, "connection refused")
 }

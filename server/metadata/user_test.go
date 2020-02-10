@@ -8,19 +8,18 @@ import (
 )
 
 func createUser(t *testing.T, b *Backend, user *common.User) {
-    err := b.CreateUser(user)
-    require.NoError(t, err, "create user error : %s", err)
+	err := b.CreateUser(user)
+	require.NoError(t, err, "create user error : %s", err)
 }
 
 func TestBackend_CreateUser(t *testing.T) {
 	b := newTestMetadataBackend()
 
 	user := &common.User{ID: "user"}
-    createUser(t, b, user)
+	createUser(t, b, user)
 	require.NotZero(t, user.ID, "missing user id")
 	require.NotZero(t, user.CreatedAt, "missing creation date")
 }
-
 
 func TestBackend_GetUser(t *testing.T) {
 	b := newTestMetadataBackend()
@@ -33,7 +32,6 @@ func TestBackend_GetUser(t *testing.T) {
 	require.Equal(t, user.ID, result.ID, "invalid user id")
 }
 
-
 func TestBackend_GetUser_NotFound(t *testing.T) {
 	b := newTestMetadataBackend()
 
@@ -42,17 +40,15 @@ func TestBackend_GetUser_NotFound(t *testing.T) {
 	require.Nil(t, user, "user not nil")
 }
 
-
 func TestBackend_DeleteUser(t *testing.T) {
 	b := newTestMetadataBackend()
 
 	user := &common.User{}
 
-    createUser(t, b, user)
+	createUser(t, b, user)
 
 	err := b.DeleteUser(user)
 	require.NoError(t, err, "get user error")
-
 
 	user, err = b.GetUser(user.ID)
 	require.NoError(t, err, "get user error")

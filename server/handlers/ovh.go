@@ -1,6 +1,5 @@
 package handlers
 
-
 import (
 	"crypto/sha1"
 	"encoding/json"
@@ -48,7 +47,7 @@ func decodeOVHResponse(resp *http.Response) ([]byte, error) {
 			if err == nil {
 				return nil, fmt.Errorf("%s : %s", resp.Status, ovhErr.Message)
 			}
-			return nil, fmt.Errorf("%s : %s : %s", resp.Status, "unable to unserialize OVH error", string(body))
+			return nil, fmt.Errorf("%s : %s : %s", resp.Status, "unable to deserialize OVH error", string(body))
 		}
 		return nil, fmt.Errorf("%s", resp.Status)
 	}
@@ -238,7 +237,7 @@ func OvhCallback(ctx *context.Context, resp http.ResponseWriter, req *http.Reque
 		return
 	}
 
-	// Unserialize response
+	// deserialize response
 	var userInfo ovhUserResponse
 	err = json.Unmarshal(ovhRespBody, &userInfo)
 	if err != nil {

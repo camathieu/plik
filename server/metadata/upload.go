@@ -105,7 +105,7 @@ func (b *Backend) PurgeDeletedUploads() (removed int, err error) {
 		}
 
 		var count int
-		err := b.db.Model(&common.File{}).Not(&common.File{Status:common.FileDeleted}).Where(&common.File{UploadID: upload.ID}).Count(&count).Error
+		err := b.db.Model(&common.File{}).Not(&common.File{Status: common.FileDeleted}).Where(&common.File{UploadID: upload.ID}).Count(&count).Error
 		if err != nil {
 			return removed, err
 		}

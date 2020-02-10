@@ -35,7 +35,6 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 		return
 	}
 
-
 	// Get file handle form multipart request
 	var fileReader io.Reader
 	multiPartReader, err := req.MultipartReader()

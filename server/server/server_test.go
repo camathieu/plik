@@ -142,7 +142,6 @@ func TestAutoClean(t *testing.T) {
 
 	require.True(t, upload.IsExpired(), "upload should be expired")
 
-
 	err = ps.metadataBackend.CreateUpload(upload)
 	require.NoError(t, err, "unable to save upload")
 
@@ -152,4 +151,3 @@ func TestAutoClean(t *testing.T) {
 	require.NoError(t, err, "unexpected unable to get upload")
 	require.Nil(t, u, "should be unable to get expired upload after clean")
 }
-

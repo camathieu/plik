@@ -88,7 +88,7 @@ func TestInitializeConfigInvalidDownloadDomain(t *testing.T) {
 func TestConfigIsUserAdmin(t *testing.T) {
 	config := NewConfiguration()
 
-	user := NewUser()
+	user := &User{}
 	user.ID = "admin"
 
 	require.False(t, config.IsUserAdmin(user), "invalid admin status")

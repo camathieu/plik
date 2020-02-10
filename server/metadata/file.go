@@ -30,7 +30,6 @@ func (b *Backend) GetFiles(upload *common.Upload) (files []*common.File, err err
 	return files, err
 }
 
-
 func (b *Backend) UpdateFile(file *common.File, status string) error {
 	result := b.db.Where(&common.File{ID: file.ID, Status: status}).Save(file)
 	if result.Error != nil {

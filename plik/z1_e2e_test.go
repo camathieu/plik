@@ -110,7 +110,7 @@ func TestOneShot(t *testing.T) {
 
 	_, err = pc.downloadFile(upload.Metadata(), file.Metadata())
 	require.Error(t, err, "unable to download file")
-	require.Contains(t, err.Error(), fmt.Sprintf("file %s (%s) is not available : deleted", file.Name, file.metadata.ID), "invalid error")
+	require.Contains(t, err.Error(), fmt.Sprintf("file %s (%s) is not available : removed", file.Name, file.metadata.ID), "invalid error")
 }
 
 func TestDownloadOneShotBeforeUpload(t *testing.T) {
@@ -146,7 +146,7 @@ func TestDownloadOneShotBeforeUpload(t *testing.T) {
 
 	_, err = pc.downloadFile(upload.Metadata(), file.Metadata())
 	require.Error(t, err, "unable to download file")
-	require.Contains(t, err.Error(), fmt.Sprintf("file %s (%s) is not available : deleted", file.Name, file.metadata.ID), "invalid error")
+	require.Contains(t, err.Error(), fmt.Sprintf("file %s (%s) is not available : removed", file.Name, file.metadata.ID), "invalid error")
 }
 
 func TestRemoveFileWithoutUploadToken(t *testing.T) {

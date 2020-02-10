@@ -233,7 +233,7 @@ Options:
 	}
 
 	// Mon, 02 Jan 2006 15:04:05 MST
-	creationDate := time.Unix(upload.Metadata().Creation, 0).Format(time.RFC1123)
+	creationDate := upload.Metadata().CreatedAt.Format(time.RFC1123)
 
 	// Display upload url
 	printf("Upload successfully created at %s : \n", creationDate)

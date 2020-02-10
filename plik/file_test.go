@@ -48,7 +48,7 @@ func TestNotUploadedGetFileURL(t *testing.T) {
 	common.RequireError(t, err, "upload has not been created yet")
 
 	upload.metadata = &common.Upload{}
-	upload.metadata.Create()
+	upload.metadata.PrepareInsertForTests()
 
 	_, err = file.GetURL()
 	common.RequireError(t, err, "file has not been uploaded yet")

@@ -43,7 +43,7 @@ func NewBackend(config *Config) (b *Backend) {
 // GetFile implementation for file data backend will search
 // on filesystem the asked file and return its reading filehandle
 func (b *Backend) GetFile(file *common.File) (reader io.ReadCloser, err error) {
-	path, err := b.getPath(file)
+	_, path, err := b.getPath(file)
 	if err != nil {
 		return nil, err
 	}
@@ -62,13 +62,13 @@ func (b *Backend) GetFile(file *common.File) (reader io.ReadCloser, err error) {
 // and save it on filesystem with the given file reader
 func (b *Backend) AddFile(file *common.File, fileReader io.Reader) (backendDetails string, err error) {
 
-	path, err := b.getPath(file)
+	dir, path, err := b.getPath(file)
 	if err != nil {
 		return "", err
 	}
 
 	// Create directory
-	err = os.MkdirAll(b.Config.Directory, 0777)
+	err = os.MkdirAll(dir, 0777)
 	if err != nil {
 		return "", fmt.Errorf("unable to create upload directory")
 	}
@@ -93,7 +93,7 @@ func (b *Backend) AddFile(file *common.File, fileReader io.Reader) (backendDetai
 // file from filesystem
 func (b *Backend) RemoveFile(file *common.File) (err error) {
 
-	path, err := b.getPath(file)
+	_, path, err := b.getPath(file)
 	if err != nil {
 		return err
 	}
@@ -107,7 +107,7 @@ func (b *Backend) RemoveFile(file *common.File) (err error) {
 	return nil
 }
 
-func (b *Backend) getPath(file *common.File) (path string, err error) {
+func (b *Backend) getPath(file *common.File) (dir string, path string, err error) {
 	// To avoid too many files in the same directory
 	// data directory is splited in two levels the
 	// first level is the 2 first chars from the file id
@@ -115,7 +115,11 @@ func (b *Backend) getPath(file *common.File) (path string, err error) {
 	// directory at ~250.000.000 files uploaded.
 
 	if file == nil || file.ID == "" || len(file.UploadID) < 3 {
-		return "", fmt.Errorf("file not initialized")
+		return "", "", fmt.Errorf("file not initialized")
 	}
-	return fmt.Sprintf("%s/%s/%s", b.Config.Directory, file.ID[:2], file.ID), nil
+
+	dir = fmt.Sprintf("%s/%s", b.Config.Directory, file.ID[:2])
+	path = fmt.Sprintf("%s/%s", dir, file.ID)
+
+	return dir, path, nil
 }

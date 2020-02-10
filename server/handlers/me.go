@@ -187,43 +187,43 @@ func RemoveUserUploads(ctx *context.Context, resp http.ResponseWriter, req *http
 
 // GetUserStatistics return the user statistics
 func GetUserStatistics(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
-//
-//	// Get user from context
-//	user := ctx.GetUser()
-//	if user == nil {
-//		ctx.Unauthorized("missing user, please login first")
-//		return
-//	}
-//
-//	// Get token from URL query parameter
-//	var token *common.Token
-//	tokenStr := req.URL.Query().Get("token")
-//
-//	if tokenStr != "" {
-//		for _, t := range user.Tokens {
-//			if t.Token == tokenStr {
-//				token = t
-//				break
-//			}
-//		}
-//		if token == nil {
-//			ctx.InvalidParameter("token")
-//			return
-//		}
-//	}
-//
-//	// Get server statistics
-//	stats, err := ctx.GetMetadataBackend().GetUserStatistics(user, token)
-//	if err != nil {
-//		ctx.InternalServerError("unable to get user statistics", err)
-//		return
-//	}
-//
-//	// Print stats in the json response.
-//	var json []byte
-//	if json, err = utils.ToJson(stats); err != nil {
-//		panic(fmt.Errorf("unable to serialize json response : %s", err))
-//	}
-//
-//	_, _ = resp.Write(json)
+	//
+	//	// Get user from context
+	//	user := ctx.GetUser()
+	//	if user == nil {
+	//		ctx.Unauthorized("missing user, please login first")
+	//		return
+	//	}
+	//
+	//	// Get token from URL query parameter
+	//	var token *common.Token
+	//	tokenStr := req.URL.Query().Get("token")
+	//
+	//	if tokenStr != "" {
+	//		for _, t := range user.Tokens {
+	//			if t.Token == tokenStr {
+	//				token = t
+	//				break
+	//			}
+	//		}
+	//		if token == nil {
+	//			ctx.InvalidParameter("token")
+	//			return
+	//		}
+	//	}
+	//
+	//	// Get server statistics
+	//	stats, err := ctx.GetMetadataBackend().GetUserStatistics(user, token)
+	//	if err != nil {
+	//		ctx.InternalServerError("unable to get user statistics", err)
+	//		return
+	//	}
+	//
+	//	// Print stats in the json response.
+	//	var json []byte
+	//	if json, err = utils.ToJson(stats); err != nil {
+	//		panic(fmt.Errorf("unable to serialize json response : %s", err))
+	//	}
+	//
+	//	_, _ = resp.Write(json)
 }

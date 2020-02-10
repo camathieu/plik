@@ -85,7 +85,6 @@ func GetQrCode(ctx *context.Context, resp http.ResponseWriter, req *http.Request
 	}
 }
 
-
 // If a download domain is specified verify that the request comes from this specific domain
 func checkDownloadDomain(ctx *context.Context) bool {
 	log := ctx.GetLogger()
