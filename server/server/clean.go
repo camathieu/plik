@@ -12,7 +12,11 @@ import (
 func (ps *PlikServer) uploadsCleaningRoutine() {
 	log := ps.config.NewLogger()
 	for {
-		if ps.done {
+		ps.mu.Lock()
+		done := ps.done
+		ps.mu.Unlock()
+
+		if done {
 			break
 		}
 		// Sleep between 2 hours and 3 hours

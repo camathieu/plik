@@ -18,13 +18,13 @@ type Context struct {
 	metadataBackend     *metadata.Backend
 	dataBackend         data.Backend
 	streamBackend       data.Backend
+	pagingQuery         *common.PagingQuery
 	sourceIP            net.IP
 	upload              *common.Upload
 	file                *common.File
 	user                *common.User
 	token               *common.Token
 	isWhitelisted       *bool
-	isAdmin             bool
 	isUploadAdmin       bool
 	isRedirectOnFailure bool
 	isQuick             bool
@@ -133,6 +133,26 @@ func (ctx *Context) SetStreamBackend(streamBackend data.Backend) {
 	ctx.streamBackend = streamBackend
 }
 
+// GetPagingQuery get pagingQuery from the context.
+func (ctx *Context) GetPagingQuery() *common.PagingQuery {
+	ctx.mu.RLock()
+	defer ctx.mu.RUnlock()
+
+	if ctx.pagingQuery == nil {
+		panic("missing pagingQuery from context")
+	}
+
+	return ctx.pagingQuery
+}
+
+// SetPagingQuery set pagingQuery in the context
+func (ctx *Context) SetPagingQuery(pagingQuery *common.PagingQuery) {
+	ctx.mu.Lock()
+	defer ctx.mu.Unlock()
+
+	ctx.pagingQuery = pagingQuery
+}
+
 // GetSourceIP get sourceIP from the context.
 func (ctx *Context) GetSourceIP() net.IP {
 	ctx.mu.RLock()
@@ -211,22 +231,6 @@ func (ctx *Context) SetToken(token *common.Token) {
 	defer ctx.mu.Unlock()
 
 	ctx.token = token
-}
-
-// IsAdmin get isAdmin from the context.
-func (ctx *Context) IsAdmin() bool {
-	ctx.mu.RLock()
-	defer ctx.mu.RUnlock()
-
-	return ctx.isAdmin
-}
-
-// SetAdmin set isAdmin in the context
-func (ctx *Context) SetAdmin(isAdmin bool) {
-	ctx.mu.Lock()
-	defer ctx.mu.Unlock()
-
-	ctx.isAdmin = isAdmin
 }
 
 // IsUploadAdmin get isUploadAdmin from the context.

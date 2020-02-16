@@ -107,10 +107,10 @@ func checkDownloadDomain(ctx *context.Context) bool {
 	return true
 }
 
-func handleHTTPError(ctx *context.Context, message string, err error) {
+func handleHTTPError(ctx *context.Context, err error) {
 	if httpError, ok := err.(common.HTTPError); ok {
-		ctx.Fail(httpError.Error(), nil, httpError.GetStatusCode())
+		ctx.Fail(httpError.Message, httpError.Err, httpError.StatusCode)
 	} else {
-		ctx.InternalServerError(message, err)
+		ctx.InternalServerError("unexpected error", err)
 	}
 }

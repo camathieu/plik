@@ -3,18 +3,6 @@
 	"ignore": "test",
 	"package": [
 		{
-			"path": "appengine",
-			"revision": ""
-		},
-		{
-			"path": "appengine_internal",
-			"revision": ""
-		},
-		{
-			"path": "appengine_internal/base",
-			"revision": ""
-		},
-		{
 			"checksumSHA1": "b1KgRkWqz0RmrEBK6IJ8kOJva6w=",
 			"path": "cloud.google.com/go/compute/metadata",
 			"revision": "430062523376d2a92d4a5cb6db8027245cf01460",
@@ -124,6 +112,18 @@
 			"revisionTime": "2019-02-27T22:24:58Z"
 		},
 		{
+			"checksumSHA1": "gnzRp6YfMWMo1joYlc6mREXnzgU=",
+			"path": "github.com/iancoleman/strcase",
+			"revision": "16388991a33441046539eb716cff4d294d556c70",
+			"revisionTime": "2019-11-12T23:29:45Z"
+		},
+		{
+			"checksumSHA1": "40vJyUB4ezQSn/NSadsKEOrudMc=",
+			"path": "github.com/inconshreveable/mousetrap",
+			"revision": "76626ae9c91c4f2a10f34cad8ce83ea42c93bb75",
+			"revisionTime": "2014-10-17T20:07:13Z"
+		},
+		{
 			"checksumSHA1": "127FjqB8R9+ewoYNxa6svdJgdRU=",
 			"path": "github.com/jinzhu/gorm",
 			"revision": "7180bd0f27d167f18c253c32d548c7de3adc6b0d",
@@ -220,6 +220,12 @@
 			"revisionTime": "2017-10-02T11:52:56Z"
 		},
 		{
+			"checksumSHA1": "7FE1YLTciXMqejHGqcx/1yZDfLw=",
+			"path": "github.com/pilagod/gorm-cursor-paginator",
+			"revision": "ce95b590288a1aa1e0f6fa226e3de3576b0b7a6a",
+			"revisionTime": "2020-01-05T13:21:51Z"
+		},
+		{
 			"checksumSHA1": "LuFv4/jlrmFNnDb/5SCSEPAM9vU=",
 			"origin": "github.com/stretchr/testify/vendor/github.com/pmezard/go-difflib/difflib",
 			"path": "github.com/pmezard/go-difflib/difflib",
@@ -239,6 +245,18 @@
 			"revisionTime": "2015-10-25T16:16:26Z"
 		},
 		{
+			"checksumSHA1": "Y3aHtvUxZanB2scW3an649cjdWk=",
+			"path": "github.com/spf13/cobra",
+			"revision": "89c7ffb5129bebd58cd68878c13af2144a5791f3",
+			"revisionTime": "2020-01-06T18:10:57Z"
+		},
+		{
+			"checksumSHA1": "ojfUmKmPV01UCwuEl/cT2WAYppw=",
+			"path": "github.com/spf13/pflag",
+			"revision": "2e9d26c8c37aae03e3f9d4e90b7116f5accb7cab",
+			"revisionTime": "2019-09-18T19:59:20Z"
+		},
+		{
 			"checksumSHA1": "IIsn0Wdi5rHU8xca+FzDd+YeYlc=",
 			"path": "github.com/stretchr/testify/assert",
 			"revision": "34c6fa2dc70986bccbbffcc6130f6920a924b075",
@@ -249,6 +267,10 @@
 			"path": "github.com/stretchr/testify/require",
 			"revision": "34c6fa2dc70986bccbbffcc6130f6920a924b075",
 			"revisionTime": "2019-03-04T09:57:49Z"
+		},
+		{
+			"path": "go",
+			"revision": ""
 		},
 		{
 			"checksumSHA1": "x2GBAYCmQlV8IOwIfXPlHO3gkVY=",
@@ -345,6 +367,18 @@
 			"path": "go.opencensus.io/trace/tracestate",
 			"revision": "75c0cca22312e51bfd4fafdbe9197ae399e18b38",
 			"revisionTime": "2019-04-08T22:24:43Z"
+		},
+		{
+			"checksumSHA1": "oCH3J96RWvO8W4xjix47PModpio=",
+			"path": "golang.org/x/crypto/bcrypt",
+			"revision": "34f69633bfdcf9db92f698f8487115767eebef81",
+			"revisionTime": "2019-10-02T19:15:13Z"
+		},
+		{
+			"checksumSHA1": "q+XI9g44wd9mYvf3S5Wo8YZjAus=",
+			"path": "golang.org/x/crypto/blowfish",
+			"revision": "34f69633bfdcf9db92f698f8487115767eebef81",
+			"revisionTime": "2019-10-02T19:15:13Z"
 		},
 		{
 			"checksumSHA1": "zJybXQZcPAht+soLp/ozc9q5teE=",

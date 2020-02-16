@@ -68,7 +68,7 @@ func TestBackend_GetFiles(t *testing.T) {
 	_ = upload.NewFile()
 	createUpload(t, b, upload)
 
-	files, err := b.GetFiles(upload)
+	files, err := b.GetFiles(upload.ID)
 	require.NoError(t, err, "create file error")
 	require.Len(t, files, 2, "missing files")
 }

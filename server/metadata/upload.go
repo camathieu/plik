@@ -3,6 +3,7 @@ package metadata
 import (
 	"fmt"
 	"github.com/jinzhu/gorm"
+	paginator "github.com/pilagod/gorm-cursor-paginator"
 	"github.com/root-gg/plik/server/common"
 	"time"
 )
@@ -23,7 +24,40 @@ func (b *Backend) GetUpload(ID string) (upload *common.Upload, err error) {
 	return upload, err
 }
 
-func (b *Backend) RemoveUploadFiles(upload *common.Upload) (err error) {
+func (b *Backend) GetUploads(userID string, tokenStr string, withFiles bool, pagingQuery *common.PagingQuery) (uploads []*common.Upload, cursor *paginator.Cursor, err error) {
+	if pagingQuery == nil {
+		return nil, nil, fmt.Errorf("missing paging query")
+	}
+
+	whereClause := &common.Upload{}
+	if userID != "" {
+		whereClause.User = userID
+	}
+	if tokenStr != "" {
+		whereClause.Token = tokenStr
+	}
+
+
+	stmt := b.db.Model(&common.Upload{}).Where(whereClause)
+
+	if withFiles {
+		stmt = stmt.Preload("Files")
+	}
+
+	p := pagingQuery.Paginator()
+	p.SetKeys("CreatedAt", "ID")
+
+	err = p.Paginate(stmt, &uploads).Error
+	if err != nil {
+		return nil, nil, err
+	}
+
+	c := p.GetNextCursor()
+
+	return uploads, &c, err
+}
+
+func (b *Backend) RemoveUploadFiles(uploadID string) (err error) {
 	var errors []error
 	f := func(file *common.File) (err error) {
 		err = b.RemoveFile(file)
@@ -33,7 +67,7 @@ func (b *Backend) RemoveUploadFiles(upload *common.Upload) (err error) {
 		return nil
 	}
 
-	err = b.ForEachUploadFiles(upload, f)
+	err = b.ForEachUploadFiles(uploadID, f)
 	if err != nil {
 		return err
 	}
@@ -44,13 +78,13 @@ func (b *Backend) RemoveUploadFiles(upload *common.Upload) (err error) {
 	return nil
 }
 
-func (b *Backend) DeleteUpload(upload *common.Upload) (err error) {
-	err = b.db.Delete(upload).Error
+func (b *Backend) DeleteUpload(uploadID string) (err error) {
+	err = b.db.Delete(&common.Upload{ID:uploadID}).Error
 	if err != nil {
 		return fmt.Errorf("unable to delete upload")
 	}
 
-	err = b.RemoveUploadFiles(upload)
+	err = b.RemoveUploadFiles(uploadID)
 	if err != nil {
 		return fmt.Errorf("unable to delete upload files")
 	}
@@ -73,7 +107,7 @@ func (b *Backend) DeleteExpiredUploads() (removed int, err error) {
 			return 0, fmt.Errorf("unable to fetch next expired upload : %s", err)
 		}
 
-		err := b.DeleteUpload(upload)
+		err := b.DeleteUpload(upload.ID)
 		if err != nil {
 			errors = append(errors, err)
 			continue

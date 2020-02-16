@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-// Upload object
+// UploadV1 upload object compatible with Plik <1.3
 type UploadV1 struct {
 	ID       string `json:"id"`
 	Creation int64  `json:"uploadDate"`

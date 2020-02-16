@@ -2,6 +2,7 @@ package common
 
 import (
 	"fmt"
+	"golang.org/x/crypto/bcrypt"
 	"net/http"
 	"time"
 
@@ -23,6 +24,7 @@ type User struct {
 	ID       string `json:"id,omitempty"`
 	Provider string `json:"provider"`
 	Login    string `json:"login,omitempty"`
+	Password string `json:"-"`
 	Name     string `json:"name,omitempty"`
 	Email    string `json:"email,omitempty"`
 	IsAdmin  bool   `json:"admin"`
@@ -31,15 +33,18 @@ type User struct {
 
 	CreatedAt time.Time  `json:"createdAt"`
 	UpdatedAt time.Time  `json:"updatedAt"`
-	DeletedAt *time.Time `json:"deletedAt, omitempty"`
 }
 
 // NewUser create a new user object
 func NewUser(provider string, providerID string) (user *User) {
 	user = &User{}
-	user.ID = fmt.Sprintf("%s:%s", provider, providerID)
+	user.ID = GetUserId(provider, providerID)
 	user.Provider = provider
 	return user
+}
+
+func GetUserId(provider string, providerID string) string {
+	return fmt.Sprintf("%s:%s", provider, providerID)
 }
 
 // NewToken add a new token to a user
@@ -48,6 +53,18 @@ func (user *User) NewToken() (token *Token) {
 	token.UserID = user.ID
 	user.Tokens = append(user.Tokens, token)
 	return token
+}
+
+// NewToken add a new token to a user
+func (user *User) String() string {
+	str := user.Provider + ":" + user.Login
+	if user.Name != "" {
+		str += " " + user.Name
+	}
+	if user.Email != "" {
+		str += " " + user.Email
+	}
+	return str
 }
 
 func (config *Configuration) getSignatureKey(provider string) (key string, err error) {
@@ -191,4 +208,14 @@ func Logout(resp http.ResponseWriter) {
 	xsrfCookie.MaxAge = -1
 	xsrfCookie.Path = "/"
 	http.SetCookie(resp, xsrfCookie)
+}
+
+func HashPassword(password string) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+	return string(bytes), err
+}
+
+func CheckPasswordHash(password, hash string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+	return err == nil
 }

@@ -87,11 +87,6 @@ func Authenticate(allowToken bool) context.Middleware {
 
 					// Save user in the request context
 					ctx.SetUser(user)
-
-					// Authenticate admin users
-					if config.IsUserAdmin(user) {
-						ctx.SetAdmin(true)
-					}
 				}
 			}
 

@@ -11,9 +11,9 @@ func (b *Backend) CreateToken(token *common.Token) (err error) {
 	return b.db.Create(token).Error
 }
 
-func (b *Backend) GetToken(Token string) (token *common.Token, err error) {
+func (b *Backend) GetToken(tokenStr string) (token *common.Token, err error) {
 	token = &common.Token{}
-	err = b.db.Where(&common.Token{Token: Token}).Take(token).Error
+	err = b.db.Where(&common.Token{Token: tokenStr}).Take(token).Error
 	if gorm.IsRecordNotFoundError(err) {
 		return nil, nil
 	} else if err != nil {

@@ -13,6 +13,8 @@ my $struct = [
 	'dataBackend', 'data.Backend', { panic => 1 },
 	'streamBackend', 'data.Backend', { panic => 1 },
 
+    'pagingQuery',  '*common.PagingQuery', { panic => 1 },
+
 	'sourceIP', 'net.IP', {},
 
 	'upload', '*common.Upload', {},
@@ -21,7 +23,6 @@ my $struct = [
 	'token', '*common.Token', {},
 
 	'isWhitelisted', '*bool', { internal => 1 },
-	'isAdmin', 'bool', {},
 	'isUploadAdmin', 'bool', {},
 	'isRedirectOnFailure', 'bool', {},
 	'isQuick', 'bool', {},

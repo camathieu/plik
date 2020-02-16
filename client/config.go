@@ -150,7 +150,9 @@ func LoadConfig() (config *CliConfig, err error) {
 		}
 	}
 
+
 	// Try to HEAD the site to see if we have a redirection
+	// TODO handle insecure HTTPS
 	resp, err := http.Head(config.URL)
 	if err != nil {
 		return nil, err

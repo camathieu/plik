@@ -20,7 +20,7 @@ else
 endif
 test: build = $(race_detector)
 
-all: clean clean-frontend frontend clients server
+all: clean clean-frontend frontend client server
 
 ###
 # Build frontend ressources
@@ -35,7 +35,7 @@ frontend:
 ###
 server:
 	@server/gen_build_info.sh $(RELEASE_VERSION)
-	@echo "Compiling Plik server"
+	@echo "Building Plik server"
 	@cd server && $(build) -o plikd ./
 
 ###
@@ -51,7 +51,7 @@ servers: frontend
 		mkdir -p ../servers/$$target; \
 		if [ $$GOOS = "windows" ] ; then SERVER_PATH=$$SERVER_DIR/plikd.exe ; fi ; \
 		if [ -e $$SERVER_PATH ] ; then continue ; fi ; \
-		echo "Compiling Plik server for $$target to $$SERVER_PATH"; \
+		echo "Building Plik server for $$target to $$SERVER_PATH"; \
 		$(build) -o $$SERVER_PATH ;	\
 	done
 
@@ -77,7 +77,7 @@ clients:
 		mkdir -p $$CLIENT_DIR; \
 		if [ $$GOOS = "windows" ] ; then CLIENT_PATH=$$CLIENT_DIR/plik.exe ; fi ; \
 		if [ -e $$CLIENT_PATH ] ; then continue ; fi ; \
-		echo "Compiling Plik client for $$target to $$CLIENT_PATH"; \
+		echo "Building Plik client for $$target to $$CLIENT_PATH"; \
 		$(build) -o $$CLIENT_PATH ; \
 		md5sum $$CLIENT_PATH | awk '{print $$1}' > $$CLIENT_MD5; \
 	done

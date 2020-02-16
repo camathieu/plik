@@ -15,7 +15,7 @@ import (
 	api_oauth2 "google.golang.org/api/oauth2/v2"
 )
 
-var googeleEndpointContextKey = "google_endpoint"
+var googleEndpointContextKey = "google_endpoint"
 
 // GoogleLogin return google api user consent URL.
 func GoogleLogin(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
@@ -149,7 +149,7 @@ func GoogleCallback(ctx *context.Context, resp http.ResponseWriter, req *http.Re
 	}
 
 	// For testing purpose
-	if customEndpoint := req.Context().Value(googeleEndpointContextKey); customEndpoint != nil {
+	if customEndpoint := req.Context().Value(googleEndpointContextKey); customEndpoint != nil {
 		conf.Endpoint = customEndpoint.(oauth2.Endpoint)
 	}
 
@@ -166,7 +166,7 @@ func GoogleCallback(ctx *context.Context, resp http.ResponseWriter, req *http.Re
 	}
 
 	// For testing purpose
-	if customEndpoint := req.Context().Value(googeleEndpointContextKey); customEndpoint != nil {
+	if customEndpoint := req.Context().Value(googleEndpointContextKey); customEndpoint != nil {
 		client.BasePath = customEndpoint.(oauth2.Endpoint).AuthURL
 	}
 
@@ -177,7 +177,7 @@ func GoogleCallback(ctx *context.Context, resp http.ResponseWriter, req *http.Re
 	}
 
 	// Get user from metadata backend
-	user, err := ctx.GetMetadataBackend().GetUser(common.NewUser(common.ProviderGoogle, userInfo.Id).ID)
+	user, err := ctx.GetMetadataBackend().GetUser(common.GetUserId(common.ProviderGoogle, userInfo.Id))
 	if err != nil {
 		ctx.InternalServerError("unable to get user from metadata backend", err)
 		return
@@ -225,7 +225,7 @@ func GoogleCallback(ctx *context.Context, resp http.ResponseWriter, req *http.Re
 	// Set Plik session cookie and xsrf cookie
 	sessionCookie, xsrfCookie, err := common.GenAuthCookies(user, ctx.GetConfig())
 	if err != nil {
-		ctx.InternalServerError("unable to generate session cookies : %s", err)
+		ctx.InternalServerError("unable to generate session cookies", err)
 	}
 	http.SetCookie(resp, sessionCookie)
 	http.SetCookie(resp, xsrfCookie)

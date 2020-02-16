@@ -76,8 +76,6 @@ func (ps *PlikServer) Start() (err error) {
 func (ps *PlikServer) start() (err error) {
 	log := ps.config.NewLogger()
 
-	// TODO what if the server has been shutdown before ???
-
 	log.Infof("Starting plikd server v" + common.GetBuildInfo().Version)
 
 	// Initialize backends
@@ -106,14 +104,10 @@ func (ps *PlikServer) start() (err error) {
 	address := ps.config.ListenAddress + ":" + strconv.Itoa(ps.config.ListenPort)
 	if ps.config.SslEnabled {
 		proto = "https"
-
-		// Load cert
-		cert, err := tls.LoadX509KeyPair(ps.config.SslCert, ps.config.SslKey)
-		if err != nil {
-			return fmt.Errorf("unable to load ssl certificate : %s", err)
+		if ps.config.SslCert == "" || ps.config.SslKey == "" {
+			return fmt.Errorf("unable to start plik server without ssl certificates")
 		}
-
-		tlsConfig := &tls.Config{MinVersion: tls.VersionTLS10, Certificates: []tls.Certificate{cert}}
+		tlsConfig := &tls.Config{MinVersion: tls.VersionTLS10}
 		ps.httpServer = &http.Server{Addr: address, Handler: handler, TLSConfig: tlsConfig}
 	} else {
 		proto = "http"
@@ -124,7 +118,13 @@ func (ps *PlikServer) start() (err error) {
 
 	// Start HTTP Server
 	go func() {
-		err := ps.httpServer.ListenAndServe()
+		var err error
+		if ps.config.SslEnabled {
+			err = ps.httpServer.ListenAndServeTLS(ps.config.SslCert, ps.config.SslKey)
+		} else {
+			err = ps.httpServer.ListenAndServe()
+		}
+
 		if err != nil {
 			ps.mu.Lock()
 			defer ps.mu.Unlock()
@@ -133,11 +133,6 @@ func (ps *PlikServer) start() (err error) {
 			}
 		}
 	}()
-
-	err = common.CheckHTTPServer(ps.GetConfig().ListenPort)
-	if err != nil {
-		return err
-	}
 
 	return nil
 }
@@ -191,6 +186,9 @@ func (ps *PlikServer) getHTTPHandler() (handler http.Handler) {
 	// Get user from session cookie
 	authChain := stdChain.Append(middleware.Authenticate(false), middleware.Impersonate)
 
+	// Parse paging queries
+	pagingChain := authChain.Append(middleware.Paginate)
+
 	// Get user from session cookie or X-PlikToken header
 	tokenChain := stdChain.Append(middleware.Authenticate(true), middleware.Impersonate)
 
@@ -219,16 +217,18 @@ func (ps *PlikServer) getHTTPHandler() (handler http.Handler) {
 	router.Handle("/auth/google/callback", stdChainWithRedirect.Then(handlers.GoogleCallback)).Methods("GET")
 	router.Handle("/auth/ovh/login", authChain.Then(handlers.OvhLogin)).Methods("GET")
 	router.Handle("/auth/ovh/callback", stdChainWithRedirect.Then(handlers.OvhCallback)).Methods("GET")
+	router.Handle("/auth/local/login", authChain.Then(handlers.LocalLogin)).Methods("POST")
 	router.Handle("/auth/logout", authChain.Then(handlers.Logout)).Methods("GET")
 	router.Handle("/me", authChain.Then(handlers.UserInfo)).Methods("GET")
 	router.Handle("/me", authChain.Then(handlers.DeleteAccount)).Methods("DELETE")
+	router.Handle("/me/token", authChain.Then(handlers.UserTokens)).Methods("GET")
 	router.Handle("/me/token", authChain.Then(handlers.CreateToken)).Methods("POST")
 	router.Handle("/me/token/{token}", authChain.Then(handlers.RevokeToken)).Methods("DELETE")
-	router.Handle("/me/uploads", authChain.Then(handlers.GetUserUploads)).Methods("GET")
+	router.Handle("/me/uploads", pagingChain.Then(handlers.GetUserUploads)).Methods("GET")
 	router.Handle("/me/uploads", authChain.Then(handlers.RemoveUserUploads)).Methods("DELETE")
 	router.Handle("/me/stats", authChain.Then(handlers.GetUserStatistics)).Methods("GET")
 	//router.Handle("/stats", authChain.Then(handlers.GetServerStatistics)).Methods("GET")
-	//router.Handle("/users", authChain.Then(handlers.GetUsers)).Methods("GET")
+	router.Handle("/users", pagingChain.Then(handlers.GetUsers)).Methods("GET")
 	router.Handle("/qrcode", stdChain.Then(handlers.GetQrCode)).Methods("GET")
 
 	if !ps.config.NoWebInterface {
@@ -246,7 +246,7 @@ func (ps *PlikServer) getHTTPHandler() (handler http.Handler) {
 	return handler
 }
 
-// WithDataBackend configure the data backend to use ( call before Start() )
+// WithDataBackend configure the metadata backend to use ( call before Start() )
 func (ps *PlikServer) WithMetadataBackend(backend *metadata.Backend) *PlikServer {
 	if ps.metadataBackend == nil {
 		ps.metadataBackend = backend
@@ -254,7 +254,7 @@ func (ps *PlikServer) WithMetadataBackend(backend *metadata.Backend) *PlikServer
 	return ps
 }
 
-// Initialize metadata backend from type found in configuration
+// Initialize metadata backend
 func (ps *PlikServer) initializeMetadataBackend() (err error) {
 	if ps.metadataBackend == nil {
 		config := metadata.NewConfig(ps.config.MetadataBackendConfig)

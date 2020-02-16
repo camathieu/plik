@@ -72,7 +72,7 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 	// Get file from context
 	file := ctx.GetFile()
 	if file == nil {
-		count, err := ctx.GetMetadataBackend().CountUploadFiles(upload)
+		count, err := ctx.GetMetadataBackend().CountUploadFiles(upload.ID)
 		if err != nil {
 			ctx.InternalServerError("unable get upload file count", err)
 			return
@@ -154,7 +154,7 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 	if preprocessOutput.err != nil {
 		// TODO : file status is left to common.FileUploading we should set it to some common.FileUploadError
 		// TODO : or we can set it back to common.FileMissing if we are sure data backends will handle that
-		handleHTTPError(ctx, "unable to execute preprocessor", preprocessOutput.err)
+		handleHTTPError(ctx, preprocessOutput.err)
 		return
 	}
 
@@ -231,7 +231,7 @@ func preprocessor(ctx *context.Context, file io.Reader, preprocessWriter io.Writ
 				break
 			}
 		} else if err != nil {
-			err = common.NewHTTPError(fmt.Sprintf("unable to read data from request body : %s", err), http.StatusInternalServerError)
+			err = common.NewHTTPError("unable to read data from request body : %s", err, http.StatusInternalServerError)
 			break
 		}
 
@@ -245,7 +245,7 @@ func preprocessor(ctx *context.Context, file io.Reader, preprocessWriter io.Writ
 
 		// Check upload max size limit
 		if int64(totalBytes) > config.MaxFileSize {
-			err = common.NewHTTPError(fmt.Sprintf("file too big (limit is set to %d bytes)", config.MaxFileSize), http.StatusBadRequest)
+			err = common.NewHTTPError(fmt.Sprintf("file too big (limit is set to %d bytes)", config.MaxFileSize), nil, http.StatusBadRequest)
 			break
 		}
 

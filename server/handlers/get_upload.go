@@ -17,7 +17,7 @@ func GetUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Request
 		panic("missing upload from context")
 	}
 
-	files, err := ctx.GetMetadataBackend().GetFiles(upload)
+	files, err := ctx.GetMetadataBackend().GetFiles(upload.ID)
 	if err != nil {
 		ctx.InternalServerError("unable to get upload files", err)
 		return

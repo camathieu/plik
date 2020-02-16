@@ -138,9 +138,10 @@ func (config *Configuration) Initialize() (err error) {
 		config.OvhAuthentication = false
 	}
 
-	if !config.GoogleAuthentication && !config.OvhAuthentication {
-		config.Authentication = false
+	if !config.Authentication {
 		config.NoAnonymousUploads = false
+		config.GoogleAuthentication = false
+		config.OvhAuthentication = false
 	}
 
 	if config.DownloadDomain != "" {
@@ -199,17 +200,6 @@ func (config *Configuration) IsWhitelisted(ip net.IP) bool {
 	// Check if the source IP address is in whitelist
 	for _, subnet := range config.uploadWhitelist {
 		if subnet.Contains(ip) {
-			return true
-		}
-	}
-
-	return false
-}
-
-// IsUserAdmin check if the user is a Plik server administrator
-func (config *Configuration) IsUserAdmin(user *User) bool {
-	for _, id := range config.Admins {
-		if user.ID == id {
 			return true
 		}
 	}

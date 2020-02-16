@@ -47,7 +47,7 @@ func TestBackend_DeleteUser(t *testing.T) {
 
 	createUser(t, b, user)
 
-	err := b.DeleteUser(user)
+	err := b.DeleteUser(user.ID)
 	require.NoError(t, err, "get user error")
 
 	user, err = b.GetUser(user.ID)

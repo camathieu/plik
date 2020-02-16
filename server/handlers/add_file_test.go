@@ -535,7 +535,7 @@ func TestAddFileQuick(t *testing.T) {
 	respBody, err := ioutil.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 
-	files, err := ctx.GetMetadataBackend().GetFiles(upload)
+	files, err := ctx.GetMetadataBackend().GetFiles(upload.ID)
 	require.NoError(t, err, "unable to get upload files")
 	require.Len(t, files, 1, "missing file")
 
@@ -573,7 +573,7 @@ func TestAddFileQuickDownloadDomain(t *testing.T) {
 	respBody, err := ioutil.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 
-	files, err := ctx.GetMetadataBackend().GetFiles(upload)
+	files, err := ctx.GetMetadataBackend().GetFiles(upload.ID)
 	require.NoError(t, err, "unable to get upload files")
 	require.Len(t, files, 1, "missing file")
 

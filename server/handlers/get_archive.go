@@ -101,7 +101,7 @@ func GetArchive(ctx *context.Context, resp http.ResponseWriter, req *http.Reques
 			return nil
 		}
 
-		err := ctx.GetMetadataBackend().ForEachUploadFiles(upload, f)
+		err := ctx.GetMetadataBackend().ForEachUploadFiles(upload.ID, f)
 		if err != nil {
 			ctx.InternalServerError("unable to update file status", err)
 		}

@@ -14,7 +14,7 @@ type Token struct {
 	UserID string `json:"-" gorm:"type:varchar(255) REFERENCES users(id) ON UPDATE RESTRICT ON DELETE CASCADE"`
 
 	CreatedAt time.Time  `json:"createdAt"`
-	DeletedAt *time.Time `json:"deletedAt, omitempty"`
+	DeletedAt *time.Time `json:"deletedAt,omitempty"`
 }
 
 // NewToken create a new Token instance

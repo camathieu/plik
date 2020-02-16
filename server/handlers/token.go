@@ -89,7 +89,7 @@ func RevokeToken(ctx *context.Context, resp http.ResponseWriter, req *http.Reque
 		return
 	}
 
-	if token != nil || token.UserID != user.ID {
+	if token == nil || token.UserID != user.ID {
 		ctx.NotFound("token not found")
 		return
 	}

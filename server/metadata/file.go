@@ -22,8 +22,8 @@ func (b *Backend) GetFile(ID string) (file *common.File, err error) {
 	return file, err
 }
 
-func (b *Backend) GetFiles(upload *common.Upload) (files []*common.File, err error) {
-	err = b.db.Where(&common.File{UploadID: upload.ID}).Find(&files).Error
+func (b *Backend) GetFiles(uploadID string) (files []*common.File, err error) {
+	err = b.db.Where(&common.File{UploadID: uploadID}).Find(&files).Error
 	if err != nil {
 		return nil, err
 	}
@@ -72,8 +72,8 @@ func (b *Backend) RemoveFile(file *common.File) error {
 	return nil
 }
 
-func (b *Backend) ForEachUploadFiles(upload *common.Upload, f func(file *common.File) error) (err error) {
-	rows, err := b.db.Model(&common.File{}).Where(&common.File{UploadID: upload.ID}).Rows()
+func (b *Backend) ForEachUploadFiles(uploadID string, f func(file *common.File) error) (err error) {
+	rows, err := b.db.Model(&common.File{}).Where(&common.File{UploadID: uploadID}).Rows()
 	if err != nil {
 		return err
 	}
@@ -116,8 +116,8 @@ func (b *Backend) ForEachRemovedFile(f func(file *common.File) error) (err error
 	return nil
 }
 
-func (b *Backend) CountUploadFiles(upload *common.Upload) (count int, err error) {
-	err = b.db.Model(&common.File{}).Where(&common.File{UploadID: upload.ID}).Count(&count).Error
+func (b *Backend) CountUploadFiles(uploadID string) (count int, err error) {
+	err = b.db.Model(&common.File{}).Where(&common.File{UploadID: uploadID}).Count(&count).Error
 	if err != nil {
 		return -1, err
 	}

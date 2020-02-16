@@ -9,7 +9,6 @@ import (
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
 	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/utils"
 	"github.com/stretchr/testify/require"
 )
 
@@ -106,8 +105,6 @@ func TestMetadataConcurrent(t *testing.T) {
 	upload = &common.Upload{}
 	err = b.db.Preload("Files").Take(upload, "id = ?", uploadID).Error
 	require.NoError(t, err, "unable to fetch upload")
-
-	utils.Dump(upload)
 }
 
 func TestMetadataUpdateFileStatus(t *testing.T) {
@@ -137,8 +134,6 @@ func TestMetadataUpdateFileStatus(t *testing.T) {
 	upload = &common.Upload{}
 	err = b.db.Preload("Files").Take(upload, "id = ?", uploadID).Error
 	require.NoError(t, err, "unable to fetch upload")
-
-	utils.Dump(upload)
 }
 
 func TestMetadataNotFound(t *testing.T) {
@@ -148,8 +143,6 @@ func TestMetadataNotFound(t *testing.T) {
 	err := b.db.Where(&common.Upload{ID: "notfound"}).Take(upload).Error
 	require.Error(t, err, "unable to fetch upload")
 	require.True(t, gorm.IsRecordNotFoundError(err), "unexpected error type")
-
-	utils.Dump(upload)
 }
 
 func TestMetadataCursor(t *testing.T) {

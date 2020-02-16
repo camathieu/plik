@@ -246,7 +246,7 @@ func OvhCallback(ctx *context.Context, resp http.ResponseWriter, req *http.Reque
 	}
 
 	// Get user from metadata backend
-	user, err := ctx.GetMetadataBackend().GetUser(common.NewUser(common.ProviderOVH, userInfo.Nichandle).ID)
+	user, err := ctx.GetMetadataBackend().GetUser(common.GetUserId(common.ProviderOVH, userInfo.Nichandle))
 	if err != nil {
 		ctx.InternalServerError("unable to get user from metadata backend", err)
 		return

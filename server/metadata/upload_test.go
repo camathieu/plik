@@ -1,6 +1,7 @@
 package metadata
 
 import (
+	"fmt"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
 	"github.com/root-gg/plik/server/common"
 	"github.com/stretchr/testify/require"
@@ -61,12 +62,133 @@ func TestBackend_DeleteUpload(t *testing.T) {
 
 	createUpload(t, b, upload)
 
-	err := b.DeleteUpload(upload)
+	err := b.DeleteUpload(upload.ID)
 	require.NoError(t, err, "get upload error")
 
 	upload, err = b.GetUpload(upload.ID)
 	require.NoError(t, err, "get upload error")
 	require.Nil(t, upload, "upload not nil")
+}
+
+func TestBackend_GetUploads(t *testing.T) {
+	b := newTestMetadataBackend()
+
+	for i := 1; i <= 100; i++ {
+		upload := &common.Upload{Comments: fmt.Sprintf("%d", i)}
+		upload.NewFile()
+		createUpload(t, b, upload)
+	}
+
+	limit := 10
+	uploads, cursor, err := b.GetUploads("", "", false, &common.PagingQuery{Limit: &limit})
+	require.NoError(t, err, "get upload error")
+	require.Len(t, uploads, limit, "invalid upload count")
+	require.NotNil(t, cursor, "invalid nil cursor")
+	require.Nil(t, cursor.Before, "invalid non nil before cursor")
+	require.NotNil(t, cursor.After, "invalid nil after cursor")
+
+	for i := 0; i < limit; i++ {
+		require.Equal(t, fmt.Sprintf("%d", 100-i), uploads[i].Comments, "invalid upload sequence")
+	}
+
+	//  Test forward cursor
+	uploads, cursor, err = b.GetUploads("", "", false, &common.PagingQuery{Limit: &limit, After: cursor.After})
+	require.NoError(t, err, "get upload error")
+	require.Len(t, uploads, limit, "invalid upload count")
+	require.NotNil(t, cursor, "invalid nil cursor")
+	require.NotNil(t, cursor.Before, "invalid nil before cursor")
+	require.NotNil(t, cursor.After, "invalid nil after cursor")
+
+	for i := 0; i < limit; i++ {
+		require.Equal(t, fmt.Sprintf("%d", 100-limit-i), uploads[i].Comments, "invalid upload sequence")
+	}
+
+	//  Test backward cursor
+	uploads, cursor, err = b.GetUploads("", "", false, &common.PagingQuery{Limit: &limit, Before: cursor.Before})
+	require.NoError(t, err, "get upload error")
+	require.Len(t, uploads, limit, "invalid upload count")
+	require.NotNil(t, cursor, "invalid nil cursor")
+	require.Nil(t, cursor.Before, "invalid non nil before cursor")
+	require.NotNil(t, cursor.After, "invalid nil after cursor")
+
+	for i := 0; i < limit; i++ {
+		require.Equal(t, fmt.Sprintf("%d", 100-i), uploads[i].Comments, "invalid upload sequence")
+	}
+}
+
+func TestBackend_GetUploadsWithFiles(t *testing.T) {
+	b := newTestMetadataBackend()
+
+	upload := &common.Upload{}
+	upload.NewFile()
+	createUpload(t, b, upload)
+
+	uploads, cursor, err := b.GetUploads("", "", false, &common.PagingQuery{})
+	require.NoError(t, err, "get upload error")
+	require.Len(t, uploads, 1, "invalid upload count")
+	require.Len(t, uploads[0].Files, 0,  "invalid file count")
+	require.Nil(t, cursor.After, "invalid non nil after cursor")
+	require.Nil(t, cursor.Before, "invalid non nil before cursor")
+
+	uploads, _, err = b.GetUploads("", "", true, &common.PagingQuery{})
+	require.NoError(t, err, "get upload error")
+	require.Len(t, uploads, 1, "invalid upload count")
+	require.Len(t, uploads[0].Files, 1,  "invalid file count")
+
+}
+
+func TestBackend_GetUploads_User(t *testing.T) {
+	b := newTestMetadataBackend()
+
+	user := &common.User{ID: "user"}
+
+	for i := 1; i <= 100; i++ {
+		upload := &common.Upload{Comments: fmt.Sprintf("%d", i)}
+		if i%10 == 0 {
+			upload.User = user.ID
+		}
+		createUpload(t, b, upload)
+	}
+
+	limit := 10
+	uploads, cursor, err := b.GetUploads(user.ID, "", false, &common.PagingQuery{Limit: &limit})
+	require.NoError(t, err, "get upload error")
+	require.Len(t, uploads, limit, "invalid upload count")
+	require.NotNil(t, cursor, "invalid nil cursor")
+
+	for i := 0; i < limit; i++ {
+		expected := 100 - i*10
+		require.Equal(t, fmt.Sprintf("%d", expected), uploads[i].Comments, "invalid upload sequence")
+	}
+	require.Nil(t, cursor.Before, "invalid non nil before cursor")
+	require.Nil(t, cursor.After, "invalid non nil after cursor")
+}
+
+func TestBackend_GetUploads_Token(t *testing.T) {
+	b := newTestMetadataBackend()
+
+	token := &common.Token{Token: "token"}
+
+	for i := 1; i <= 100; i++ {
+		upload := &common.Upload{Comments: fmt.Sprintf("%d", i)}
+		if i%10 == 0 {
+			upload.Token = token.Token
+		}
+		createUpload(t, b, upload)
+	}
+
+	limit := 10
+	uploads, cursor, err := b.GetUploads("", token.Token, false, &common.PagingQuery{Limit: &limit})
+	require.NoError(t, err, "get upload error")
+	require.Len(t, uploads, limit, "invalid upload count")
+	require.NotNil(t, cursor, "invalid nil cursor")
+
+	for i := 0; i < limit; i++ {
+		expected := 100 - i*10
+		require.Equal(t, fmt.Sprintf("%d", expected), uploads[i].Comments, "invalid upload sequence")
+	}
+	require.Nil(t, cursor.Before, "invalid non nil before cursor")
+	require.Nil(t, cursor.After, "invalid non nil after cursor")
 }
 
 func TestBackend_CountUploadFiles(t *testing.T) {
@@ -77,38 +199,11 @@ func TestBackend_CountUploadFiles(t *testing.T) {
 
 	createUpload(t, b, upload)
 
-	count, err := b.CountUploadFiles(upload)
+	count, err := b.CountUploadFiles(upload.ID)
 	require.NoError(t, err, "count upload files error")
 	require.Equal(t, 1, count, "count upload files mismatch")
 }
 
-//
-//func TestBackend_DeleteUploadWithFiles(t *testing.T) {
-//	b := newTestMetadataBackend()
-//
-//	upload := &common.Upload{}
-//	file := upload.NewFile()
-//
-//    createUpload(t, b, upload)
-//
-//	content := bytes.NewBufferString("data data data")
-//	_, err := b.dataBackend.AddFile(upload, file, content)
-//	require.NoError(t, err, "add file error")
-//
-//	err = b.UpdateFileStatus(file, common.FileMissing, common.FileUploaded)
-//	require.NoError(t, err, "update file status error")
-//
-//	err = b.DeleteUpload(upload)
-//	require.NoError(t, err, "delete upload error")
-//
-//	upload, err = b.GetUpload(upload.ID)
-//	require.NoError(t, err, "get upload error")
-//	require.Nil(t, upload, "upload not nil")
-//
-//	_, err = b.dataBackend.GetFile(upload, file)
-//	require.Error(t, err, "get file error")
-//}
-//
 func TestBackend_DeleteExpiredUploads(t *testing.T) {
 	b := newTestMetadataBackend()
 

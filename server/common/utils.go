@@ -1,6 +1,7 @@
 package common
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 )
@@ -10,23 +11,26 @@ var _ error = (*HTTPError)(nil)
 
 // HTTPError allows to return an error and a HTTP status code
 type HTTPError struct {
-	error      string
-	statusCode int
+	Message    string
+	Err        error
+	StatusCode int
 }
 
 // NewHTTPError return a new HTTPError
-func NewHTTPError(message string, code int) HTTPError {
-	return HTTPError{message, code}
+func NewHTTPError(message string, err error, code int) HTTPError {
+	return HTTPError{message, err, code}
 }
 
 // Error return the error
 func (e HTTPError) Error() string {
-	return e.error
+	return e.String()
 }
 
-// GetStatusCode return the http status code
-func (e HTTPError) GetStatusCode() int {
-	return e.statusCode
+func (e HTTPError) String() string {
+	if e.Err != nil {
+		return fmt.Sprintf("%s : %s", e.Message, e.Err)
+	}
+	return e.Message
 }
 
 // StripPrefix returns a handler that serves HTTP requests

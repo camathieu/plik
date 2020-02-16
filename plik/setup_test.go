@@ -124,7 +124,7 @@ func newPlikServerAndClient() (ps *server.PlikServer, pc *Client) {
 // /!\ Backends ARE NOT automatically cleared between tests /!\
 //
 func start(ps *server.PlikServer) (err error) {
-	//err = common.CheckHTTPServer(ps.GetConfig().ListenPort)
+	//common.CheckHTTPServer(ps.GetConfig().ListenPort)
 	//if err == nil {
 	//	return fmt.Errorf("plik server is already running")
 	//}
@@ -150,7 +150,7 @@ func shutdown(ps *server.PlikServer) {
 	if err != nil {
 		panic("unable to shutdown server " + err.Error())
 	}
-	//err = common.CheckHTTPServer(ps.GetConfig().ListenPort)
+	//common.CheckHTTPServer(ps.GetConfig().ListenPort)
 	//if err == nil {
 	//	panic("still able to join plik server after shutdown")
 	//}

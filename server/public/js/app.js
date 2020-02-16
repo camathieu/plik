@@ -186,9 +186,13 @@ angular.module('api', ['ngFileUpload']).factory('$api', function ($http, $q, Upl
     };
 
     // Log in
-    api.login = function (provider) {
+    api.login = function (provider, login, password) {
         var url = api.base + '/auth/' + provider + '/login';
-        return api.call(url, 'GET');
+        if (provider === "local") {
+            return api.call(url, 'POST', {}, {login: login, password: password})
+        } else {
+            return api.call(url, 'GET');
+        }
     };
 
     // Log out
@@ -204,9 +208,9 @@ angular.module('api', ['ngFileUpload']).factory('$api', function ($http, $q, Upl
     };
 
     // Get upload metadata
-    api.getUploads = function (token, size, offset) {
+    api.getUploads = function (token, size, cursor) {
         var url = api.base + '/me/uploads';
-        return api.call(url, 'GET', {token: token, size: size, offset: offset});
+        return api.call(url, 'GET', {token: token, limit: size, after: cursor});
     };
 
     // Get user statistics
@@ -620,7 +624,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                 }
 
                 // Create file to upload list
-                $scope.upload.files = {};
+                $scope.upload.files = [];
                 var ko = _.find($scope.files, function (file) {
                     // Check file name length
                     if (file.fileName.length > fileNameMaxLength) {
@@ -640,12 +644,12 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                         return true; // break find loop
                     }
                     // Sanitize file object
-                    $scope.upload.files[file.reference] = {
+                    $scope.upload.files.push({
                         fileName: file.fileName,
                         fileType: file.fileType,
                         fileSize: file.fileSize,
                         reference: file.reference
-                    };
+                    });
                 });
                 if (ko) return;
 
@@ -688,7 +692,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                     .then(function (metadata) {
                         file.metadata = metadata;
 
-                        // Redirect to home when all stream uploads are downloaded
+                        // Redirect to home whe params...n all stream uploads are downloaded
                         if (!$scope.somethingOk()) {
                             $scope.mainpage();
                         }
@@ -1080,6 +1084,18 @@ plik.controller('LoginCtrl', ['$scope', '$api', '$config', '$location', '$dialog
                     $dialog.alert(error);
                 });
         };
+
+        // Login with local user
+        $scope.login = function () {
+            $api.login("local", $scope.username, $scope.password)
+                .then(function () {
+                    $config.refreshUser();
+                    $location.path('/home');
+                })
+                .then(null, function (error) {
+                    $dialog.alert(error);
+                });
+        };
     }]);
 
 // Home controller
@@ -1136,17 +1152,16 @@ plik.controller('HomeCtrl', ['$scope', '$api', '$config', '$dialog', '$location'
         $scope.getUploads = function (more) {
             if (!more) {
                 $scope.uploads = [];
+                $scope.cursor = null;
             }
 
-            $scope.size = 50;
-            $scope.offset = $scope.uploads.length;
-            $scope.more = false;
+            $scope.limit = 50;
 
-            // Get user uploadsfake_user
-            $api.getUploads($scope.token, $scope.size, $scope.offset)
-                .then(function (uploads) {
-                    $scope.uploads = $scope.uploads.concat(uploads);
-                    $scope.more = uploads.length === $scope.size;
+            // Get user uploads
+            $api.getUploads($scope.token, $scope.limit, $scope.cursor)
+                .then(function (result) {
+                    $scope.uploads = $scope.uploads.concat(result.results);
+                    $scope.cursor = result.after;
                 })
                 .then(null, function (error) {
                     $dialog.alert(error);

@@ -194,7 +194,7 @@ package handlers
 //	req, err := http.NewRequest("GET", "/auth/google/login?code=code&state="+url.QueryEscape(b64state), bytes.NewBuffer([]byte{}))
 //	require.NoError(t, err, "unable to create new request")
 //
-//	req = req.WithContext(gocontext.WithValue(gocontext.TODO(), googeleEndpointContextKey, oauth2TestEndpoint))
+//	req = req.WithContext(gocontext.WithValue(gocontext.TODO(), googleEndpointContextKey, oauth2TestEndpoint))
 //
 //	rr := ctx.NewRecorder(req)
 //	GoogleCallback(ctx, rr, req)
@@ -451,7 +451,7 @@ package handlers
 //	req, err := http.NewRequest("GET", "/auth/google/login?code=code&state="+url.QueryEscape(b64state), bytes.NewBuffer([]byte{}))
 //	require.NoError(t, err, "unable to create new request")
 //
-//	req = req.WithContext(gocontext.WithValue(gocontext.TODO(), googeleEndpointContextKey, oauth2TestEndpoint))
+//	req = req.WithContext(gocontext.WithValue(gocontext.TODO(), googleEndpointContextKey, oauth2TestEndpoint))
 //
 //	rr := ctx.NewRecorder(req)
 //	GoogleCallback(ctx, rr, req)
@@ -518,7 +518,7 @@ package handlers
 //	req, err := http.NewRequest("GET", "/auth/google/login?code=code&state="+url.QueryEscape(b64state), bytes.NewBuffer([]byte{}))
 //	require.NoError(t, err, "unable to create new request")
 //
-//	req = req.WithContext(gocontext.WithValue(gocontext.TODO(), googeleEndpointContextKey, oauth2TestEndpoint))
+//	req = req.WithContext(gocontext.WithValue(gocontext.TODO(), googleEndpointContextKey, oauth2TestEndpoint))
 //
 //	rr := ctx.NewRecorder(req)
 //	GoogleCallback(ctx, rr, req)
@@ -612,7 +612,7 @@ package handlers
 //	req, err := http.NewRequest("GET", "/auth/google/login?code=code&state="+url.QueryEscape(b64state), bytes.NewBuffer([]byte{}))
 //	require.NoError(t, err, "unable to create new request")
 //
-//	req = req.WithContext(gocontext.WithValue(gocontext.TODO(), googeleEndpointContextKey, oauth2TestEndpoint))
+//	req = req.WithContext(gocontext.WithValue(gocontext.TODO(), googleEndpointContextKey, oauth2TestEndpoint))
 //
 //	rr := ctx.NewRecorder(req)
 //	GoogleCallback(ctx, rr, req)
