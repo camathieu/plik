@@ -4,8 +4,8 @@
 ##
 #
 
-# Let's start with a fresh debian jessie
-FROM debian:jessie
+# Let's start with a fresh debian image
+FROM debian:buster
 
 # Some generic information
 MAINTAINER Charles-Antoine Mathieu
@@ -29,4 +29,3 @@ RUN chmod +x /home/plik/server/plikd
 USER plik
 WORKDIR /home/plik/server
 CMD ./plikd
-

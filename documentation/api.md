@@ -55,9 +55,6 @@ Get file :
   - **GET**  /$mode/:uploadid:/:fileid:/:filename:
     - Download file. Filename **MUST** match. A browser, might try to display the file if it's a jpeg for example. You may try to force download with ?dl=1 in url.
 
-  - **GET**  /$mode/:uploadid:/:fileid:/:filename:/yubikey/:yubikeyOtp:
-    - Same as previous call, except that you can specify a Yubikey OTP in the URL if the upload is Yubikey restricted.
-
   - **GET**  /archive/:uploadid:/:filename:
     - Download uploaded files in a zip archive. :filename: must end with .zip
 

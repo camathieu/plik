@@ -1,28 +1,4 @@
-<!--
-The MIT License (MIT)
 
-Copyright (c) <2015>
-- Mathieu Bodjikian <mathieu@bodjikian.fr>
-- Charles-Antoine Mathieu <skatkatt@root.gg>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
--->
 
 <!-- USER HOME -->
 <div class="row" ng-if="user">
@@ -122,7 +98,7 @@ THE SOFTWARE.
                             </a>
                         </div>
                         <div class="col-sm-2 hidden-md hidden-sm hidden-xs">
-                            {{token.creationDate *1000 | date:'medium'}}
+                            {{token.createdAt | date:'medium'}}
                         </div>
                         <div class="col-sm-3 file-name">
                             {{token.comment}}
@@ -164,11 +140,10 @@ THE SOFTWARE.
                             <a href="{{getUploadUrl(upload)}}">{{ upload.id }}</a>
                             <br/>
                             <!-- UPLOAD DATE -->
-                            uploaded : {{ upload.uploadDate * 1000 | date:'medium' }}
+                            uploaded : {{ upload.createdAt | date:'medium' }}
                             <br/>
                             <!-- EXPIRE DATE -->
-                            expire : {{ upload.ttl == -1 ? 'never expire' : (upload.uploadDate + upload.ttl) * 1000
-                            | date:'medium' }}
+                            expire : {{ upload.expireAt | date:'medium' }}
                             <!-- TOKEN -->
                             <br ng-if="upload.token"/>
                             <span ng-if="upload.token">
@@ -179,7 +154,7 @@ THE SOFTWARE.
                             </span>
                         </div>
                         <div class="col-xs-12 col-sm-6 small file-name">
-                            <div ng-repeat="file in upload.files">
+                            <div ng-repeat="file in upload.files | filter: {status: 'uploaded'}">
                                 <a href="{{getFileUrl(upload,file)}}">{{ file.fileName }}</a>
                         <span class="pull-right">
                             {{ humanReadableSize(file.fileSize) }}
@@ -198,7 +173,7 @@ THE SOFTWARE.
             </div>
         </div>
         <!-- LOAD MORE UPLOADS -->
-        <div class="row" ng-if="display=='uploads' && more">
+        <div class="row" ng-if="display=='uploads' && cursor">
             <div class="col-sm-12">
                 <div class="tile panel panel-body main" ng-click="getUploads(true)">
                     <div class="row">

@@ -1,29 +1,3 @@
-/*
- The MIT License (MIT)
-
- Copyright (c) <2015>
- - Mathieu Bodjikian <mathieu@bodjikian.fr>
- - Charles-Antoine Mathieu <skatkatt@root.gg>
-
- Permission is hereby granted, free of charge, to any person obtaining a copy
- of this software and associated documentation files (the "Software"), to deal
- in the Software without restriction, including without limitation the rights
- to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- copies of the Software, and to permit persons to whom the Software is
- furnished to do so, subject to the following conditions:
-
- The above copyright notice and this permission notice shall be included in
- all copies or substantial portions of the Software.
-
- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- THE SOFTWARE.
- */
-
 // Editable file name directive
 angular.module('contentEditable', []).directive('contenteditable', [function () {
     return {
@@ -212,9 +186,13 @@ angular.module('api', ['ngFileUpload']).factory('$api', function ($http, $q, Upl
     };
 
     // Log in
-    api.login = function (provider) {
+    api.login = function (provider, login, password) {
         var url = api.base + '/auth/' + provider + '/login';
-        return api.call(url, 'GET');
+        if (provider === "local") {
+            return api.call(url, 'POST', {}, {login: login, password: password})
+        } else {
+            return api.call(url, 'GET');
+        }
     };
 
     // Log out
@@ -230,9 +208,9 @@ angular.module('api', ['ngFileUpload']).factory('$api', function ($http, $q, Upl
     };
 
     // Get upload metadata
-    api.getUploads = function (token, size, offset) {
+    api.getUploads = function (token, limit, cursor) {
         var url = api.base + '/me/uploads';
-        return api.call(url, 'GET', {token: token, size: size, offset: offset});
+        return api.call(url, 'GET', {token: token, limit: limit, after: cursor});
     };
 
     // Get user statistics
@@ -284,9 +262,9 @@ angular.module('api', ['ngFileUpload']).factory('$api', function ($http, $q, Upl
     };
 
     // Get server statistics
-    api.getUsers = function () {
+    api.getUsers = function (limit, cursor) {
         var url = api.base + '/users';
-        return api.call(url, 'GET');
+        return api.call(url, 'GET', {limit: limit, after: cursor});
     };
 
     return api;
@@ -393,7 +371,7 @@ var plik = angular.module('plik', ['ngRoute', 'api', 'config', 'dialog', 'conten
     .config(['$httpProvider', function ($httpProvider) {
         $httpProvider.defaults.headers.common['X-ClientApp'] = 'web_client';
         $httpProvider.defaults.xsrfCookieName = 'plik-xsrf';
-        $httpProvider.defaults.xsrfHeaderName = 'X-XRSFToken';
+        $httpProvider.defaults.xsrfHeaderName = 'X-XSRFToken';
 
         // Mangle "Connection failed" result for alert modal
         $httpProvider.interceptors.push(function ($q) {
@@ -465,7 +443,6 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
 
         $scope.upload = {};
         $scope.files = [];
-        $scope.yubikey = false;
         $scope.password = false;
 
         // Get server config
@@ -495,68 +472,9 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
             // Display error from redirect if any
             var err = $location.search().err;
             if (!_.isUndefined(err)) {
-                if (err === "Invalid yubikey token" && $location.search().uri) {
-                    var uri = $location.search().uri;
-                    if (!uri) {
-                        $dialog.alert({status: 0, message: "Unable to get uri from yubikey redirect"})
-                            .result.then($scope.mainpage);
-                        return;
-                    }
-
-                    // Parse URI
-                    var url = new URL(window.location.origin + uri);
-
-                    var mode;
-                    var uploadId;
-                    var fileId;
-                    var fileName;
-                    var regex;
-                    var match;
-                    if (url.pathname.startsWith("/archive")) {
-                        regex = /^.*\/(archive)\/(.*?)\/(.*)$/;
-                        match = regex.exec(url.pathname);
-                        if (!match || match.length !== 4) {
-                            $dialog.alert({status: 0, message: "Unable to get upload from yubikey redirect"})
-                                .result.then($scope.mainpage);
-                            return;
-                        }
-
-                        mode = match[1];
-                        uploadId = match[2];
-                        fileName = match[3];
-                    } else {
-                        regex = /^.*\/(file|stream)\/(.*?)\/(.*?)\/(.*)$/;
-                        match = regex.exec(url.pathname);
-                        if (!match || match.length !== 5) {
-                            $dialog.alert({status: 0, message: "Unable to get upload from yubikey redirect"})
-                                .result.then($scope.mainpage);
-                            return;
-                        }
-
-                        mode = match[1];
-                        uploadId = match[2];
-                        fileId = match[3];
-                        fileName = match[4];
-                    }
-
-                    fileName = decodeURIComponent(fileName);
-
-                    var download = false;
-                    if (url.searchParams.get("dl") === 1) {
-                        download = true;
-                    }
-
-                    // For now there is nothing preventing us to load the upload at this point.
-                    // But I think that upload metadata should be also be protected by the token.
-                    // And I don't want the user to be asked for two tokens.
-                    // https://github.com/root-gg/plik/issues/215.
-
-                    downloadWithYubikey(mode, uploadId, fileId, fileName, download);
-                } else {
-                    var code = $location.search().errcode;
-                    $dialog.alert({status: code, message: err}).result.then($scope.mainpage);
-                    return;
-                }
+                var code = $location.search().errcode;
+                $dialog.alert({status: code, message: err}).result.then($scope.mainpage);
+                return;
             } else {
                 // Load current upload id
                 $scope.load($location.search().id);
@@ -575,6 +493,11 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                     $scope.files = _.map($scope.upload.files, function (file) {
                         return {metadata: file};
                     });
+
+                    // Redirect to home when all stream uploads are downloaded
+                    if (!$scope.somethingOk()) {
+                        $scope.mainpage();
+                    }
                 })
                 .then(null, function (error) {
                     $dialog.alert(error).result.then($scope.mainpage);
@@ -699,13 +622,9 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                     $scope.getPassword();
                     return;
                 }
-                // Yubikey prompt dialog
-                if ($scope.config.yubikeyEnabled && $scope.yubikey && !$scope.upload.yubikey) {
-                    $scope.getYubikey();
-                    return;
-                }
+
                 // Create file to upload list
-                $scope.upload.files = {};
+                $scope.upload.files = [];
                 var ko = _.find($scope.files, function (file) {
                     // Check file name length
                     if (file.fileName.length > fileNameMaxLength) {
@@ -725,12 +644,12 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                         return true; // break find loop
                     }
                     // Sanitize file object
-                    $scope.upload.files[file.reference] = {
+                    $scope.upload.files.push({
                         fileName: file.fileName,
                         fileType: file.fileType,
                         fileSize: file.fileSize,
                         reference: file.reference
-                    };
+                    });
                 });
                 if (ko) return;
 
@@ -773,7 +692,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                     .then(function (metadata) {
                         file.metadata = metadata;
 
-                        // Redirect to home when all stream uploads are downloaded
+                        // Redirect to home whe params...n all stream uploads are downloaded
                         if (!$scope.somethingOk()) {
                             $scope.mainpage();
                         }
@@ -829,7 +748,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
         // Check if file is downloadable
         $scope.isDownloadable = function (file) {
             if ($scope.upload.stream) {
-                if (file.metadata.status === 'missing') return true;
+                if (file.metadata.status === 'uploading') return true;
             } else {
                 if (file.metadata.status === 'uploaded') return true;
             }
@@ -855,7 +774,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
         // Is there at least one file ready to be downloaded
         $scope.somethingToDownload = function () {
             return _.find($scope.files, function (file) {
-                if (file.metadata.status === "uploaded") return true;
+                return $scope.isDownloadable(file);
             });
         };
 
@@ -877,7 +796,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
         };
 
         // Build file download URL
-        var getFileUrl = function (mode, uploadID, fileID, fileName, yubikeyToken, dl) {
+        var getFileUrl = function (mode, uploadID, fileID, fileName, dl) {
             var domain = $scope.config.downloadDomain ? $scope.config.downloadDomain : $api.base;
             var url = domain + '/' + mode + '/' + uploadID;
             if (fileID) {
@@ -885,9 +804,6 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
             }
             if (fileName) {
                 url += '/' + fileName;
-            }
-            if (yubikeyToken) {
-                url += "/yubikey/" + yubikeyToken;
             }
             if (dl) {
                 // Force file download
@@ -900,13 +816,13 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
         // Return file download URL
         $scope.getFileUrl = function (file, dl) {
             if (!file || !file.metadata) return;
-            return getFileUrl($scope.getMode(), $scope.upload.id, file.metadata.id, file.metadata.fileName, null, dl);
+            return getFileUrl($scope.getMode(), $scope.upload.id, file.metadata.id, file.metadata.fileName, dl);
         };
 
         // Return zip archive download URL
         $scope.getZipArchiveUrl = function (dl) {
             if (!$scope.upload.id) return;
-            return getFileUrl("archive", $scope.upload.id, null, "archive.zip", null, dl);
+            return getFileUrl("archive", $scope.upload.id, null, "archive.zip", dl);
         };
 
         // Return QR Code image url
@@ -974,49 +890,6 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                 }, function () {
                     // Avoid "Possibly unhandled rejection"
                 });
-        };
-
-        // Yubikey OTP upload dialog
-        $scope.getYubikey = function () {
-            $dialog.openDialog({
-                backdrop: true,
-                backdropClick: true,
-                templateUrl: 'partials/yubikey.html',
-                controller: 'YubikeyController'
-            }).result.then(
-                function (token) {
-                    $scope.upload.yubikey = token;
-                    $scope.newUpload();
-                }, function () {
-                    // Avoid "Possibly unhandled rejection"
-                });
-        };
-
-        // Yubikey OTP download dialog
-        function downloadWithYubikey(mode, uploadID, fileID, fileName, dl) {
-            $dialog.openDialog({
-                backdrop: true,
-                backdropClick: true,
-                templateUrl: 'partials/yubikey.html',
-                controller: 'YubikeyController'
-            }).result.then(
-                function (token) {
-                    var url = getFileUrl(mode, uploadID, fileID, fileName, token, dl);
-                    window.location.replace(url);
-                }, function () {
-                    // Avoid "Possibly unhandled rejection"
-                });
-        }
-
-        // Download file with Yubikey OTP dialog
-        $scope.downloadFileWithYubikey = function (file, dl) {
-            if (!file || !file.metadata) return;
-            downloadWithYubikey($scope.getMode(), $scope.upload.id, file.metadata.id, file.metadata.fileName, dl);
-        };
-
-        // Download archive with Yubikey OTP dialog
-        $scope.downloadArchiveWithYubikey = function (file, dl) {
-            downloadWithYubikey("archive", $scope.upload.id, null, "archive.zip", dl);
         };
 
         $scope.ttlUnits = ["days", "hours", "minutes"];
@@ -1114,7 +987,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
             if ($scope.upload.ttl === -1) {
                 return "never expire";
             } else {
-                var d = new Date(($scope.upload.ttl + $scope.upload.uploadDate) * 1000);
+                var d = new Date($scope.upload.expireAt);
                 return "expire on " + d.toLocaleDateString() + " at " + d.toLocaleTimeString();
             }
         };
@@ -1211,6 +1084,18 @@ plik.controller('LoginCtrl', ['$scope', '$api', '$config', '$location', '$dialog
                     $dialog.alert(error);
                 });
         };
+
+        // Login with local user
+        $scope.login = function () {
+            $api.login("local", $scope.username, $scope.password)
+                .then(function () {
+                    $config.refreshUser();
+                    $location.path('/home');
+                })
+                .then(null, function (error) {
+                    $dialog.alert(error);
+                });
+        };
     }]);
 
 // Home controller
@@ -1267,17 +1152,16 @@ plik.controller('HomeCtrl', ['$scope', '$api', '$config', '$dialog', '$location'
         $scope.getUploads = function (more) {
             if (!more) {
                 $scope.uploads = [];
+                $scope.cursor = undefined;
             }
 
-            $scope.size = 50;
-            $scope.offset = $scope.uploads.length;
-            $scope.more = false;
+            $scope.limit = 50;
 
-            // Get user uploadsfake_user
-            $api.getUploads($scope.token, $scope.size, $scope.offset)
-                .then(function (uploads) {
-                    $scope.uploads = $scope.uploads.concat(uploads);
-                    $scope.more = uploads.length === $scope.size;
+            // Get user uploads
+            $api.getUploads($scope.token, $scope.limit, $scope.cursor)
+                .then(function (result) {
+                    $scope.uploads = $scope.uploads.concat(result.results);
+                    $scope.cursor = result.after;
                 })
                 .then(null, function (error) {
                     $dialog.alert(error);
@@ -1461,20 +1345,25 @@ plik.controller('AdminCtrl', ['$scope', '$api', '$config', '$dialog', '$location
         };
 
         // Display user management page
-        $scope.displayUsers = function () {
-            $scope.stats = undefined;
-            $scope.users = undefined;
-            $scope.display = 'users';
+        $scope.displayUsers = function (more) {
+            if (!more) {
+                $scope.stats = undefined;
+                $scope.users = [];
+                $scope.cursor = undefined;
+                $scope.display = 'users';
 
-            // Load possible fake user
-            $scope.fake_user = $api.fake_user;
+                // Load possible fake user
+                $scope.fake_user = $api.fake_user;
+            }
 
-            // Get the list whole list of users
-            // This might need pagination at some point
-            $api.getUsers()
-                .then(function (users) {
+            $scope.limit = 50;
+
+            // Get users
+            $api.getUsers($scope.limit, $scope.cursor)
+                .then(function (result) {
                     // Success
-                    $scope.users = users;
+                    $scope.users = $scope.users.concat(result.results);
+                    $scope.cursor = result.after;
                 })
                 .then(null, function (error) {
                     // Failure
@@ -1559,28 +1448,6 @@ plik.controller('PasswordController', ['$scope',
         $scope.close = function (login, password) {
             if (login.length > 0 && password.length > 0) {
                 $scope.$close({login: login, password: password});
-            }
-        };
-    }]);
-
-// Yubikey dialog controller
-plik.controller('YubikeyController', ['$scope',
-    function ($scope) {
-
-        // Ugly but it works
-        setTimeout(function () {
-            $("#yubikey").focus();
-        }, 100);
-
-        $scope.title = 'Please fill in a Yubikey OTP !';
-        $scope.token = '';
-
-        $scope.check = function (token) {
-            if (token.length === 44) {
-                // Ugly but it works
-                setTimeout(function () {
-                    $scope.$close(token);
-                }, 100);
             }
         };
     }]);
