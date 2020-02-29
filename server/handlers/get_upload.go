@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"github.com/root-gg/utils"
+	"github.com/root-gg/plik/server/common"
 	"net/http"
 
 	"github.com/root-gg/plik/server/context"
@@ -34,12 +34,5 @@ func GetUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Request
 		upload.IsAdmin = true
 	}
 
-	// Print upload metadata in the json response.
-	bytes, err := utils.ToJson(upload)
-	if err != nil {
-		ctx.InternalServerError("unable serialize json response", err)
-		return
-	}
-
-	_, _ = resp.Write(bytes)
+	common.WriteJSONResponse(resp, upload)
 }

@@ -2,7 +2,6 @@ package context
 
 import (
 	"fmt"
-	"github.com/root-gg/plik/server/common"
 	"log"
 	"net/http"
 	"runtime/debug"
@@ -123,7 +122,7 @@ func (ctx *Context) Fail(message string, err error, status int) {
 			url := fmt.Sprintf("%s/#/?err=%s&errcode=%d&uri=%s", config.Path, message, status, req.RequestURI)
 			http.Redirect(resp, req, url, http.StatusMovedPermanently)
 		} else {
-			http.Error(resp, common.NewResult(message, nil).ToJSONString(), status)
+			http.Error(resp, message, status)
 		}
 	}
 }

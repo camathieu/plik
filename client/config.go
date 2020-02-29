@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/tls"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -10,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
-	homedir "github.com/mitchellh/go-homedir"
+	"github.com/mitchellh/go-homedir"
 	"github.com/root-gg/plik/server/common"
 )
 
@@ -151,8 +152,8 @@ func LoadConfig() (config *CliConfig, err error) {
 	}
 
 	// Try to HEAD the site to see if we have a redirection
-	// TODO handle insecure HTTPS
-	resp, err := http.Head(config.URL)
+	client := &http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}}
+	resp, err := client.Head(config.URL)
 	if err != nil {
 		return nil, err
 	}
@@ -163,7 +164,7 @@ func LoadConfig() (config *CliConfig, err error) {
 		fmt.Printf("Replace current url (%s) with the new one ? [Y/n] ", config.URL)
 
 		input := "y"
-		fmt.Scanln(&input)
+		_, _ = fmt.Scanln(&input)
 
 		if strings.HasPrefix(strings.ToLower(input), "y") {
 			config.URL = strings.TrimSuffix(finalURL, "/")
@@ -173,7 +174,7 @@ func LoadConfig() (config *CliConfig, err error) {
 	// Enable client updates ?
 	fmt.Println("Do you want to enable client auto update ? [Y/n] ")
 	input := "y"
-	fmt.Scanln(&input)
+	_, _ = fmt.Scanln(&input)
 	if strings.HasPrefix(strings.ToLower(input), "y") {
 		config.AutoUpdate = true
 	}
@@ -190,8 +191,8 @@ func LoadConfig() (config *CliConfig, err error) {
 		return nil, fmt.Errorf("Failed to save ~/.plickrc : %s", err)
 	}
 
-	f.Write(buf.Bytes())
-	f.Close()
+	_, _ = f.Write(buf.Bytes())
+	_ = f.Close()
 
 	fmt.Println("Plik client settings successfully saved to " + path)
 	return config, nil

@@ -22,10 +22,13 @@ EXPOSE 8080
 # Copy plik
 ADD server /home/plik/server/
 ADD clients /home/plik/clients/
+ADD webapp /home/plik/webapp/
+
+# Set permission
 RUN chown -R plik:plik /home/plik
 RUN chmod +x /home/plik/server/plikd
 
-# Launch it
+# Launch Plik server
 USER plik
 WORKDIR /home/plik/server
 CMD ./plikd

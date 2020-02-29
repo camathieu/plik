@@ -1,6 +1,7 @@
 package metadata
 
 import (
+	"fmt"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
 	"github.com/root-gg/plik/server/common"
 	"github.com/stretchr/testify/require"
@@ -40,6 +41,33 @@ func TestBackend_GetUser_NotFound(t *testing.T) {
 	require.Nil(t, user, "user not nil")
 }
 
+func TestBackend_GetUsers(t *testing.T) {
+	b := newTestMetadataBackend()
+
+	for i := 0; i < 5; i++ {
+		user := common.NewUser(common.ProviderLocal, fmt.Sprintf("user_%d", i))
+		createUser(t, b, user)
+	}
+
+	for i := 0; i < 5; i++ {
+		user := common.NewUser(common.ProviderGoogle, fmt.Sprintf("user_%d", i))
+		createUser(t, b, user)
+	}
+
+	users, cursor, err := b.GetUsers("", common.NewPagingQuery().WithLimit(100))
+	require.NoError(t, err, "get user error")
+	require.NotNil(t, cursor, "invalid nil cursor")
+	require.Len(t, users, 10, "invalid user lenght")
+
+	users, cursor, err = b.GetUsers(common.ProviderGoogle, common.NewPagingQuery().WithLimit(100))
+	require.NoError(t, err, "get user error")
+	require.NotNil(t, cursor, "invalid nil cursor")
+	require.Len(t, users, 5, "invalid user lenght")
+
+	users, cursor, err = b.GetUsers("", nil)
+	require.Error(t, err, "get user error expected")
+}
+
 func TestBackend_DeleteUser(t *testing.T) {
 	b := newTestMetadataBackend()
 
@@ -52,4 +80,104 @@ func TestBackend_DeleteUser(t *testing.T) {
 	user, err = b.GetUser(user.ID)
 	require.NoError(t, err, "get user error")
 	require.Nil(t, user, "user not nil")
+}
+
+func TestBackend_ForEachUserUploads(t *testing.T) {
+	b := newTestMetadataBackend()
+
+	user := common.NewUser(common.ProviderLocal, "user")
+	token := user.NewToken()
+	createUser(t, b, user)
+
+	for i := 0; i < 2; i++ {
+		upload := &common.Upload{}
+		upload.User = user.ID
+		createUpload(t, b, upload)
+	}
+
+	for i := 0; i < 5; i++ {
+		upload := &common.Upload{}
+		upload.User = user.ID
+		upload.Token = token.Token
+		createUpload(t, b, upload)
+	}
+
+	for i := 0; i < 10; i++ {
+		upload := &common.Upload{}
+		upload.User = "blah"
+		createUpload(t, b, upload)
+	}
+
+	count := 0
+	f := func(upload *common.Upload) error {
+		require.Equal(t, user.ID, upload.User, "invalid upload user")
+		count++
+		return nil
+	}
+	err := b.ForEachUserUploads(user.ID, "", f)
+	require.NoError(t, err, "for each user upload error")
+	require.Equal(t, 7, count, "invalid upload count")
+
+	count = 0
+	f = func(upload *common.Upload) error {
+		require.Equal(t, user.ID, upload.User, "invalid upload user")
+		require.Equal(t, token.Token, upload.Token, "invalid upload token")
+		count++
+		return nil
+	}
+	err = b.ForEachUserUploads(user.ID, token.Token, f)
+	require.NoError(t, err, "for each user upload error")
+	require.Equal(t, 5, count, "invalid upload count")
+
+	f = func(upload *common.Upload) error {
+		return fmt.Errorf("expected")
+	}
+	err = b.ForEachUserUploads(user.ID, "", f)
+	require.Error(t, err, "for each user upload error expected")
+}
+
+func TestBackend_DeleteUserUploads(t *testing.T) {
+	b := newTestMetadataBackend()
+
+	user := common.NewUser(common.ProviderLocal, "user")
+	token := user.NewToken()
+	createUser(t, b, user)
+
+	for i := 0; i < 2; i++ {
+		upload := &common.Upload{}
+		upload.User = user.ID
+		createUpload(t, b, upload)
+	}
+
+	for i := 0; i < 5; i++ {
+		upload := &common.Upload{}
+		upload.User = user.ID
+		upload.Token = token.Token
+		createUpload(t, b, upload)
+	}
+
+	for i := 0; i < 10; i++ {
+		upload := &common.Upload{}
+		upload.User = "blah"
+		createUpload(t, b, upload)
+	}
+
+	deleted, err := b.DeleteUserUploads(user.ID, token.Token)
+	require.NoError(t, err, "for each user upload error")
+	require.Equal(t, 5, deleted, "invalid upload count")
+
+	deleted, err = b.DeleteUserUploads(user.ID, "")
+	require.NoError(t, err, "for each user upload error")
+	require.Equal(t, 2, deleted, "invalid upload count")
+}
+
+func TestBackend_CountUsers(t *testing.T) {
+	b := newTestMetadataBackend()
+
+	user := common.NewUser(common.ProviderLocal, "user")
+	createUser(t, b, user)
+
+	count, err := b.CountUsers()
+	require.NoError(t, err, "count users error")
+	require.Equal(t, 1, count, "invalid user count")
 }

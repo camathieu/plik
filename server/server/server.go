@@ -243,7 +243,7 @@ func (ps *PlikServer) getHTTPHandler() (handler http.Handler) {
 	router.Handle("/auth/logout", authChain.Then(handlers.Logout)).Methods("GET")
 	router.Handle("/me", authChain.Then(handlers.UserInfo)).Methods("GET")
 	router.Handle("/me", authChain.Then(handlers.DeleteAccount)).Methods("DELETE")
-	router.Handle("/me/token", authChain.Then(handlers.UserTokens)).Methods("GET")
+	router.Handle("/me/token", pagingChain.Then(handlers.GetUserTokens)).Methods("GET")
 	router.Handle("/me/token", authChain.Then(handlers.CreateToken)).Methods("POST")
 	router.Handle("/me/token/{token}", authChain.Then(handlers.RevokeToken)).Methods("DELETE")
 	router.Handle("/me/uploads", pagingChain.Then(handlers.GetUserUploads)).Methods("GET")
@@ -253,15 +253,15 @@ func (ps *PlikServer) getHTTPHandler() (handler http.Handler) {
 	router.Handle("/users", pagingChain.Then(handlers.GetUsers)).Methods("GET")
 	router.Handle("/qrcode", stdChain.Then(handlers.GetQrCode)).Methods("GET")
 
-	if !ps.config.NoWebInterface {
-		_, err := os.Stat("./public")
+	if !ps.config.NoWebInterface && ps.config.WebRoot != "" {
+		_, err := os.Stat("./public/dist")
 		if err != nil {
 			ps.config.NewLogger().Warning("Public directory not found, consider setting config.NoWebInterface to true")
 		}
 
 		router.PathPrefix("/clients/").Handler(http.StripPrefix("/clients/", http.FileServer(http.Dir("../clients"))))
 		router.PathPrefix("/changelog/").Handler(http.StripPrefix("/changelog/", http.FileServer(http.Dir("../changelog"))))
-		router.PathPrefix("/").Handler(http.FileServer(http.Dir("./public/")))
+		router.PathPrefix("/").Handler(http.FileServer(http.Dir(ps.config.WebRoot)))
 	}
 
 	handler = common.StripPrefix(ps.config.Path, router)

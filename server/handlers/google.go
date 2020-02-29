@@ -186,7 +186,7 @@ func GoogleCallback(ctx *context.Context, resp http.ResponseWriter, req *http.Re
 	if user == nil {
 		if ctx.IsWhitelisted() {
 			// Create new user
-			user := common.NewUser(common.ProviderGoogle, userInfo.Id)
+			user = common.NewUser(common.ProviderGoogle, userInfo.Id)
 			user.Login = userInfo.Email
 			user.Name = userInfo.Name
 			user.Email = userInfo.Email

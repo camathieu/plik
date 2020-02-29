@@ -3,6 +3,7 @@ package common
 import (
 	"encoding/base64"
 	"fmt"
+	"github.com/root-gg/utils"
 	"net/http"
 	"strings"
 )
@@ -63,4 +64,14 @@ func StripPrefix(prefix string, handler http.Handler) http.Handler {
 // EncodeAuthBasicHeader return the base64 version of "login:password"
 func EncodeAuthBasicHeader(login string, password string) (value string) {
 	return base64.StdEncoding.EncodeToString([]byte(login + ":" + password))
+}
+
+// WriteJSONResponse serialize the response to json and write it to the HTTP response body
+func WriteJSONResponse(resp http.ResponseWriter, obj interface{}) {
+	json, err := utils.ToJson(obj)
+	if err != nil {
+		panic(fmt.Errorf("unable to serialize json response : %s", err))
+	}
+
+	_, _ = resp.Write(json)
 }

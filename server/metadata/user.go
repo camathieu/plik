@@ -33,10 +33,14 @@ func (b *Backend) GetUsers(provider string, pagingQuery *common.PagingQuery) (us
 	}
 
 	p := pagingQuery.Paginator()
-
 	p.SetKeys("CreatedAt", "ID")
 
 	stmt := b.db.Model(&common.User{})
+
+	if provider != "" {
+		stmt = stmt.Where(&common.User{Provider: provider})
+	}
+
 	err = p.Paginate(stmt, &users).Error
 	if err != nil {
 		return nil, nil, err
@@ -47,10 +51,11 @@ func (b *Backend) GetUsers(provider string, pagingQuery *common.PagingQuery) (us
 	return users, &c, err
 }
 
-// ForEachUserUpload execute f for all upload matching the user and token filters
-// Be cautious : executing this with empty strings will match all anonymous uploads
-func (b *Backend) ForEachUserUpload(userID string, tokenStr string, f func(upload *common.Upload) error) (err error) {
-	rows, err := b.db.Model(&common.Upload{}).Where(&common.Upload{User: userID, Token: tokenStr}).Rows()
+// ForEachUserUploads execute f for all upload matching the user and token filters
+func (b *Backend) ForEachUserUploads(userID string, tokenStr string, f func(upload *common.Upload) error) (err error) {
+	stmt := b.db.Model(&common.Upload{}).Where(&common.Upload{User: userID, Token: tokenStr})
+
+	rows, err := stmt.Rows()
 	if err != nil {
 		return err
 	}
@@ -72,9 +77,7 @@ func (b *Backend) ForEachUserUpload(userID string, tokenStr string, f func(uploa
 }
 
 // DeleteUserUploads delets all uploads matching the user and token filters
-// Be cautious : executing this with empty strings will match all anonymous uploads
 func (b *Backend) DeleteUserUploads(userID string, tokenStr string) (removed int, err error) {
-
 	deleted := 0
 	var errors []error
 	f := func(upload *common.Upload) (err error) {
@@ -88,7 +91,7 @@ func (b *Backend) DeleteUserUploads(userID string, tokenStr string) (removed int
 		return nil
 	}
 
-	err = b.ForEachUserUpload(userID, tokenStr, f)
+	err = b.ForEachUserUploads(userID, tokenStr, f)
 	if err != nil {
 		return deleted, err
 	}

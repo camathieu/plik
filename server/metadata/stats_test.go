@@ -147,3 +147,53 @@ func TestBackend_GetUploadStatistics_Anonymous(t *testing.T) {
 	require.Equal(t, 1000, files, "invalid file count")
 	require.Equal(t, int64(3000), totalSize, "invalid file size")
 }
+
+func TestBackend_GetUserStatistics(t *testing.T) {
+	b := newTestMetadataBackend()
+
+	for i := 1; i <= 100; i++ {
+		upload := &common.Upload{User: "user_id", Comments: fmt.Sprintf("%d", i)}
+		for j := 1; j <= 10; j++ {
+			file := upload.NewFile()
+			file.Size = 2
+			file.Status = common.FileUploaded
+		}
+		createUpload(t, b, upload)
+	}
+
+	stats, err := b.GetUserStatistics("user_id", nil)
+	require.NoError(t, err, "unexpected error")
+	require.Equal(t, 100, stats.Uploads, "invalid upload count")
+	require.Equal(t, 1000, stats.Files, "invalid file count")
+	require.Equal(t, int64(2000), stats.TotalSize, "invalid file size")
+}
+
+func TestBackend_GetServerStatistics(t *testing.T) {
+	b := newTestMetadataBackend()
+
+	for i := 1; i <= 10; i++ {
+		upload := &common.Upload{Comments: fmt.Sprintf("%d", i)}
+		for j := 1; j <= 10; j++ {
+			file := upload.NewFile()
+			file.Size = 2
+			file.Status = common.FileUploaded
+		}
+		createUpload(t, b, upload)
+	}
+
+	for i := 1; i <= 10; i++ {
+		upload := &common.Upload{User: "user_id", Comments: fmt.Sprintf("%d", i)}
+		for j := 1; j <= 10; j++ {
+			file := upload.NewFile()
+			file.Size = 2
+			file.Status = common.FileUploaded
+		}
+		createUpload(t, b, upload)
+	}
+
+	stats, err := b.GetServerStatistics()
+	require.NoError(t, err, "unexpected error")
+	require.Equal(t, 20, stats.Uploads, "invalid upload count")
+	require.Equal(t, 200, stats.Files, "invalid file count")
+	require.Equal(t, int64(400), stats.TotalSize, "invalid file size")
+}

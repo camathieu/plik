@@ -2,7 +2,11 @@ package common
 
 import (
 	"bytes"
+	"encoding/base64"
+	"encoding/json"
+	"fmt"
 	"github.com/stretchr/testify/require"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -60,4 +64,34 @@ func TestStripPrefixRootSlash(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, rr.Code, "invalid handler response status code")
 	require.Equal(t, "/path", req.URL.Path, "invalid location header")
+}
+
+func TestNewHTTPError(t *testing.T) {
+	e := NewHTTPError("msg", fmt.Errorf("error"), http.StatusInternalServerError)
+	require.Equal(t, "msg : error", e.Error())
+}
+
+func TestEncodeAuthBasicHeader(t *testing.T) {
+	b64 := EncodeAuthBasicHeader("login", "password")
+	out := make([]byte, 14)
+	_, err := base64.StdEncoding.Decode(out, []byte(b64))
+	require.NoError(t, err)
+	require.Equal(t, "login:password", string(out))
+}
+
+func TestWriteJSONResponse(t *testing.T) {
+	obj := &struct{ Foo string }{"Bar"}
+
+	rr := httptest.NewRecorder()
+	WriteJSONResponse(rr, obj)
+
+	body, err := ioutil.ReadAll(rr.Body)
+	require.NoError(t, err)
+	require.NotNil(t, body)
+
+	obj2 := &struct{ Foo string }{}
+	err = json.Unmarshal(body, obj2)
+	require.NoError(t, err)
+
+	require.Equal(t, obj.Foo, obj2.Foo)
 }

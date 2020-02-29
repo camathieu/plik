@@ -1,9 +1,7 @@
 package handlers
 
 import (
-	"fmt"
 	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/utils"
 	"net/http"
 
 	"github.com/root-gg/plik/server/context"
@@ -19,10 +17,6 @@ func GetUsers(ctx *context.Context, resp http.ResponseWriter, req *http.Request)
 	}
 
 	pagingQuery := ctx.GetPagingQuery()
-	if pagingQuery == nil {
-		ctx.InternalServerError("missing paging query", nil)
-		return
-	}
 
 	// Get uploads
 	users, cursor, err := ctx.GetMetadataBackend().GetUsers("", pagingQuery)
@@ -31,14 +25,8 @@ func GetUsers(ctx *context.Context, resp http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	pr := common.NewPagingResponse(users, cursor)
-
-	json, err := utils.ToJson(pr)
-	if err != nil {
-		panic(fmt.Errorf("unable to serialize json response : %s", err))
-	}
-
-	_, _ = resp.Write(json)
+	pagingResponse := common.NewPagingResponse(users, cursor)
+	common.WriteJSONResponse(resp, pagingResponse)
 }
 
 // GetServerStatistics return the server statistics
@@ -57,11 +45,5 @@ func GetServerStatistics(ctx *context.Context, resp http.ResponseWriter, req *ht
 		return
 	}
 
-	// Print stats in the json response.
-	json, err := utils.ToJson(stats)
-	if err != nil {
-		panic(fmt.Errorf("unable to serialize json response : %s", err))
-	}
-
-	_, _ = resp.Write(json)
+	common.WriteJSONResponse(resp, stats)
 }

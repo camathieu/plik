@@ -20,6 +20,7 @@ type Configuration struct {
 	ListenAddress string `json:"-"`
 	ListenPort    int    `json:"-"`
 	Path          string `json:"-"`
+	WebRoot       string `json:"-"`
 
 	MaxFileSize      int64 `json:"maxFileSize"`
 	MaxFilePerUpload int   `json:"maxFilePerUpload"`
@@ -74,7 +75,7 @@ func NewConfiguration() (config *Configuration) {
 	config.MaxFileSize = 10737418240 // 10GB
 	config.MaxFilePerUpload = 1000
 	config.DefaultTTL = 2592000 // 30 days
-	config.MaxTTL = 0
+	config.MaxTTL = 2592000     // 30 days
 	config.SslEnabled = false
 	config.Stream = true
 	config.OneShot = true
@@ -82,6 +83,7 @@ func NewConfiguration() (config *Configuration) {
 	config.ProtectedByPassword = true
 	config.OvhAPIEndpoint = "https://eu.api.ovh.com/1.0"
 	config.clean = true
+	config.WebRoot = "../webapp/dist"
 	return
 }
 

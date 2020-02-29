@@ -1,9 +1,9 @@
 package common
 
 import (
-	"testing"
-
+	"fmt"
 	"github.com/stretchr/testify/require"
+	"testing"
 )
 
 func TestUserNewToken(t *testing.T) {
@@ -13,4 +13,12 @@ func TestUserNewToken(t *testing.T) {
 	require.NotZero(t, token.Token, "missing token initialization")
 	require.NotZero(t, len(user.Tokens), "missing token")
 	require.Equal(t, token, user.Tokens[0], "missing token")
+}
+
+func TestUser_String(t *testing.T) {
+	user := NewUser(ProviderLocal, "user")
+	user.Name = "user"
+	user.Login = "user"
+	user.Email = "user@root.gg"
+	fmt.Println(user.String())
 }

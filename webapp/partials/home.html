@@ -89,7 +89,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="tile panel panel-body main text-center" ng-repeat="token in user.tokens">
+                <div class="tile panel panel-body main text-center" ng-repeat="token in tokens">
                     <div class="row">
                         <div class="col-sm-5">
                             <i class="fa fa-search"></i>
@@ -108,6 +108,18 @@
                             <button class="btn btn-danger btn-sm" ng-click="revokeToken(token)">
                                 <span class="glyphicon glyphicon-remove"></span><span> Revoke</span>
                             </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- LOAD MORE TOKENS -->
+            <div class="row" ng-if="display=='tokens' && cursor">
+                <div class="col-sm-12">
+                    <div class="tile panel panel-body main" ng-click="getTokens(true)">
+                        <div class="row">
+                            <div class="col-xs-12 text-center">
+                                Load more tokens
+                            </div>
                         </div>
                     </div>
                 </div>

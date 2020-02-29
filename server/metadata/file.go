@@ -12,9 +12,9 @@ func (b *Backend) CreateFile(file *common.File) (err error) {
 }
 
 // GetFile return a file from the database ( nil and no error if not found )
-func (b *Backend) GetFile(ID string) (file *common.File, err error) {
+func (b *Backend) GetFile(fileID string) (file *common.File, err error) {
 	file = &common.File{}
-	err = b.db.Where(&common.File{ID: ID}).Take(file).Error
+	err = b.db.Where(&common.File{ID: fileID}).Take(file).Error
 	if gorm.IsRecordNotFoundError(err) {
 		return nil, nil
 	} else if err != nil {
@@ -53,7 +53,7 @@ func (b *Backend) UpdateFileStatus(file *common.File, oldStatus string, newStatu
 		return result.Error
 	}
 	if result.RowsAffected != int64(1) {
-		return fmt.Errorf("invalid file status")
+		return fmt.Errorf("%s file not found", oldStatus)
 	}
 
 	file.Status = newStatus
@@ -65,18 +65,15 @@ func (b *Backend) UpdateFileStatus(file *common.File, oldStatus string, newStatu
 // The file will then be deleted from the data backend by the server and the status changed to deleted.
 func (b *Backend) RemoveFile(file *common.File) error {
 	switch file.Status {
-	case common.FileRemoved, common.FileDeleted:
-		return nil
-	case common.FileMissing, common.FileUploading:
+	case common.FileMissing, common.FileUploading, "":
 		return b.UpdateFileStatus(file, file.Status, common.FileDeleted)
 	case common.FileUploaded:
-		err := b.UpdateFileStatus(file, file.Status, common.FileRemoved)
-		if err != nil {
-			return err
-		}
+		return b.UpdateFileStatus(file, file.Status, common.FileRemoved)
+	//case common.FileRemoved, common.FileDeleted:
+	//	return nil
+	default:
+		return nil
 	}
-
-	return nil
 }
 
 // ForEachUploadFiles execute f for each file of the upload

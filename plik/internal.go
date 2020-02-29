@@ -363,15 +363,9 @@ func parseErrorResponse(resp *http.Response) (err error) {
 		return err
 	}
 
-	// Parse json error
-
-	result := new(common.Result)
-	err = json.Unmarshal(body, result)
-	if err == nil && result.Message != "" {
-		return fmt.Errorf("%s : %s", resp.Status, result.Message)
-	} else if len(body) > 0 {
+	if len(body) > 0 {
 		return fmt.Errorf("%s : %s", resp.Status, string(body))
-	} else {
-		return fmt.Errorf("%s", resp.Status)
 	}
+
+	return fmt.Errorf("%s", resp.Status)
 }

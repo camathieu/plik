@@ -1,14 +1,12 @@
 package context
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	"github.com/root-gg/plik/server/common"
 	"github.com/stretchr/testify/require"
 )
 
@@ -63,12 +61,8 @@ func TestFail(t *testing.T, resp *httptest.ResponseRecorder, status int, message
 	require.NoError(t, err, "unable to read response body")
 	require.NotEqual(t, err, 0, len(respBody), "empty response body")
 
-	var result = &common.Result{}
-	err = json.Unmarshal(respBody, result)
-	require.NoError(t, err, fmt.Sprintf("unable to unmarshal error %v", string(respBody)))
-
 	if message != "" {
-		require.Contains(t, result.Message, message, "invalid response error message")
+		require.Contains(t, string(respBody), message, "invalid response error message")
 	}
 }
 

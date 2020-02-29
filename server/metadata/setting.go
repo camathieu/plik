@@ -26,12 +26,12 @@ func (b *Backend) GetSetting(key string) (setting *common.Setting, err error) {
 
 // UpdateSetting update a setting in DB
 func (b *Backend) UpdateSetting(key string, oldValue string, newValue string) (err error) {
-	result := b.db.Where(&common.Setting{Key: key, Value: oldValue}).Update(&common.Setting{Value: newValue})
+	result := b.db.Model(&common.Setting{}).Where(&common.Setting{Key: key, Value: oldValue}).Update(&common.Setting{Value: newValue})
 	if result.Error != nil {
 		return result.Error
 	}
 	if result.RowsAffected != int64(1) {
-		return fmt.Errorf("invalid file status")
+		return fmt.Errorf("setting not found")
 	}
 
 	return nil

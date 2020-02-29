@@ -168,7 +168,7 @@ func (upload *Upload) PrepareInsert(config *Configuration) (err error) {
 	}
 
 	for _, file := range upload.Files {
-		err = file.PrepareInsert(config, upload)
+		err = file.PrepareInsert(upload)
 		if err != nil {
 			return err
 		}

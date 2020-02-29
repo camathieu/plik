@@ -10,6 +10,11 @@ func (ctx *Context) IsWhitelisted() bool {
 		return *ctx.isWhitelisted
 	}
 
+	if ctx.user != nil {
+		// IP Restriction does not apply to authenticated users
+		return true
+	}
+
 	// Check if the IP is whitelisted
 	isWhitelisted := ctx.config.IsWhitelisted(ctx.sourceIP)
 

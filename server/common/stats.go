@@ -22,21 +22,21 @@ type UserStats struct {
 // Helpers to build the Server Stats
 
 // AddUpload add statistics of one upload to the ServerStats
-func (stats *ServerStats) AddUpload(upload *Upload) {
-	var uploadSize int64
-	for _, file := range upload.Files {
-		uploadSize += file.Size
-	}
-
-	stats.Uploads++
-	stats.Files += len(upload.Files)
-	stats.TotalSize += uploadSize
-
-	if upload.User == "" {
-		stats.AnonymousUploads++
-		stats.AnonymousSize += uploadSize
-	}
-}
+//func (stats *ServerStats) AddUpload(upload *Upload) {
+//	var uploadSize int64
+//	for _, file := range upload.Files {
+//		uploadSize += file.Size
+//	}
+//
+//	stats.Uploads++
+//	stats.Files += len(upload.Files)
+//	stats.TotalSize += uploadSize
+//
+//	if upload.User == "" {
+//		stats.AnonymousUploads++
+//		stats.AnonymousSize += uploadSize
+//	}
+//}
 
 //// FileTypeByCount is used to return file type statistics
 //type FileTypeByCount struct {

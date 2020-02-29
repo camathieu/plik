@@ -46,6 +46,18 @@ func newTestMetadataBackend() *Backend {
 	return b
 }
 
+func TestNewConfig(t *testing.T) {
+	params := make(map[string]interface{})
+	params["Driver"] = "driver"
+	params["ConnectionString"] = "connection string"
+	params["EraseFirst"] = true
+
+	config := NewConfig(params)
+	require.Equal(t, "driver", config.Driver, "invalid driver")
+	require.Equal(t, "connection string", config.ConnectionString, "invalid connection string")
+	require.True(t, config.EraseFirst, "invalid erase first")
+}
+
 func TestMetadata(t *testing.T) {
 	b := newTestMetadataBackend()
 
@@ -64,6 +76,9 @@ func TestMetadata(t *testing.T) {
 	upload = &common.Upload{}
 	err = b.db.Preload("Files").Take(upload, "id = ?", uploadID).Error
 	require.NoError(t, err, "unable to fetch upload")
+
+	err = b.db.Close()
+	require.NoError(t, err, "close db error")
 }
 
 func TestGormConcurrent(t *testing.T) {

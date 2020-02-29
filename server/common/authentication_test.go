@@ -53,3 +53,14 @@ func TestLogout(t *testing.T) {
 	require.NotNil(t, xsrfCookie, "missing xsrf cookies")
 	require.Equal(t, -1, xsrfCookie.MaxAge, "invalid xsrf cookies")
 }
+
+func TestHashPassword(t *testing.T) {
+	hash, err := HashPassword("password")
+	require.NoError(t, err, "hash password error")
+
+	ok := CheckPasswordHash("password", hash)
+	require.True(t, ok)
+
+	ok = CheckPasswordHash("invalid", hash)
+	require.False(t, ok)
+}

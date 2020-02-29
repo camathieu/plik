@@ -5,7 +5,7 @@ clients
 *.db-wal
 *.db-shm
 server/files
-server/public/public
+webapp/dist
 clients
 client/client
 servers

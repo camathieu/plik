@@ -15,6 +15,7 @@ import (
 
 func TestGetUpload(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
+	ctx.SetUploadAdmin(true)
 
 	upload := &common.Upload{}
 	upload.PrepareInsertForTests()
@@ -48,6 +49,7 @@ func TestGetUpload(t *testing.T) {
 	require.Len(t, uploadResult.Files, 1, "invalid upload files")
 	require.Equal(t, file.ID, uploadResult.Files[0].ID, "invalid upload files")
 	require.Equal(t, file.Name, uploadResult.Files[0].Name, "invalid upload files")
+	require.True(t, uploadResult.IsAdmin, "invalid upload admin status")
 }
 
 func TestGetUploadMissingUpload(t *testing.T) {

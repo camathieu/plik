@@ -2,6 +2,7 @@ package metadata
 
 import (
 	"fmt"
+	paginator "github.com/pilagod/gorm-cursor-paginator"
 
 	"github.com/jinzhu/gorm"
 	"github.com/root-gg/plik/server/common"
@@ -26,22 +27,39 @@ func (b *Backend) GetToken(tokenStr string) (token *common.Token, err error) {
 }
 
 // GetTokens return all tokens for a user
-func (b *Backend) GetTokens(user *common.User) (tokens []*common.Token, err error) {
-	err = b.db.Where(&common.Token{UserID: user.ID}).Find(&tokens).Error
+func (b *Backend) GetTokens(userID string, pagingQuery *common.PagingQuery) (tokens []*common.Token, cursor *paginator.Cursor, err error) {
+	stmt := b.db.Model(&common.Token{}).Where(&common.Token{UserID: userID})
+
+	p := pagingQuery.Paginator()
+	p.SetKeys("CreatedAt", "Token")
+
+	err = p.Paginate(stmt, &tokens).Error
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return tokens, err
+
+	c := p.GetNextCursor()
+	return tokens, &c, err
 }
 
 // DeleteToken remove a token from the DB
-func (b *Backend) DeleteToken(token *common.Token) error {
+func (b *Backend) DeleteToken(tokenStr string) error {
 
 	// Delete token
-	err := b.db.Delete(token).Error
+	err := b.db.Delete(&common.Token{Token: tokenStr}).Error
 	if err != nil {
 		return fmt.Errorf("unable to delete token metadata")
 	}
 
 	return err
+}
+
+// CountUserTokens count how many token a user has
+func (b *Backend) CountUserTokens(userID string) (count int, err error) {
+	err = b.db.Model(&common.Token{}).Where(&common.Token{UserID: userID}).Count(&count).Error
+	if err != nil {
+		return -1, err
+	}
+
+	return count, nil
 }

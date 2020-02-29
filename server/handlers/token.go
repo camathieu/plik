@@ -94,7 +94,7 @@ func RevokeToken(ctx *context.Context, resp http.ResponseWriter, req *http.Reque
 		return
 	}
 
-	err = ctx.GetMetadataBackend().DeleteToken(token)
+	err = ctx.GetMetadataBackend().DeleteToken(token.Token)
 	if err != nil {
 		ctx.InternalServerError("unable to delete token : %s", err)
 		return

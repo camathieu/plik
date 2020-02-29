@@ -25,6 +25,7 @@ func newTestingContext(config *common.Configuration) (ctx *context.Context) {
 	ctx.SetWhitelisted(true)
 	ctx.SetDataBackend(data_test.NewBackend())
 	ctx.SetStreamBackend(data_test.NewBackend())
+	ctx.SetAuthenticator(&common.SessionAuthenticator{SignatureKey: "sigkey"})
 
 	metadataBackendConfig := &metadata.Config{Driver: "sqlite3", ConnectionString: "/tmp/plik.test.db", EraseFirst: true}
 	metadataBackend, err := metadata.NewBackend(metadataBackendConfig)
@@ -136,4 +137,15 @@ func TestGetQrCodeWithInvalidSize2(t *testing.T) {
 	GetQrCode(ctx, rr, req)
 
 	context.TestBadRequest(t, rr, "QRCode size must be positive")
+}
+
+func TestLogout(t *testing.T) {
+	ctx := newTestingContext(common.NewConfiguration())
+
+	req, err := http.NewRequest("GET", "/logout", bytes.NewBuffer([]byte{}))
+	require.NoError(t, err, "unable to create new request")
+
+	rr := ctx.NewRecorder(req)
+	Logout(ctx, rr, req)
+	context.TestOK(t, rr)
 }

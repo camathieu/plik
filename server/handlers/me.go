@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
-	"github.com/root-gg/utils"
 	"net/http"
 )
 
@@ -18,27 +17,11 @@ func UserInfo(ctx *context.Context, resp http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	// Get user tokens ( this should be a separate call )
-	tokens, err := ctx.GetMetadataBackend().GetTokens(user)
-	if err != nil {
-		ctx.InternalServerError("unable to get user tokens", err)
-		return
-	}
-
-	user.Tokens = tokens
-
-	// Serialize user to JSON
-	// Print token in the json response.
-	json, err := utils.ToJson(user)
-	if err != nil {
-		panic(fmt.Errorf("unable to serialize json response : %s", err))
-	}
-
-	_, _ = resp.Write(json)
+	common.WriteJSONResponse(resp, user)
 }
 
-// UserTokens return user tokens
-func UserTokens(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
+// GetUserTokens return user tokens
+func GetUserTokens(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
 
 	// Get user from context
 	user := ctx.GetUser()
@@ -46,40 +29,18 @@ func UserTokens(ctx *context.Context, resp http.ResponseWriter, req *http.Reques
 		ctx.Unauthorized("missing user, please login first")
 		return
 	}
+
+	pagingQuery := ctx.GetPagingQuery()
 
 	// Get user tokens
-	tokens, err := ctx.GetMetadataBackend().GetTokens(user)
+	tokens, cursor, err := ctx.GetMetadataBackend().GetTokens(user.ID, pagingQuery)
 	if err != nil {
 		ctx.InternalServerError("unable to get user tokens", err)
 		return
 	}
 
-	// Serialize user to JSON
-	// Print token in the json response.
-	json, err := utils.ToJson(tokens)
-	if err != nil {
-		panic(fmt.Errorf("unable to serialize json response : %s", err))
-	}
-
-	_, _ = resp.Write(json)
-}
-
-// DeleteAccount remove a user account
-func DeleteAccount(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
-	// Get user from context
-	user := ctx.GetUser()
-	if user == nil {
-		ctx.Unauthorized("missing user, please login first")
-		return
-	}
-
-	err := ctx.GetMetadataBackend().DeleteUser(user.ID)
-	if err != nil {
-		ctx.InternalServerError("unable to delete user account", err)
-		return
-	}
-
-	_, _ = resp.Write([]byte("ok"))
+	pagingResponse := common.NewPagingResponse(tokens, cursor)
+	common.WriteJSONResponse(resp, pagingResponse)
 }
 
 // GetUserUploads get user uploads
@@ -91,10 +52,6 @@ func GetUserUploads(ctx *context.Context, resp http.ResponseWriter, req *http.Re
 	}
 
 	pagingQuery := ctx.GetPagingQuery()
-	if pagingQuery == nil {
-		ctx.InternalServerError("missing paging query", nil)
-		return
-	}
 
 	var userID, tokenStr string
 	if user != nil {
@@ -111,16 +68,8 @@ func GetUserUploads(ctx *context.Context, resp http.ResponseWriter, req *http.Re
 		return
 	}
 
-	pr := common.NewPagingResponse(uploads, cursor)
-
-	// Serialize user to JSON
-	// Print token in the json response.
-	json, err := utils.ToJson(pr)
-	if err != nil {
-		panic(fmt.Errorf("unable to serialize json response : %s", err))
-	}
-
-	_, _ = resp.Write(json)
+	pagingResponse := common.NewPagingResponse(uploads, cursor)
+	common.WriteJSONResponse(resp, pagingResponse)
 }
 
 // RemoveUserUploads delete all user uploads
@@ -131,10 +80,11 @@ func RemoveUserUploads(ctx *context.Context, resp http.ResponseWriter, req *http
 		return
 	}
 
-	var userID, tokenStr string
+	var userID string
 	if user != nil {
 		userID = user.ID
 	}
+	var tokenStr string
 	if token != nil {
 		tokenStr = token.Token
 	}
@@ -145,7 +95,7 @@ func RemoveUserUploads(ctx *context.Context, resp http.ResponseWriter, req *http
 		return
 	}
 
-	_, _ = resp.Write(common.NewResult(fmt.Sprintf("%d uploads removed", deleted), nil).ToJSON())
+	_, _ = resp.Write([]byte(fmt.Sprintf("%d uploads removed", deleted)))
 }
 
 // GetUserStatistics return the user statistics
@@ -168,12 +118,25 @@ func GetUserStatistics(ctx *context.Context, resp http.ResponseWriter, req *http
 		return
 	}
 
-	json, err := utils.ToJson(stats)
-	if err != nil {
-		panic(fmt.Errorf("unable to serialize json response : %s", err))
+	common.WriteJSONResponse(resp, stats)
+}
+
+// DeleteAccount remove a user account
+func DeleteAccount(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
+	// Get user from context
+	user := ctx.GetUser()
+	if user == nil {
+		ctx.Unauthorized("missing user, please login first")
+		return
 	}
 
-	_, _ = resp.Write(json)
+	err := ctx.GetMetadataBackend().DeleteUser(user.ID)
+	if err != nil {
+		ctx.InternalServerError("unable to delete user account", err)
+		return
+	}
+
+	_, _ = resp.Write([]byte("ok"))
 }
 
 func getUserAndToken(ctx *context.Context, req *http.Request) (user *common.User, token *common.Token, err error) {

@@ -26,9 +26,9 @@ all: clean clean-frontend frontend client server
 # Build frontend ressources
 ###
 frontend:
-	@if [ ! -d server/public/node_modules ]; then cd server/public && npm install ; fi
-	@if [ ! -d server/public/bower_components ]; then cd server/public && node_modules/bower/bin/bower install --allow-root ; fi
-	@if [ ! -d server/public/public ]; then cd server/public && node_modules/grunt-cli/bin/grunt ; fi
+	@if [ ! -d webapp/node_modules ]; then cd webapp && npm install ; fi
+	@if [ ! -d webapp/bower_components ]; then cd webapp && node_modules/bower/bin/bower install --allow-root ; fi
+	@cd webapp && node_modules/grunt-cli/bin/grunt
 
 ###
 # Build plik server for the current architecture
@@ -137,25 +137,18 @@ debs-client: clients
 # Prepare the release base (css, js, ...)
 ###
 release-template: clean frontend clients
-	@mkdir -p $(RELEASE_DIR)/server/public
-
-	@cp -R clients $(RELEASE_DIR)
-	@cp -R changelog $(RELEASE_DIR)
-	@cp -R server/plikd.cfg $(RELEASE_DIR)/server
-	@cp -R server/public/css $(RELEASE_DIR)/server/public
-	@cp -R server/public/fonts $(RELEASE_DIR)/server/public
-	@cp -R server/public/img $(RELEASE_DIR)/server/public
-	@cp -R server/public/js $(RELEASE_DIR)/server/public
-	@cp -R server/public/partials $(RELEASE_DIR)/server/public
-	@cp -R server/public/public $(RELEASE_DIR)/server/public
-	@cp -R server/public/index.html $(RELEASE_DIR)/server/public
-	@cp -R server/public/favicon.ico $(RELEASE_DIR)/server/public
+	@mkdir -p $(RELEASE_DIR)/webapp
+	@mkdir -p $(RELEASE_DIR)/server
+	@cp -r clients $(RELEASE_DIR)
+	@cp -r changelog $(RELEASE_DIR)
+	@cp -r webapp/dist $(RELEASE_DIR)/webapp/dist
+	@cp -r server/plikd.cfg $(RELEASE_DIR)/server
 
 ###
 # Build release archive
 ###
 release: release-template server
-	@cp -R server/plikd $(RELEASE_DIR)/server
+	@cp -R server/plikd $(RELEASE_DIR)/server/plikd
 	@cd release && tar czvf plik-$(RELEASE_VERSION)-$(GOHOSTOS)-$(GOHOSTARCH).tar.gz plik-$(RELEASE_VERSION)
 
 ###
@@ -244,14 +237,14 @@ clean:
 # Remove frontend build files
 ###
 clean-frontend:
-	@rm -rf server/public/bower_components
-	@rm -rf server/public/public
+	@rm -rf webapp/bower_components
+	@rm -rf webapp/dist
 
 ###
 # Remove all build files and node modules
 ###
 clean-all: clean clean-frontend
-	@rm -rf server/public/node_modules
+	@rm -rf webapp/node_modules
 
 ###
 # Since the client/server/version directories are not generated

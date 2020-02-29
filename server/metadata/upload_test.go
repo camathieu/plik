@@ -54,6 +54,13 @@ func TestBackend_GetUpload_NotFound(t *testing.T) {
 	require.Nil(t, upload, "upload not nil")
 }
 
+func TestBackend_GetUploads_MissingPagingQuery(t *testing.T) {
+	b := newTestMetadataBackend()
+
+	_, _, err := b.GetUploads("", "", false, nil)
+	require.Error(t, err, "get upload error expected")
+}
+
 func TestBackend_DeleteUpload(t *testing.T) {
 	b := newTestMetadataBackend()
 
@@ -80,7 +87,7 @@ func TestBackend_GetUploads(t *testing.T) {
 	}
 
 	limit := 10
-	uploads, cursor, err := b.GetUploads("", "", false, &common.PagingQuery{Limit: &limit})
+	uploads, cursor, err := b.GetUploads("", "", false, common.NewPagingQuery().WithLimit(limit))
 	require.NoError(t, err, "get upload error")
 	require.Len(t, uploads, limit, "invalid upload count")
 	require.NotNil(t, cursor, "invalid nil cursor")
@@ -92,7 +99,7 @@ func TestBackend_GetUploads(t *testing.T) {
 	}
 
 	//  Test forward cursor
-	uploads, cursor, err = b.GetUploads("", "", false, &common.PagingQuery{Limit: &limit, After: cursor.After})
+	uploads, cursor, err = b.GetUploads("", "", false, common.NewPagingQuery().WithLimit(limit).WithAfterCursor(*cursor.After))
 	require.NoError(t, err, "get upload error")
 	require.Len(t, uploads, limit, "invalid upload count")
 	require.NotNil(t, cursor, "invalid nil cursor")
@@ -104,7 +111,7 @@ func TestBackend_GetUploads(t *testing.T) {
 	}
 
 	//  Test backward cursor
-	uploads, cursor, err = b.GetUploads("", "", false, &common.PagingQuery{Limit: &limit, Before: cursor.Before})
+	uploads, cursor, err = b.GetUploads("", "", false, common.NewPagingQuery().WithLimit(limit).WithBeforeCursor(*cursor.Before))
 	require.NoError(t, err, "get upload error")
 	require.Len(t, uploads, limit, "invalid upload count")
 	require.NotNil(t, cursor, "invalid nil cursor")
@@ -123,14 +130,14 @@ func TestBackend_GetUploadsWithFiles(t *testing.T) {
 	upload.NewFile()
 	createUpload(t, b, upload)
 
-	uploads, cursor, err := b.GetUploads("", "", false, &common.PagingQuery{})
+	uploads, cursor, err := b.GetUploads("", "", false, common.NewPagingQuery())
 	require.NoError(t, err, "get upload error")
 	require.Len(t, uploads, 1, "invalid upload count")
 	require.Len(t, uploads[0].Files, 0, "invalid file count")
 	require.Nil(t, cursor.After, "invalid non nil after cursor")
 	require.Nil(t, cursor.Before, "invalid non nil before cursor")
 
-	uploads, _, err = b.GetUploads("", "", true, &common.PagingQuery{})
+	uploads, _, err = b.GetUploads("", "", true, common.NewPagingQuery())
 	require.NoError(t, err, "get upload error")
 	require.Len(t, uploads, 1, "invalid upload count")
 	require.Len(t, uploads[0].Files, 1, "invalid file count")
@@ -151,7 +158,7 @@ func TestBackend_GetUploads_User(t *testing.T) {
 	}
 
 	limit := 10
-	uploads, cursor, err := b.GetUploads(user.ID, "", false, &common.PagingQuery{Limit: &limit})
+	uploads, cursor, err := b.GetUploads(user.ID, "", false, common.NewPagingQuery().WithLimit(limit))
 	require.NoError(t, err, "get upload error")
 	require.Len(t, uploads, limit, "invalid upload count")
 	require.NotNil(t, cursor, "invalid nil cursor")
@@ -191,19 +198,6 @@ func TestBackend_GetUploads_Token(t *testing.T) {
 	require.Nil(t, cursor.After, "invalid non nil after cursor")
 }
 
-func TestBackend_CountUploadFiles(t *testing.T) {
-	b := newTestMetadataBackend()
-
-	upload := &common.Upload{}
-	_ = upload.NewFile()
-
-	createUpload(t, b, upload)
-
-	count, err := b.CountUploadFiles(upload.ID)
-	require.NoError(t, err, "count upload files error")
-	require.Equal(t, 1, count, "count upload files mismatch")
-}
-
 func TestBackend_DeleteExpiredUploads(t *testing.T) {
 	b := newTestMetadataBackend()
 
@@ -229,4 +223,32 @@ func TestBackend_DeleteExpiredUploads(t *testing.T) {
 	removed, err := b.DeleteExpiredUploads()
 	require.Nil(t, err, "delete expired upload error")
 	require.Equal(t, 1, removed, "removed expired upload count mismatch")
+}
+
+func TestBackend_PurgeDeletedUploads(t *testing.T) {
+	b := newTestMetadataBackend()
+
+	upload := &common.Upload{}
+	upload.NewFile().Status = common.FileUploaded
+	createUpload(t, b, upload)
+
+	purged, err := b.PurgeDeletedUploads()
+	require.NoError(t, err, "purge deleted upload error")
+	require.Equal(t, 0, purged, "invalid purged count")
+
+	err = b.DeleteUpload(upload.ID)
+	require.NoError(t, err, "delete upload error")
+
+	purged, err = b.PurgeDeletedUploads()
+	require.NoError(t, err, "purge deleted upload error")
+
+	f := func(file *common.File) error {
+		return b.UpdateFileStatus(file, file.Status, common.FileDeleted)
+	}
+	err = b.ForEachRemovedFile(f)
+	require.NoError(t, err, "delete files error")
+
+	purged, err = b.PurgeDeletedUploads()
+	require.NoError(t, err, "purge deleted upload error")
+	require.Equal(t, 1, purged, "invalid purged count")
 }

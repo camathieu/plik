@@ -13,10 +13,9 @@ import (
 func Paginate(ctx *context.Context, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
 
-		defaultLimit := 20
-		pagingQuery := &common.PagingQuery{Limit: &defaultLimit}
+		pagingQuery := common.NewPagingQuery().WithLimit(20)
 
-		header := req.Header.Get("X-PlikPaging")
+		header := req.Header.Get("X-Plik-Paging")
 		if header != "" {
 			err := json.Unmarshal([]byte(header), &pagingQuery)
 			if err != nil {
@@ -28,40 +27,37 @@ func Paginate(ctx *context.Context, next http.Handler) http.Handler {
 			if limitStr != "" {
 				limit, err := strconv.Atoi(limitStr)
 				if err != nil {
-					ctx.InvalidParameter("limit", err)
+					ctx.InvalidParameter("limit : %s", err)
 				}
-				pagingQuery.Limit = &limit
+				pagingQuery.WithLimit(limit)
 			}
 
 			order := req.URL.Query().Get("order")
-			switch order {
-			case "":
-			case "desc", "asc":
-				pagingQuery.Order = &order
-			default:
-				ctx.InvalidParameter("order. Expected 'asc' or 'desc'")
-				return
+			if order != "" {
+				pagingQuery.WithOrder(order)
 			}
 
 			before := req.URL.Query().Get("before")
 			if before != "" {
-				pagingQuery.Before = &before
+				pagingQuery.WithBeforeCursor(before)
 			}
 
 			after := req.URL.Query().Get("after")
 			if after != "" {
-				pagingQuery.After = &after
+				pagingQuery.WithAfterCursor(after)
 			}
 		}
 
-		if pagingQuery.Limit == nil || *pagingQuery.Limit <= 0 {
-			ctx.InvalidParameter("paging limit")
-			return
+		if pagingQuery.Limit != nil && *pagingQuery.Limit <= 0 {
+			ctx.InvalidParameter("limit")
 		}
 
-		if pagingQuery.After != nil && pagingQuery.Before != nil {
-			ctx.BadRequest("bidirectional paging cursor")
-			return
+		if pagingQuery.Order != nil && !(*pagingQuery.Order == "asc" || *pagingQuery.Order == "desc") {
+			ctx.InvalidParameter("order")
+		}
+
+		if pagingQuery.Before != nil && pagingQuery.After != nil {
+			ctx.BadRequest("both before and after cursors set")
 		}
 
 		ctx.SetPagingQuery(pagingQuery)

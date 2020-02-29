@@ -59,7 +59,7 @@ func (file *File) Sanitize() {
 }
 
 // PrepareInsert prepares a new file object to be persisted in DB ( create file ID, link upload ID, check name, ... )
-func (file *File) PrepareInsert(config *Configuration, upload *Upload) (err error) {
+func (file *File) PrepareInsert(upload *Upload) (err error) {
 	if upload == nil {
 		return fmt.Errorf("missing upload")
 	}

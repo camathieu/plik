@@ -67,7 +67,7 @@ func NewBackend(config *Config) (b *Backend, err error) {
 	}
 
 	if config.EraseFirst {
-		err = b.db.DropTableIfExists("files", "uploads", "tokens", "users", "migrations").Error
+		err = b.db.DropTableIfExists("files", "uploads", "tokens", "users", "settings", "migrations").Error
 		if err != nil {
 			return nil, fmt.Errorf("unable to drop tables : %s", err)
 		}

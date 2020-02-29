@@ -6,7 +6,6 @@ import (
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
 	"github.com/root-gg/plik/server/data"
-	"github.com/root-gg/utils"
 	"io"
 	"net/http"
 )
@@ -90,7 +89,7 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 		file.Name = fileName
 
 		// Set and verify parameters
-		err = file.PrepareInsert(config, upload)
+		err = file.PrepareInsert(upload)
 		if err != nil {
 			ctx.BadRequest(err.Error())
 			return
@@ -195,13 +194,7 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 
 		_, _ = resp.Write([]byte(url + "\n"))
 	} else {
-		// Print file metadata in json in the response.
-		var json []byte
-		if json, err = utils.ToJson(file); err == nil {
-			_, _ = resp.Write(json)
-		} else {
-			panic(fmt.Errorf("unable to serialize json response : %s", err))
-		}
+		common.WriteJSONResponse(resp, file)
 	}
 }
 

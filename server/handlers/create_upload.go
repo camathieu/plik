@@ -20,8 +20,6 @@ func CreateUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Requ
 		return
 	}
 
-	// TODO NOT A GOOD IDEA HERE !!!
-
 	// Read request body
 	defer func() { _ = req.Body.Close() }()
 	req.Body = http.MaxBytesReader(resp, req.Body, 1048576)

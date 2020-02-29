@@ -7,29 +7,58 @@ import (
 
 // PagingQuery for the paging system
 type PagingQuery struct {
-	After  *string `json:"after"`
 	Before *string `json:"before"`
+	After  *string `json:"after"`
 	Limit  *int    `json:"limit"`
 	Order  *string `json:"order"`
 }
 
+// NewPagingQuery return a new paging query
+func NewPagingQuery() (pq *PagingQuery) {
+	return &PagingQuery{}
+}
+
+// WithLimit set the paging query limit if limit is a valid positive integer
+func (pq *PagingQuery) WithLimit(limit int) *PagingQuery {
+	pq.Limit = &limit
+	return pq
+}
+
+// WithOrder set the paging query order if oder is a valid order string "asc" or "desc"
+func (pq *PagingQuery) WithOrder(order string) *PagingQuery {
+	pq.Order = &order
+	return pq
+}
+
+// WithBeforeCursor set the paging query before cursor and unset the after cursor
+func (pq *PagingQuery) WithBeforeCursor(cursor string) *PagingQuery {
+	pq.Before = &cursor
+	return pq
+}
+
+// WithAfterCursor set the paging query after cursor and unset the before cursor
+func (pq *PagingQuery) WithAfterCursor(cursor string) *PagingQuery {
+	pq.After = &cursor
+	return pq
+}
+
 // Paginator return a new Paginator for the PagingQuery
-func (q *PagingQuery) Paginator() *paginator.Paginator {
+func (pq *PagingQuery) Paginator() *paginator.Paginator {
 	p := paginator.New()
 
-	if q.After != nil {
-		p.SetAfterCursor(*q.After) // [default: nil]
+	if pq.After != nil {
+		p.SetAfterCursor(*pq.After) // [default: nil]
 	}
 
-	if q.Before != nil {
-		p.SetBeforeCursor(*q.Before) // [default: nil]
+	if pq.Before != nil {
+		p.SetBeforeCursor(*pq.Before) // [default: nil]
 	}
 
-	if q.Limit != nil {
-		p.SetLimit(*q.Limit) // [default: 10]
+	if pq.Limit != nil {
+		p.SetLimit(*pq.Limit) // [default: 10]
 	}
 
-	if q.Order != nil && *q.Order == "asc" {
+	if pq.Order != nil && *pq.Order == "asc" {
 		p.SetOrder(paginator.ASC) // [default: paginator.DESC]
 	}
 
@@ -40,7 +69,6 @@ func (q *PagingQuery) Paginator() *paginator.Paginator {
 type PagingResponse struct {
 	After   *string       `json:"after"`
 	Before  *string       `json:"before"`
-	Size    int           `json:"size"`
 	Results []interface{} `json:"results"`
 }
 
@@ -50,6 +78,5 @@ func NewPagingResponse(results interface{}, cursor *paginator.Cursor) (pr *Pagin
 	pr.Results = utils.ToInterfaceArray(results)
 	pr.Before = cursor.Before
 	pr.After = cursor.After
-	pr.Size = len(pr.Results)
 	return pr
 }
