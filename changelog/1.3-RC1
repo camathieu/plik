@@ -1,0 +1,38 @@
+Plik 1.3-RC1
+
+    Hi, today we're releasing the first release candidate of the next plik major version 1.3 !
+
+    Note :
+        We have removed mongodb and bolt metadata backends in favor of sqlite/postgres using gorm
+        We have removed weedfs data backed
+        We have removed support of yubikeys
+
+    Here is the changelog :
+      /!\ Breaking /!\
+        - API changes :
+          - Upload files is now an array instead of a map
+          - Upload Create int64 is now CreatedAt time.Time
+          - Cursor based pagination
+          - Errors are not anymore encapsulated in a common.Result
+        - Files are now stored in a different folder without the upload id in the path ( implementation is backward compatible )
+
+     New
+        - New metadata backend : Gorm sqlite/postgres
+        - New authentication mechanism for local users
+        - Plik client library
+        - Quick mode to upload a file in a single curl
+        - User upload statistics
+        - Admin dashboard : server upload statistics, list of users, ...
+        - Admin command line : manage users / tokens / uploads / files
+        - Metadata export / import
+        - Config parameter to disable some HTTP security headers
+
+     Misc
+        - Unit and Functional tests with good coverage
+        - Plik client rewrite using the library
+        - Improved Makefile
+        - Better error management
+        - Better webapp build
+
+Faithfully,
+The plik team
