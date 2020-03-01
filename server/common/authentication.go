@@ -2,11 +2,12 @@ package common
 
 import (
 	"fmt"
+	"net/http"
+	"time"
+
 	"github.com/dgrijalva/jwt-go"
 	uuid "github.com/nu7hatch/gouuid"
 	"golang.org/x/crypto/bcrypt"
-	"net/http"
-	"time"
 )
 
 // GenerateAuthenticationSignatureKey create an new random key

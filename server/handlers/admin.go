@@ -1,8 +1,9 @@
 package handlers
 
 import (
-	"github.com/root-gg/plik/server/common"
 	"net/http"
+
+	"github.com/root-gg/plik/server/common"
 
 	"github.com/root-gg/plik/server/context"
 )
@@ -19,7 +20,7 @@ func GetUsers(ctx *context.Context, resp http.ResponseWriter, req *http.Request)
 	pagingQuery := ctx.GetPagingQuery()
 
 	// Get uploads
-	users, cursor, err := ctx.GetMetadataBackend().GetUsers("", pagingQuery)
+	users, cursor, err := ctx.GetMetadataBackend().GetUsers("", false, pagingQuery)
 	if err != nil {
 		ctx.InternalServerError("unable to get users : %s", err)
 		return

@@ -3,14 +3,16 @@ package main
 import (
 	"errors"
 	"fmt"
-	"github.com/root-gg/plik/server/common"
 	"io"
 	"io/ioutil"
 	"strconv"
 	"strings"
 	"sync"
 
+	"github.com/root-gg/plik/server/common"
+
 	"github.com/camathieu/pb"
+
 	"github.com/root-gg/plik/plik"
 )
 

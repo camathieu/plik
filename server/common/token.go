@@ -2,8 +2,9 @@ package common
 
 import (
 	"fmt"
-	"github.com/nu7hatch/gouuid"
 	"time"
+
+	uuid "github.com/nu7hatch/gouuid"
 )
 
 // Token provide a very basic authentication mechanism
@@ -13,8 +14,7 @@ type Token struct {
 
 	UserID string `json:"-" gorm:"type:varchar(255) REFERENCES users(id) ON UPDATE RESTRICT ON DELETE CASCADE"`
 
-	CreatedAt time.Time  `json:"createdAt"`
-	DeletedAt *time.Time `json:"deletedAt,omitempty"`
+	CreatedAt time.Time `json:"createdAt"`
 }
 
 // NewToken create a new Token instance

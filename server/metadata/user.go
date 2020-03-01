@@ -2,8 +2,10 @@ package metadata
 
 import (
 	"fmt"
+
 	"github.com/jinzhu/gorm"
 	paginator "github.com/pilagod/gorm-cursor-paginator"
+
 	"github.com/root-gg/plik/server/common"
 )
 
@@ -27,7 +29,7 @@ func (b *Backend) GetUser(ID string) (user *common.User, err error) {
 
 // GetUsers return all users
 // provider is an optional filter
-func (b *Backend) GetUsers(provider string, pagingQuery *common.PagingQuery) (users []*common.User, cursor *paginator.Cursor, err error) {
+func (b *Backend) GetUsers(provider string, withTokens bool, pagingQuery *common.PagingQuery) (users []*common.User, cursor *paginator.Cursor, err error) {
 	if pagingQuery == nil {
 		return nil, nil, fmt.Errorf("missing paging query")
 	}
@@ -36,6 +38,10 @@ func (b *Backend) GetUsers(provider string, pagingQuery *common.PagingQuery) (us
 	p.SetKeys("CreatedAt", "ID")
 
 	stmt := b.db.Model(&common.User{})
+
+	if withTokens {
+		stmt = stmt.Preload("Tokens")
+	}
 
 	if provider != "" {
 		stmt = stmt.Where(&common.User{Provider: provider})
@@ -136,4 +142,27 @@ func (b *Backend) CountUsers() (count int, err error) {
 	}
 
 	return count, nil
+}
+
+// ForEachUsers execute f for every user in the database
+func (b *Backend) ForEachUsers(f func(user *common.User) error) (err error) {
+	rows, err := b.db.Model(&common.User{}).Rows()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = rows.Close() }()
+
+	for rows.Next() {
+		user := &common.User{}
+		err = b.db.ScanRows(rows, user)
+		if err != nil {
+			return err
+		}
+		err = f(user)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

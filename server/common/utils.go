@@ -3,9 +3,10 @@ package common
 import (
 	"encoding/base64"
 	"fmt"
-	"github.com/root-gg/utils"
 	"net/http"
 	"strings"
+
+	"github.com/root-gg/utils"
 )
 
 //Ensure HTTPError implements error

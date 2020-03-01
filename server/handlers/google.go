@@ -8,11 +8,12 @@ import (
 
 	"github.com/dgrijalva/jwt-go"
 
-	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/plik/server/context"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	api_oauth2 "google.golang.org/api/oauth2/v2"
+
+	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/plik/server/context"
 )
 
 var googleEndpointContextKey = "google_endpoint"

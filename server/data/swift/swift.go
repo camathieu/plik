@@ -5,9 +5,10 @@ import (
 	"io"
 
 	"github.com/ncw/swift"
+	"github.com/root-gg/utils"
+
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/data"
-	"github.com/root-gg/utils"
 )
 
 // Ensure Swift Data Backend implements data.Backend interface

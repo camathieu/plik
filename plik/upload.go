@@ -296,7 +296,7 @@ func (upload *Upload) GetURL() (u *url.URL, err error) {
 		return nil, fmt.Errorf("upload has not been created yet")
 	}
 
-	fileURL := fmt.Sprintf("%s/?id=%s", upload.client.URL, uploadMetadata.ID)
+	fileURL := fmt.Sprintf("%s/#/?id=%s", upload.client.URL, uploadMetadata.ID)
 
 	// Parse to get a nice escaped url
 	return url.Parse(fileURL)

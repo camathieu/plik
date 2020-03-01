@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"sync"
 	"time"
@@ -111,10 +112,18 @@ func (ps *PlikServer) start() (err error) {
 	address := ps.config.ListenAddress + ":" + strconv.Itoa(ps.config.ListenPort)
 	if ps.config.SslEnabled {
 		proto = "https"
+		tlsConfig := &tls.Config{MinVersion: tls.VersionTLS10}
+
 		if ps.config.SslCert == "" || ps.config.SslKey == "" {
 			return fmt.Errorf("unable to start plik server without ssl certificates")
 		}
-		tlsConfig := &tls.Config{MinVersion: tls.VersionTLS10}
+
+		certificate, err := tls.LoadX509KeyPair(ps.config.SslCert, ps.config.SslKey)
+		if err != nil {
+			return fmt.Errorf("unable to load ssl certificates : %s", err)
+		}
+		tlsConfig.Certificates = append(tlsConfig.Certificates, certificate)
+
 		ps.httpServer = &http.Server{Addr: address, Handler: handler, TLSConfig: tlsConfig}
 	} else {
 		proto = "http"
@@ -125,13 +134,7 @@ func (ps *PlikServer) start() (err error) {
 
 	// Start HTTP Server
 	go func() {
-		var err error
-		if ps.config.SslEnabled {
-			err = ps.httpServer.ListenAndServeTLS(ps.config.SslCert, ps.config.SslKey)
-		} else {
-			err = ps.httpServer.ListenAndServe()
-		}
-
+		err := ps.httpServer.ListenAndServe()
 		if err != nil {
 			ps.mu.Lock()
 			defer ps.mu.Unlock()
@@ -253,10 +256,22 @@ func (ps *PlikServer) getHTTPHandler() (handler http.Handler) {
 	router.Handle("/users", pagingChain.Then(handlers.GetUsers)).Methods("GET")
 	router.Handle("/qrcode", stdChain.Then(handlers.GetQrCode)).Methods("GET")
 
-	if !ps.config.NoWebInterface && ps.config.WebRoot != "" {
-		_, err := os.Stat("./public/dist")
+	if !ps.config.NoWebInterface {
+
+		// Find webapp directory
+		if ps.config.WebRoot == "" {
+			path, err := os.Executable()
+			if err == nil {
+				ps.config.WebRoot = filepath.Dir(path) + "/../webapp/dist"
+			} else {
+				fmt.Printf("Error finding executable path : %s\n", err)
+				ps.config.WebRoot = "../webapp/dist"
+			}
+		}
+
+		_, err := os.Stat(ps.config.WebRoot)
 		if err != nil {
-			ps.config.NewLogger().Warning("Public directory not found, consider setting config.NoWebInterface to true")
+			ps.config.NewLogger().Warningf("Webapp directory %s not found, consider setting config.NoWebInterface to true", ps.config.WebRoot)
 		}
 
 		router.PathPrefix("/clients/").Handler(http.StripPrefix("/clients/", http.FileServer(http.Dir("../clients"))))
@@ -349,25 +364,30 @@ func (ps *PlikServer) initializeAuthenticator() (err error) {
 			return fmt.Errorf("metadata backend must be initialized before the authenticator")
 		}
 
-		setting, err := ps.metadataBackend.GetSetting(common.AuthenticationSignatureKeySettingKey)
-		if err != nil {
-			return fmt.Errorf("unable to get authentication signature key : %s", err)
-		}
-
-		if setting == nil {
-			setting = common.GenerateAuthenticationSignatureKey()
-			err = ps.metadataBackend.CreateSetting(setting)
+		for i := 0; i < 2; i++ {
+			setting, err := ps.metadataBackend.GetSetting(common.AuthenticationSignatureKeySettingKey)
 			if err != nil {
-				// TODO : There is a slight race condition here if two servers start exactly at the same time for the first time
-				return fmt.Errorf("unable to save authentication signature key : %s", err)
+				return fmt.Errorf("unable to get authentication signature key : %s", err)
 			}
-		}
 
-		ps.authenticator = &common.SessionAuthenticator{SignatureKey: setting.Value}
-		return nil
+			if setting == nil {
+				setting = common.GenerateAuthenticationSignatureKey()
+				err = ps.metadataBackend.CreateSetting(setting)
+				if err != nil {
+					// There is a slight race condition here if
+					// two servers start exactly at the same time for the first time
+					// so retry once
+					time.Sleep(time.Second)
+					continue
+				}
+			}
+
+			ps.authenticator = &common.SessionAuthenticator{SignatureKey: setting.Value}
+			return nil
+		}
 	}
 
-	return nil
+	return err
 }
 
 // GetConfig return the server configuration

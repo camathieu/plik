@@ -2,13 +2,15 @@ package server
 
 import (
 	"bytes"
-	"github.com/root-gg/plik/server/metadata"
 	"testing"
 	"time"
 
+	"github.com/root-gg/plik/server/metadata"
+
+	"github.com/stretchr/testify/require"
+
 	"github.com/root-gg/plik/server/common"
 	data_test "github.com/root-gg/plik/server/data/testing"
-	"github.com/stretchr/testify/require"
 )
 
 func newPlikServer() (ps *PlikServer) {

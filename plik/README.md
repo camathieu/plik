@@ -91,8 +91,3 @@ err = upload.Upload()
 // Get remote server version
 buildInfo, err = client.GetServerVersion()
 ```
-
-#### 4 Warning
-
-It's possible to create and manipulate multiple uploads in parallel  
-However for now the upload object is not safe to be used from several goroutines

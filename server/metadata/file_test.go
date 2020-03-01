@@ -2,10 +2,12 @@ package metadata
 
 import (
 	"fmt"
-	_ "github.com/jinzhu/gorm/dialects/sqlite"
-	"github.com/root-gg/plik/server/common"
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	_ "github.com/jinzhu/gorm/dialects/sqlite"
+	"github.com/stretchr/testify/require"
+
+	"github.com/root-gg/plik/server/common"
 )
 
 func TestBackend_CreateFile(t *testing.T) {
@@ -214,4 +216,29 @@ func TestBackend_CountUploadFiles(t *testing.T) {
 	count, err := b.CountUploadFiles(upload.ID)
 	require.NoError(t, err, "count upload files error")
 	require.Equal(t, 1, count, "count upload files mismatch")
+}
+
+func TestBackend_ForEachFile(t *testing.T) {
+	b := newTestMetadataBackend()
+
+	upload := &common.Upload{}
+	file := upload.NewFile()
+	file.Size = 42
+	createUpload(t, b, upload)
+
+	count := 0
+	f := func(file *common.File) error {
+		count++
+		require.Equal(t, int64(42), file.Size, "invalid file size")
+		return nil
+	}
+	err := b.ForEachFile(f)
+	require.NoError(t, err, "for each file error : %s", err)
+	require.Equal(t, 1, count, "invalid file count")
+
+	f = func(file *common.File) error {
+		return fmt.Errorf("expected")
+	}
+	err = b.ForEachFile(f)
+	require.Errorf(t, err, "expected")
 }

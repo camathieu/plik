@@ -1,8 +1,9 @@
 package handlers
 
 import (
-	"github.com/root-gg/plik/server/common"
 	"net/http"
+
+	"github.com/root-gg/plik/server/common"
 
 	"github.com/root-gg/plik/server/context"
 )

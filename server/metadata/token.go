@@ -2,9 +2,11 @@ package metadata
 
 import (
 	"fmt"
+
 	paginator "github.com/pilagod/gorm-cursor-paginator"
 
 	"github.com/jinzhu/gorm"
+
 	"github.com/root-gg/plik/server/common"
 )
 
@@ -62,4 +64,29 @@ func (b *Backend) CountUserTokens(userID string) (count int, err error) {
 	}
 
 	return count, nil
+}
+
+// ForEachToken execute f for every token in the database
+func (b *Backend) ForEachToken(f func(token *common.Token) error) (err error) {
+	stmt := b.db.Model(&common.Token{})
+
+	rows, err := stmt.Rows()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = rows.Close() }()
+
+	for rows.Next() {
+		token := &common.Token{}
+		err = b.db.ScanRows(rows, token)
+		if err != nil {
+			return err
+		}
+		err = f(token)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

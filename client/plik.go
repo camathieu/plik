@@ -18,11 +18,12 @@ import (
 	"github.com/docopt/docopt-go"
 	"github.com/kardianos/osext"
 	"github.com/olekukonko/ts"
+	"github.com/root-gg/utils"
+
 	"github.com/root-gg/plik/client/archive"
 	"github.com/root-gg/plik/client/crypto"
 	"github.com/root-gg/plik/plik"
 	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/utils"
 )
 
 // Vars

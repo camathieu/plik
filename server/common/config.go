@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
-	"github.com/GeertJohan/yubigo"
 	"github.com/root-gg/logger"
 )
 
@@ -32,8 +31,9 @@ type Configuration struct {
 	SslCert    string `json:"-"`
 	SslKey     string `json:"-"`
 
-	NoWebInterface bool
-	DownloadDomain string `json:"downloadDomain"`
+	NoWebInterface      bool   `json:"-"`
+	DownloadDomain      string `json:"downloadDomain"`
+	EnhancedWebSecurity bool   `json:"-"`
 
 	SourceIPHeader  string   `json:"-"`
 	UploadWhitelist []string `json:"-"`
@@ -52,14 +52,12 @@ type Configuration struct {
 	OvhAPIEndpoint       string   `json:"ovhApiEndpoint"`
 	OvhAPIKey            string   `json:"-"`
 	OvhAPISecret         string   `json:"-"`
-	Admins               []string `json:"-"`
 
 	MetadataBackendConfig map[string]interface{} `json:"-"`
 
 	DataBackend       string                 `json:"-"`
 	DataBackendConfig map[string]interface{} `json:"-"`
 
-	yubiAuth          *yubigo.YubiAuth
 	downloadDomainURL *url.URL
 	uploadWhitelist   []*net.IPNet
 	clean             bool
@@ -83,7 +81,7 @@ func NewConfiguration() (config *Configuration) {
 	config.ProtectedByPassword = true
 	config.OvhAPIEndpoint = "https://eu.api.ovh.com/1.0"
 	config.clean = true
-	config.WebRoot = "../webapp/dist"
+	config.EnhancedWebSecurity = true
 	return
 }
 
@@ -174,11 +172,6 @@ func (config *Configuration) GetUploadWhitelist() []*net.IPNet {
 // GetDownloadDomain return the parsed download domain URL
 func (config *Configuration) GetDownloadDomain() *url.URL {
 	return config.downloadDomainURL
-}
-
-// GetYubiAuth return the Yubikey authenticator
-func (config *Configuration) GetYubiAuth() *yubigo.YubiAuth {
-	return config.yubiAuth
 }
 
 // AutoClean enable or disables the periodical upload cleaning goroutine.

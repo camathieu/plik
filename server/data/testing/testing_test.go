@@ -5,9 +5,10 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/data"
-	"github.com/stretchr/testify/require"
 )
 
 // Ensure Testing Data Backend implements data.Backend interface

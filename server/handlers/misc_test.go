@@ -3,9 +3,10 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/root-gg/plik/server/metadata"
 	"io/ioutil"
 	"net/http"
+
+	"github.com/root-gg/plik/server/metadata"
 
 	"net/url"
 	"testing"

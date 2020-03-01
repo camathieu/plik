@@ -3,13 +3,19 @@ package plik
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"io/ioutil"
+	"mime/multipart"
+	"net/http"
+	"net/url"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/root-gg/plik/server/common"
 	"github.com/stretchr/testify/require"
+
+	"github.com/root-gg/plik/server/common"
 )
 
 func TestUploadFileTwice(t *testing.T) {
@@ -280,4 +286,53 @@ func TestTTL(t *testing.T) {
 	_, err = pc.GetUpload(upload.ID())
 	require.Error(t, err, "unable to get upload")
 	require.Contains(t, err.Error(), "has expired", "upload has not been created")
+}
+
+func TestQuickUpload(t *testing.T) {
+	ps, pc := newPlikServerAndClient()
+	ps.GetConfig().DownloadDomain = fmt.Sprintf("http://127.0.0.1:%d", ps.GetConfig().ListenPort)
+
+	defer shutdown(ps)
+	err := start(ps)
+	require.NoError(t, err, "unable to start plik server")
+
+	content := "data data data"
+
+	var buf bytes.Buffer
+	multipartWriter := multipart.NewWriter(&buf)
+	writer, err := multipartWriter.CreateFormFile("file", "filename")
+	require.NoError(t, err, "create multipart form file error : %s", err)
+
+	_, err = io.Copy(writer, bytes.NewBufferString(content))
+	require.NoError(t, err, "io copy error : %s", err)
+
+	err = multipartWriter.Close()
+	require.NoError(t, err, "multipart writer close error : %s", err)
+
+	req, err := http.NewRequest("POST", pc.URL, &buf)
+	require.NoError(t, err, "unable to create plik request")
+
+	req.Header.Set("Content-Type", multipartWriter.FormDataContentType())
+
+	resp, err := pc.MakeRequest(req)
+	require.NoError(t, err, "unable to make quick request (%s) %s", req.Method, req.URL.String())
+	require.Equal(t, 200, resp.StatusCode, "invalid HTTP response status %s", resp.Status)
+
+	defer func() { _ = resp.Body.Close() }()
+	respBody, err := ioutil.ReadAll(resp.Body)
+	require.NoError(t, err, "unable to read response body")
+
+	u, err := url.Parse(strings.TrimSpace(string(respBody)))
+	require.NoError(t, err, "unable to parse url from response body")
+
+	req, err = http.NewRequest("GET", u.String(), nil)
+	resp, err = pc.MakeRequest(req)
+	require.NoError(t, err, "unable to make quick request (%s) %s : %s", req.Method, req.URL.String())
+	require.Equal(t, 200, resp.StatusCode, "invalid HTTP response status %s", resp.Status)
+
+	defer func() { _ = resp.Body.Close() }()
+	respBody, err = ioutil.ReadAll(resp.Body)
+	require.NoError(t, err, "unable to read response body")
+
+	require.Equal(t, content, string(respBody), "invalid file content")
 }

@@ -2,13 +2,14 @@ package plik
 
 import (
 	"fmt"
-	"github.com/root-gg/plik/server/common"
 	"io"
 	"io/ioutil"
 	"net/url"
 	"os"
 	"path/filepath"
 	"sync"
+
+	"github.com/root-gg/plik/server/common"
 )
 
 // File contains all relevant info needed to upload data to a Plik server

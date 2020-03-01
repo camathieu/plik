@@ -2,10 +2,12 @@ package metadata
 
 import (
 	"fmt"
-	_ "github.com/jinzhu/gorm/dialects/sqlite"
-	"github.com/root-gg/plik/server/common"
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	_ "github.com/jinzhu/gorm/dialects/sqlite"
+	"github.com/stretchr/testify/require"
+
+	"github.com/root-gg/plik/server/common"
 )
 
 func createUser(t *testing.T, b *Backend, user *common.User) {
@@ -54,17 +56,17 @@ func TestBackend_GetUsers(t *testing.T) {
 		createUser(t, b, user)
 	}
 
-	users, cursor, err := b.GetUsers("", common.NewPagingQuery().WithLimit(100))
+	users, cursor, err := b.GetUsers("", false, common.NewPagingQuery().WithLimit(100))
 	require.NoError(t, err, "get user error")
 	require.NotNil(t, cursor, "invalid nil cursor")
 	require.Len(t, users, 10, "invalid user lenght")
 
-	users, cursor, err = b.GetUsers(common.ProviderGoogle, common.NewPagingQuery().WithLimit(100))
+	users, cursor, err = b.GetUsers(common.ProviderGoogle, false, common.NewPagingQuery().WithLimit(100))
 	require.NoError(t, err, "get user error")
 	require.NotNil(t, cursor, "invalid nil cursor")
 	require.Len(t, users, 5, "invalid user lenght")
 
-	users, cursor, err = b.GetUsers("", nil)
+	users, cursor, err = b.GetUsers("", false, nil)
 	require.Error(t, err, "get user error expected")
 }
 

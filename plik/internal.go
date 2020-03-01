@@ -12,10 +12,10 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"strings"
-	"sync"
+
+	"github.com/root-gg/utils"
 
 	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/utils"
 )
 
 // Create creates a new empty upload on the Plik Server and return the upload metadata
@@ -42,7 +42,7 @@ func (c *Client) create(uploadParams *common.Upload) (uploadMetadata *common.Upl
 		return nil, err
 	}
 
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
@@ -62,21 +62,8 @@ func (c *Client) create(uploadParams *common.Upload) (uploadMetadata *common.Upl
 	return uploadMetadata, nil
 }
 
-var mu sync.Mutex
-var readers []io.Reader
-
 // UploadFile uploads a data stream to the Plik Server and return the file metadata
 func (c *Client) uploadFile(upload *common.Upload, fileParams *common.File, reader io.Reader) (fileInfo *common.File, err error) {
-
-	mu.Lock()
-	for _, r := range readers {
-		if reader == r {
-			panic("dafix")
-		}
-	}
-	readers = append(readers, reader)
-	mu.Unlock()
-
 	pipeReader, pipeWriter := io.Pipe()
 	multipartWriter := multipart.NewWriter(pipeWriter)
 
@@ -89,14 +76,14 @@ func (c *Client) uploadFile(upload *common.Upload, fileParams *common.File, read
 		writer, err := multipartWriter.CreateFormFile("file", fileParams.Name)
 		if err != nil {
 			err = fmt.Errorf("unable to create multipartWriter : %s", err)
-			pipeWriter.CloseWithError(err)
+			_ = pipeWriter.CloseWithError(err)
 			errCh <- err
 			return
 		}
 
 		_, err = io.Copy(writer, reader)
 		if err != nil {
-			pipeWriter.CloseWithError(err)
+			_ = pipeWriter.CloseWithError(err)
 			errCh <- err
 			return
 		}
@@ -108,7 +95,7 @@ func (c *Client) uploadFile(upload *common.Upload, fileParams *common.File, read
 			return
 		}
 
-		pipeWriter.CloseWithError(err)
+		_ = pipeWriter.CloseWithError(err)
 		errCh <- err
 	}(errCh)
 
@@ -149,7 +136,7 @@ func (c *Client) uploadFile(upload *common.Upload, fileParams *common.File, read
 		return nil, err
 	}
 
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
@@ -207,7 +194,7 @@ func (c *Client) getUploadWithParams(uploadParams *common.Upload) (upload *Uploa
 		return nil, err
 	}
 
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err

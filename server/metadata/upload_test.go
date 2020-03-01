@@ -2,11 +2,13 @@ package metadata
 
 import (
 	"fmt"
-	_ "github.com/jinzhu/gorm/dialects/sqlite"
-	"github.com/root-gg/plik/server/common"
-	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
+
+	_ "github.com/jinzhu/gorm/dialects/sqlite"
+	"github.com/stretchr/testify/require"
+
+	"github.com/root-gg/plik/server/common"
 )
 
 func createUpload(t *testing.T, b *Backend, upload *common.Upload) {
@@ -251,4 +253,29 @@ func TestBackend_PurgeDeletedUploads(t *testing.T) {
 	purged, err = b.PurgeDeletedUploads()
 	require.NoError(t, err, "purge deleted upload error")
 	require.Equal(t, 1, purged, "invalid purged count")
+}
+
+func TestBackend_ForEachUpload(t *testing.T) {
+	b := newTestMetadataBackend()
+
+	upload := &common.Upload{}
+	upload.Comments = "foo bar"
+	upload.NewFile()
+	createUpload(t, b, upload)
+
+	count := 0
+	f := func(upload *common.Upload) error {
+		count++
+		require.Equal(t, "foo bar", upload.Comments, "invalid upload comments")
+		return nil
+	}
+	err := b.ForEachUpload(f)
+	require.NoError(t, err, "for each upload error : %s", err)
+	require.Equal(t, 1, count, "invalid upload count")
+
+	f = func(upload *common.Upload) error {
+		return fmt.Errorf("expected")
+	}
+	err = b.ForEachUpload(f)
+	require.Errorf(t, err, "expected")
 }

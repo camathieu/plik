@@ -2,9 +2,11 @@ package metadata
 
 import (
 	"fmt"
-	"github.com/root-gg/plik/server/common"
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/root-gg/plik/server/common"
 )
 
 func TestBackend_GetUploadStatistics(t *testing.T) {

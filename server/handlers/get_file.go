@@ -67,10 +67,12 @@ func GetFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 	resp.Header().Set("Content-Type", file.Type)
 
 	/* Additional security headers for possibly unsafe content */
-	resp.Header().Set("X-Content-Type-Options", "nosniff")
-	resp.Header().Set("X-XSS-Protection", "1; mode=block")
-	resp.Header().Set("X-Frame-Options", "DENY")
-	resp.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'none'; style-src 'none'; img-src 'none'; connect-src 'none'; font-src 'none'; object-src 'none'; media-src 'self'; child-src 'none'; form-action 'none'; frame-ancestors 'none'; plugin-types; sandbox")
+	if ctx.GetConfig().EnhancedWebSecurity {
+		resp.Header().Set("X-Content-Type-Options", "nosniff")
+		resp.Header().Set("X-XSS-Protection", "1; mode=block")
+		resp.Header().Set("X-Frame-Options", "DENY")
+		resp.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'none'; style-src 'none'; img-src 'none'; connect-src 'none'; font-src 'none'; object-src 'none'; media-src 'self'; child-src 'none'; form-action 'none'; frame-ancestors 'none'; plugin-types; sandbox")
+	}
 
 	/* Additional header for disabling cache if the upload is OneShot */
 	if upload.OneShot { // If this is a one shot or stream upload we have to ensure it's downloaded only once.

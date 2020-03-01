@@ -11,31 +11,16 @@ import (
 
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
-	"github.com/root-gg/utils"
 )
 
 // GetVersion return the build information.
 func GetVersion(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
-	// Print version and build information in the json response.
-	json, err := utils.ToJson(common.GetBuildInfo())
-	if err != nil {
-		panic(fmt.Errorf("unable to serialize json response : %s", err))
-	}
-
-	_, _ = resp.Write(json)
+	common.WriteJSONResponse(resp, common.GetBuildInfo())
 }
 
 // GetConfiguration return the server configuration
 func GetConfiguration(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
-	config := ctx.GetConfig()
-
-	// Print configuration in the json response.
-	json, err := utils.ToJson(config)
-	if err != nil {
-		panic(fmt.Errorf("unable to serialize json response : %s", err))
-	}
-
-	_, _ = resp.Write(json)
+	common.WriteJSONResponse(resp, ctx.GetConfig())
 }
 
 // Logout return the server configuration

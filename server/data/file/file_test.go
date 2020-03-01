@@ -9,8 +9,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/root-gg/plik/server/common"
 	"github.com/stretchr/testify/require"
+
+	"github.com/root-gg/plik/server/common"
 )
 
 func newBackend(t *testing.T) (backend *Backend, cleanup func()) {
@@ -82,9 +83,11 @@ func TestAddFile(t *testing.T) {
 	upload.PrepareInsertForTests()
 
 	reader := bytes.NewBufferString("data")
-	path, err := backend.AddFile(file, reader)
+	_, err := backend.AddFile(file, reader)
 	require.NoError(t, err, "unable to add file")
-	require.NotZero(t, path, "missing path")
+
+	_, path, err := backend.getPathCompat(file)
+	require.NoError(t, err, "unable to get file path")
 
 	fh, err := os.Open(path)
 	require.NoError(t, err, "unable to open file")
@@ -212,9 +215,11 @@ func TestRemoveFile(t *testing.T) {
 	upload.PrepareInsertForTests()
 
 	reader := bytes.NewBufferString("data")
-	path, err := backend.AddFile(file, reader)
+	_, err := backend.AddFile(file, reader)
 	require.NoError(t, err, "unable to add file")
-	require.NotNil(t, path, "missing backend detail")
+
+	_, path, err := backend.getPathCompat(file)
+	require.NoError(t, err, "unable to get file path")
 
 	fh, err := os.Open(path)
 	require.NoError(t, err, "unable to open file")

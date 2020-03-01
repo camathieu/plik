@@ -5,9 +5,10 @@ import (
 	"io"
 	"os"
 
+	"github.com/root-gg/utils"
+
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/data"
-	"github.com/root-gg/utils"
 )
 
 // Ensure File Data Backend implements data.Backend interface
@@ -85,7 +86,7 @@ func (b *Backend) AddFile(file *common.File, fileReader io.Reader) (backendDetai
 		return "", fmt.Errorf("unable to save file %s : %s", path, err)
 	}
 
-	return path, nil
+	return "", nil
 }
 
 // RemoveFile implementation for file data backend will delete the given
@@ -107,7 +108,7 @@ func (b *Backend) RemoveFile(file *common.File) (err error) {
 
 func (b *Backend) getPath(file *common.File) (dir string, path string, err error) {
 	// To avoid too many files in the same directory
-	// data directory is splited in two levels the
+	// data directory is split in two levels the
 	// first level is the 2 first chars from the file id
 	// it gives 3844 possibilities reaching 65535 files per
 	// directory at ~250.000.000 files uploaded.
@@ -139,7 +140,7 @@ func (b *Backend) getPathCompat(file *common.File) (dir string, path string, err
 		return "", "", err
 	}
 
-	// For compatibility
+	// For compatibility with <1.3 implementations
 
 	dir = fmt.Sprintf("%s/%s/%s", b.Config.Directory, file.UploadID[:2], file.UploadID)
 	path = fmt.Sprintf("%s/%s", dir, file.ID)

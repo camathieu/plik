@@ -27,7 +27,6 @@ type User struct {
 	Tokens []*Token `json:"tokens,omitempty"`
 
 	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
 }
 
 // NewUser create a new user object

@@ -2,7 +2,9 @@ package metadata
 
 import (
 	"fmt"
+
 	"github.com/jinzhu/gorm"
+
 	"github.com/root-gg/plik/server/common"
 )
 
@@ -40,4 +42,27 @@ func (b *Backend) UpdateSetting(key string, oldValue string, newValue string) (e
 // DeleteSetting delete a setting from DB
 func (b *Backend) DeleteSetting(key string) (err error) {
 	return b.db.Delete(&common.Setting{Key: key}).Error
+}
+
+// ForEachSetting execute f for every setting in the database
+func (b *Backend) ForEachSetting(f func(setting *common.Setting) error) (err error) {
+	rows, err := b.db.Model(&common.Setting{}).Rows()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = rows.Close() }()
+
+	for rows.Next() {
+		setting := &common.Setting{}
+		err = b.db.ScanRows(rows, setting)
+		if err != nil {
+			return err
+		}
+		err = f(setting)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

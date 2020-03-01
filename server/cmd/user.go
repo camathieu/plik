@@ -2,10 +2,12 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/root-gg/plik/server/common"
+	"os"
+
 	"github.com/root-gg/utils"
 	"github.com/spf13/cobra"
-	"os"
+
+	"github.com/root-gg/plik/server/common"
 )
 
 type userFlagParams struct {
@@ -154,19 +156,17 @@ func listUsers(cmd *cobra.Command, args []string) {
 
 	initializeMetadataBackend()
 
-	limit := 99999
-	users, _, err := metadataBackend.GetUsers(userParams.provider, &common.PagingQuery{Limit: &limit})
+	f := func(user *common.User) error {
+		if userParams.provider == "" || user.Provider == userParams.provider {
+			fmt.Println(user.String())
+		}
+		return nil
+	}
+
+	err := metadataBackend.ForEachUsers(f)
 	if err != nil {
 		fmt.Printf("Unable to get users : %s\n", err)
 		os.Exit(1)
-	}
-
-	if len(users) > 0 {
-		for _, user := range users {
-			fmt.Println(user.String())
-		}
-	} else {
-		fmt.Println("no users")
 	}
 }
 

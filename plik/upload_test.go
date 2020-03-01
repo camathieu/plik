@@ -1,8 +1,9 @@
 package plik
 
 import (
-	"github.com/root-gg/plik/server/common"
 	"testing"
+
+	"github.com/root-gg/plik/server/common"
 
 	"github.com/stretchr/testify/require"
 )
@@ -24,7 +25,7 @@ func TestGetUploadURL(t *testing.T) {
 
 	uploadURL, err := upload.GetURL()
 	require.NoError(t, err, "unable to get upload URL")
-	require.Equal(t, pc.URL+"/?id="+upload.ID(), uploadURL.String(), "invalid upload URL")
+	require.Equal(t, pc.URL+"/#/?id="+upload.ID(), uploadURL.String(), "invalid upload URL")
 }
 
 //

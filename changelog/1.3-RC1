@@ -6,11 +6,10 @@ Plik 1.3-RC1
         We have removed mongodb and bolt metadata backends in favor of sqlite/postgres using gorm
         We have removed weedfs data backed
         We have removed support of yubikeys
-        We made a script so you can migrate to the new metadata backend
 
     Here is the changelog :
       /!\ Breaking /!\
-        - A few API changes :
+        - API changes :
           - Upload files is now an array instead of a map
           - Upload Create int64 is now CreatedAt time.Time
           - Cursor based pagination
@@ -24,6 +23,7 @@ Plik 1.3-RC1
         - Quick mode to upload a file in a single curl
         - User upload statistics
         - Admin dashboard : server upload statistics, list of users, ...
+        - Metadata export / import
 
      Misc
         - Unit and Functional tests with good coverage
@@ -34,4 +34,3 @@ Plik 1.3-RC1
 
 Faithfully,
 The plik team
-

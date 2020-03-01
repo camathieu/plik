@@ -5,8 +5,9 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/root-gg/plik/server/common"
 	"github.com/stretchr/testify/require"
+
+	"github.com/root-gg/plik/server/common"
 )
 
 func TestPath(t *testing.T) {

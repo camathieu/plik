@@ -1,9 +1,10 @@
 package common
 
 import (
+	"testing"
+
 	paginator "github.com/pilagod/gorm-cursor-paginator"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestNewPagingQuery(t *testing.T) {

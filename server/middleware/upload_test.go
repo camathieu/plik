@@ -8,10 +8,11 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/plik/server/context"
 	"github.com/root-gg/utils"
 	"github.com/stretchr/testify/require"
+
+	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/plik/server/context"
 )
 
 func TestUploadNoUploadID(t *testing.T) {

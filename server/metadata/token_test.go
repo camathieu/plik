@@ -1,10 +1,13 @@
 package metadata
 
 import (
-	_ "github.com/jinzhu/gorm/dialects/sqlite"
-	"github.com/root-gg/plik/server/common"
-	"github.com/stretchr/testify/require"
+	"fmt"
 	"testing"
+
+	_ "github.com/jinzhu/gorm/dialects/sqlite"
+	"github.com/stretchr/testify/require"
+
+	"github.com/root-gg/plik/server/common"
 )
 
 func TestBackend_CreateToken(t *testing.T) {
@@ -92,4 +95,29 @@ func TestBackend_CountUserTokens(t *testing.T) {
 	count, err := b.CountUserTokens(user.ID)
 	require.NoError(t, err, "get tokens error")
 	require.Equal(t, 10, count, "invalid token count")
+}
+
+func TestBackend_ForEachToken(t *testing.T) {
+	b := newTestMetadataBackend()
+
+	user := common.NewUser(common.ProviderLocal, "user")
+	token := user.NewToken()
+	token.Comment = "foo bar"
+	createUser(t, b, user)
+
+	count := 0
+	f := func(token *common.Token) error {
+		count++
+		require.Equal(t, "foo bar", token.Comment, "invalid token comment")
+		return nil
+	}
+	err := b.ForEachToken(f)
+	require.NoError(t, err, "for each token error : %s", err)
+	require.Equal(t, 1, count, "invalid token count")
+
+	f = func(token *common.Token) error {
+		return fmt.Errorf("expected")
+	}
+	err = b.ForEachToken(f)
+	require.Errorf(t, err, "expected")
 }

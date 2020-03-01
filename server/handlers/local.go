@@ -2,10 +2,11 @@ package handlers
 
 import (
 	"encoding/json"
-	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/plik/server/context"
 	"io/ioutil"
 	"net/http"
+
+	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/plik/server/context"
 )
 
 // LoginParams to be POSTed by clients to authenticate

@@ -2,10 +2,12 @@ package metadata
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/jinzhu/gorm"
 	paginator "github.com/pilagod/gorm-cursor-paginator"
+
 	"github.com/root-gg/plik/server/common"
-	"time"
 )
 
 // CreateUpload create a new upload in DB
@@ -181,4 +183,29 @@ func (b *Backend) PurgeDeletedUploads() (removed int, err error) {
 	}
 
 	return removed, nil
+}
+
+// ForEachUpload execute f for every upload in the database
+func (b *Backend) ForEachUpload(f func(upload *common.Upload) error) (err error) {
+	stmt := b.db.Model(&common.Upload{})
+
+	rows, err := stmt.Rows()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = rows.Close() }()
+
+	for rows.Next() {
+		upload := &common.Upload{}
+		err = b.db.ScanRows(rows, upload)
+		if err != nil {
+			return err
+		}
+		err = f(upload)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

@@ -64,12 +64,6 @@
 			"revisionTime": "2018-01-11T23:17:33Z"
 		},
 		{
-			"checksumSHA1": "wz4Kx/zldlOzE68Bn8zQCiddS2Y=",
-			"path": "github.com/go-sql-driver/mysql",
-			"revision": "17ef3dd9d98b69acec3e85878995ada9533a9370",
-			"revisionTime": "2020-01-07T16:33:55Z"
-		},
-		{
 			"checksumSHA1": "Y2MOwzNZfl4NRNDbLCZa6sgx7O0=",
 			"path": "github.com/golang/protobuf/proto",
 			"revision": "e91709a02e0e8ff8b86b7aa913fdc9ae9498e825",
@@ -100,6 +94,12 @@
 			"revisionTime": "2019-04-09T05:09:43Z"
 		},
 		{
+			"checksumSHA1": "4gKrTOaoNvbAgDCVfSLd6J77oPw=",
+			"path": "github.com/golang/snappy",
+			"revision": "ff6b7dc882cf4cfba7ee0b9f7dcc1ac096c554aa",
+			"revisionTime": "2019-09-04T06:34:54Z"
+		},
+		{
 			"checksumSHA1": "WgzN84Tx+7en7p/e8gSTupIqygw=",
 			"path": "github.com/gorilla/mux",
 			"revision": "c5c6c98bc25355028a63748a498942a6398ccd22",
@@ -126,12 +126,6 @@
 		{
 			"checksumSHA1": "127FjqB8R9+ewoYNxa6svdJgdRU=",
 			"path": "github.com/jinzhu/gorm",
-			"revision": "7180bd0f27d167f18c253c32d548c7de3adc6b0d",
-			"revisionTime": "2020-01-26T15:28:32Z"
-		},
-		{
-			"checksumSHA1": "eECxSkwh0WmhLwaxHfkvcLOWS08=",
-			"path": "github.com/jinzhu/gorm/dialects/mysql",
 			"revision": "7180bd0f27d167f18c253c32d548c7de3adc6b0d",
 			"revisionTime": "2020-01-26T15:28:32Z"
 		},
@@ -847,6 +841,10 @@
 			"path": "gopkg.in/gormigrate.v1",
 			"revision": "ff46dd7d2c0b00a58540e19ca3d3f5e370fa3607",
 			"revisionTime": "2019-07-07T16:31:37Z"
+		},
+		{
+			"path": "import",
+			"revision": ""
 		}
 	],
 	"rootPath": "github.com/root-gg/plik"

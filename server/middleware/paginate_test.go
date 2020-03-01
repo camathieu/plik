@@ -2,12 +2,14 @@ package middleware
 
 import (
 	"bytes"
-	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/plik/server/context"
-	"github.com/root-gg/utils"
-	"github.com/stretchr/testify/require"
 	"net/http"
 	"testing"
+
+	"github.com/root-gg/utils"
+	"github.com/stretchr/testify/require"
+
+	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/plik/server/context"
 )
 
 func TestPaginateDefault(t *testing.T) {

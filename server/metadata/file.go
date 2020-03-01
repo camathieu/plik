@@ -2,7 +2,9 @@ package metadata
 
 import (
 	"fmt"
+
 	"github.com/jinzhu/gorm"
+
 	"github.com/root-gg/plik/server/common"
 )
 
@@ -130,4 +132,29 @@ func (b *Backend) CountUploadFiles(uploadID string) (count int, err error) {
 	}
 
 	return count, nil
+}
+
+// ForEachFile execute f for every file in the database
+func (b *Backend) ForEachFile(f func(file *common.File) error) (err error) {
+	stmt := b.db.Model(&common.File{})
+
+	rows, err := stmt.Rows()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = rows.Close() }()
+
+	for rows.Next() {
+		file := &common.File{}
+		err = b.db.ScanRows(rows, file)
+		if err != nil {
+			return err
+		}
+		err = f(file)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

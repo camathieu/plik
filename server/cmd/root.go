@@ -2,16 +2,18 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/plik/server/metadata"
-	"github.com/root-gg/plik/server/server"
-	"github.com/root-gg/utils"
-	"github.com/spf13/cobra"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/root-gg/utils"
+	"github.com/spf13/cobra"
+
+	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/plik/server/metadata"
+	"github.com/root-gg/plik/server/server"
 )
 
 var configPath string

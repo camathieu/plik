@@ -2,9 +2,10 @@ package handlers
 
 import (
 	"fmt"
+	"net/http"
+
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
-	"net/http"
 )
 
 // UserInfo return user information ( name / email / ... )

@@ -8,9 +8,10 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/root-gg/utils"
+
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
-	"github.com/root-gg/utils"
 )
 
 // CreateToken create a new token

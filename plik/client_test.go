@@ -7,8 +7,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/root-gg/plik/server/common"
 	"github.com/stretchr/testify/require"
+
+	"github.com/root-gg/plik/server/common"
 )
 
 func TestGetServerVersion(t *testing.T) {

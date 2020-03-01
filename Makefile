@@ -20,7 +20,7 @@ else
 endif
 test: build = $(race_detector)
 
-all: clean clean-frontend frontend client server
+all: clean clean-frontend frontend clients server
 
 ###
 # Build frontend ressources
@@ -62,6 +62,7 @@ client:
 	@server/gen_build_info.sh $(RELEASE_VERSION)
 	@echo "Building Plik client"
 	@cd client && $(build) -o plik ./
+
 
 ###
 # Build plik client for all architectures
@@ -197,6 +198,12 @@ lint:
 	echo -n " - go lint :" ; OUT=`golint ./... | grep -v ^vendor` ; \
 	if [[ -z "$$OUT" ]]; then echo " OK" ; else echo " FAIL"; echo "$$OUT"; FAIL=1 ; fi ;\
 	test $$FAIL -eq 0
+
+###
+# Run fmt
+###
+fmt:
+	@goimports -w -l -local "github.com/root-gg/plik" $(shell find . -type f -name '*.go' -not -path "./vendor/*")
 
 ###
 # Run tests

@@ -21,6 +21,7 @@ func TestUploadNewFile(t *testing.T) {
 
 func TestUploadSanitize(t *testing.T) {
 	upload := &Upload{}
+	upload.NewFile()
 	upload.RemoteIP = "ip"
 	upload.Login = "login"
 	upload.Password = "password"

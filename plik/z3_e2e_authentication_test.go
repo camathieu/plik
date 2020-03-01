@@ -2,10 +2,12 @@ package plik
 
 import (
 	"bytes"
-	"github.com/root-gg/plik/server/common"
-	"github.com/stretchr/testify/require"
 	"io/ioutil"
 	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/root-gg/plik/server/common"
 )
 
 const TOKEN = "22b2c7f9-dead-dead-dead-ee8edd115e8a"

@@ -23,6 +23,8 @@ RELEASES=(
     1.2
     1.2.1
     1.2.2
+    1.2.3
+    1.2.4
 )
 
 ###
@@ -30,7 +32,7 @@ RELEASES=(
 ###
 
 URL="http://127.0.0.1:8080"
-if curl $URL 2>/dev/null | grep plik > /dev/null ; then
+if curl "$URL/version" 2>/dev/null | grep version > /dev/null ; then
     echo "A plik instance is running @ $URL"
     exit 1
 fi
@@ -51,7 +53,7 @@ echo "Start Plik server :"
 
 # Verify that server is running
 sleep 1
-if ! curl $URL 2>/dev/null | grep plik > /dev/null ; then
+if ! curl "$URL/version" 2>/dev/null | grep version > /dev/null ; then
     echo "Plik server did not start @ $URL"
     exit 1
 fi

@@ -2,12 +2,14 @@ package middleware
 
 import (
 	"fmt"
-	"github.com/gorilla/mux"
 	"net/http"
 	"strings"
 
-	"github.com/root-gg/plik/server/context"
+	"github.com/gorilla/mux"
+
 	"github.com/root-gg/utils"
+
+	"github.com/root-gg/plik/server/context"
 )
 
 // Upload retrieve the requested upload metadata from the metadataBackend and save it to the request context.

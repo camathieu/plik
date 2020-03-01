@@ -12,7 +12,7 @@ cd "$ORIGIN/.."
 ###
 
 URL="http://127.0.0.1:8080"
-if curl $URL 2>/dev/null | grep plik >/dev/null 2>&1 ; then
+if curl "$URL/version" 2>/dev/null | grep version >/dev/null 2>&1 ; then
     echo "A plik instance is running @ $URL"
     exit 1
 fi
@@ -55,7 +55,7 @@ echo "PLIKD_CONFIG=$PLIKD_CONFIG"
 
 # Verify that server is running
 sleep 1
-if curl $URL 2>/dev/null | grep plik >/dev/null 2>&1 ; then
+if curl "$URL/version" 2>/dev/null | grep version >/dev/null 2>&1 ; then
     echo "Plik server is running"
 else
     echo "Plik server is not running"

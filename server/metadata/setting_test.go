@@ -1,10 +1,13 @@
 package metadata
 
 import (
-	_ "github.com/jinzhu/gorm/dialects/sqlite"
-	"github.com/root-gg/plik/server/common"
-	"github.com/stretchr/testify/require"
+	"fmt"
 	"testing"
+
+	_ "github.com/jinzhu/gorm/dialects/sqlite"
+	"github.com/stretchr/testify/require"
+
+	"github.com/root-gg/plik/server/common"
 )
 
 func TestCreateSetting(t *testing.T) {
@@ -63,13 +66,37 @@ func TestDeleteSetting(t *testing.T) {
 	require.NoError(t, err, "create setting error")
 
 	setting, err := b.GetSetting("foo")
-	require.NoError(t, err, "get setting error")
+	require.NoError(t, err, "get setting error : %s", err)
 	require.NotNil(t, setting, "nil setting")
 
 	err = b.DeleteSetting("foo")
-	require.NoError(t, err, "delete setting error")
+	require.NoError(t, err, "delete setting error : %s", err)
 
 	setting, err = b.GetSetting("foo")
-	require.NoError(t, err, "get setting error")
+	require.NoError(t, err, "get setting error : %s", err)
 	require.Nil(t, setting, "non nil setting")
+}
+
+func TestBackend_ForEachSetting(t *testing.T) {
+	b := newTestMetadataBackend()
+
+	err := b.CreateSetting(&common.Setting{Key: "foo", Value: "bar"})
+	require.NoError(t, err, "create setting error")
+
+	count := 0
+	f := func(setting *common.Setting) error {
+		count++
+		require.Equal(t, "foo", setting.Key, "invalid setting key")
+		require.Equal(t, "bar", setting.Value, "invalid setting value")
+		return nil
+	}
+	err = b.ForEachSetting(f)
+	require.NoError(t, err, "for each setting error : %s", err)
+	require.Equal(t, 1, count, "invalid setting count")
+
+	f = func(setting *common.Setting) error {
+		return fmt.Errorf("expected")
+	}
+	err = b.ForEachSetting(f)
+	require.Errorf(t, err, "expected")
 }

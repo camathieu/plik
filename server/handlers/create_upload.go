@@ -2,12 +2,14 @@ package handlers
 
 import (
 	"fmt"
-	"github.com/root-gg/plik/server/common"
 	"io/ioutil"
 	"net/http"
 
-	"github.com/root-gg/plik/server/context"
+	"github.com/root-gg/plik/server/common"
+
 	"github.com/root-gg/utils"
+
+	"github.com/root-gg/plik/server/context"
 )
 
 // CreateUpload create a new upload

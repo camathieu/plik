@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/jinzhu/gorm"
-	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/utils"
 	"gopkg.in/gormigrate.v1"
 
@@ -15,6 +14,8 @@ import (
 	//_ "github.com/jinzhu/gorm/dialects/mysql"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
+
+	"github.com/root-gg/plik/server/common"
 )
 
 // Config metadata backend configuration

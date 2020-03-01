@@ -7,8 +7,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/root-gg/plik/server/common"
 	"github.com/stretchr/testify/require"
+
+	"github.com/root-gg/plik/server/common"
 )
 
 func downloadSequence(file *File, delete bool) (err error) {

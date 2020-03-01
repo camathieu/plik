@@ -7,8 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/root-gg/plik/server/common"
 	"github.com/stretchr/testify/require"
+
+	"github.com/root-gg/plik/server/common"
 )
 
 func TestAddGetFile(t *testing.T) {

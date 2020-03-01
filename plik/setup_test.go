@@ -3,6 +3,13 @@ package plik
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"math/rand"
+	"os"
+	"testing"
+	"time"
+
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/data"
 	"github.com/root-gg/plik/server/data/file"
@@ -10,12 +17,6 @@ import (
 	data_test "github.com/root-gg/plik/server/data/testing"
 	"github.com/root-gg/plik/server/metadata"
 	"github.com/root-gg/plik/server/server"
-	"io"
-	"io/ioutil"
-	"math/rand"
-	"os"
-	"testing"
-	"time"
 )
 
 //

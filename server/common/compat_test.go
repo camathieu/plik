@@ -1,9 +1,10 @@
 package common
 
 import (
+	"testing"
+
 	"github.com/root-gg/utils"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestUnmarshalUpload(t *testing.T) {
