@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"github.com/root-gg/plik/server/data/s3"
 	"net/http"
 	"os"
 	"strconv"
@@ -313,6 +314,11 @@ func NewDataBackend(impl string, params map[string]interface{}) (backend data.Ba
 	switch impl {
 	case "file":
 		backend = file.NewBackend(file.NewConfig(params))
+	case "s3":
+		backend, err = s3.NewBackend(s3.NewConfig(params))
+		if err != nil {
+			return nil, err
+		}
 	case "swift":
 		backend = swift.NewBackend(swift.NewConfig(params))
 	case "testing":

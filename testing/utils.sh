@@ -16,8 +16,25 @@ function check_docker_connectivity {
     fi
 }
 
-function build_docker_image {
-    ( cd "$ROOT" && make build-docker-builder )
+function pull_docker_image {
+    echo -e "\n - Pulling $DOCKER_IMAGE\n"
+    docker pull "$DOCKER_IMAGE"
+    if docker ps -a -f name="$DOCKER_NAME" | grep "$DOCKER_NAME" > /dev/null ; then
+        docker rm -f "$DOCKER_NAME"
+    fi
+}
+
+function stop {
+    if status ; then
+        echo -e "\n - Removing $DOCKER_NAME\n"
+        docker rm -f "$DOCKER_NAME" >/dev/null
+    else
+        echo "NOT RUNNING"
+    fi
+}
+
+function status {
+    docker ps -f name="$DOCKER_NAME" | grep "$DOCKER_NAME" > /dev/null
 }
 
 function run_tests {
@@ -47,4 +64,34 @@ function run_tests {
             ( cd "$ROOT/server/metadata" && GORACE="halt_on_error=1" go test -count=1 -v -race -run "$TEST" )
         fi
     fi
+}
+
+function run_cmd {
+    case "$CMD" in
+        start)
+          start
+          ;;
+        stop)
+          stop
+          ;;
+        restart)
+          stop
+          start
+          ;;
+        test)
+          stop
+          start
+          run_tests "$BACKEND" "$TEST"
+          ;;
+        status)
+          if status ; then
+              docker ps -f name="$DOCKER_NAME"
+          else
+              echo "NOT RUNNING"
+          fi
+          ;;
+        *)
+        echo "Usage: $0 {start|stop|restart|status|test}"
+        exit 1
+    esac
 }

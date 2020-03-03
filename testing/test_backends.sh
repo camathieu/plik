@@ -11,6 +11,7 @@ check_docker_connectivity
 BACKENDS=(
 #    mysql
     postgres
+    minio
     swift
 )
 
