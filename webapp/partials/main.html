@@ -42,6 +42,15 @@
                        uib-tooltip="Protect your upload with credentials. You will be prompted for them before the upload and before the download.">?</a>
                 </label>
             </div>
+            <!-- PRIVATE -->
+            <div class="menu-item" ng-show="user">
+                <label class="switch-input">
+                    <input name="checkbox-password" type="checkbox" ng-model="$parent.private">
+                    <i data-swoff-text="OFF" data-swon-text="ON"></i> Private
+                    <a tooltip-placement="right"
+                       uib-tooltip="Private uploads can only be downloaded by you">?</a>
+                </label>
+            </div>
             <!-- COMMENTS -->
             <div class="menu-item">
                 <label class="switch-input">
@@ -100,6 +109,16 @@
             <!-- EXPIRATION DATE -->
             <div class="menu-item" ng-show="upload.ttl != 0">
                 <p class="text-center">This upload will {{ getExpirationDate() }}</p>
+            </div>
+            <!-- Visibility -->
+            <div class="menu-item" ng-show="upload.visibility == 'private'">
+                <p class="text-center">This upload is private
+                    <a tooltip-placement="right"
+                        uib-tooltip="Authenticate before downloading, {{
+                            user.provider == 'local' ?
+                            'send your login:password using HTTP basic auth' :
+                            'use the X-UploadToken HTTP header' }}">?</a>
+                </p>
             </div>
             <div class="menu-item text-center" ng-if="upload.uploadToken">
                 <a href="" class="small" ng-click="setAdminUrl()"

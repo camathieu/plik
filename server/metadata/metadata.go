@@ -2,6 +2,7 @@ package metadata
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/jinzhu/gorm"
 	"github.com/root-gg/utils"
@@ -89,7 +90,58 @@ func NewBackend(config *Config) (b *Backend, err error) {
 
 func (b *Backend) initializeDB() (err error) {
 	m := gormigrate.New(b.db, gormigrate.DefaultOptions, []*gormigrate.Migration{
-		// you migrations here
+		// Create upload table
+		{
+			ID: "2020-03-21-12-00-00",
+			Migrate: func(tx *gorm.DB) error {
+				// Upload object
+				type Upload struct {
+					ID  string `json:"id"`
+					TTL int    `json:"ttl"`
+
+					DownloadDomain string `json:"downloadDomain"`
+					RemoteIP       string `json:"uploadIp,omitempty"`
+					Comments       string `json:"comments"`
+
+					Files []*common.File `json:"files"`
+
+					UploadToken string `json:"uploadToken,omitempty"`
+					User        string `json:"user,omitempty" gorm:"index:idx_upload_user"`
+					Token       string `json:"token,omitempty" gorm:"index:idx_upload_user_token"`
+					IsAdmin     bool   `json:"admin"`
+
+					Stream    bool `json:"stream"`
+					OneShot   bool `json:"oneShot"`
+					Removable bool `json:"removable"`
+
+					ProtectedByPassword bool   `json:"protectedByPassword"`
+					Login               string `json:"login,omitempty"`
+					Password            string `json:"password,omitempty"`
+
+					CreatedAt time.Time  `json:"createdAt"`
+					DeletedAt *time.Time `json:"-" gorm:"index:idx_upload_deleted_at"`
+					ExpireAt  *time.Time `json:"expireAt" gorm:"index:idx_upload_expire_at"`
+				}
+				return tx.AutoMigrate(&Upload{}).Error
+			},
+			Rollback: func(tx *gorm.DB) error {
+				return tx.DropTable("uploads").Error
+			},
+		},
+		// Add upload column visibility
+		{
+			ID: "2020-03-21-12-38-00",
+			Migrate: func(tx *gorm.DB) error {
+				// Upload object
+				type Upload struct {
+					Visibility string `json:"visibility"`
+				}
+				return tx.AutoMigrate(&Upload{}).Error
+			},
+			Rollback: func(tx *gorm.DB) error {
+				return tx.Table("uploads").DropColumn("visibility").Error
+			},
+		},
 	})
 
 	m.InitSchema(func(tx *gorm.DB) error {

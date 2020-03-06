@@ -10,7 +10,7 @@ import (
 
 func TestSessionAuthenticator(t *testing.T) {
 	setting := GenerateAuthenticationSignatureKey()
-	sa := &SessionAuthenticator{SignatureKey: setting.Value, SecureCookies: true}
+	sa := &SessionAuthenticator{SignatureKey: setting.Value, EnhancedWebSecurity: true}
 
 	user := NewUser("local", "user")
 
@@ -34,9 +34,45 @@ func TestSessionAuthenticator(t *testing.T) {
 	require.Equal(t, xsrfCookie.Value, xsrf, "invalid xsrf token")
 }
 
+func TestSetCookies(t *testing.T) {
+	rr := httptest.NewRecorder()
+
+	user := NewUser("local", "user")
+	sa := &SessionAuthenticator{SignatureKey: "plik-sig-key", EnhancedWebSecurity: true}
+
+	err := SetCookies(rr, sa, user)
+	require.NoError(t, err, "set cookies error")
+	require.Equal(t, 2, len(rr.Result().Cookies()), "missing response cookies")
+
+	var sessionCookie *http.Cookie
+	var xsrfCookie *http.Cookie
+
+	for _, cookie := range rr.Result().Cookies() {
+		if cookie.Name == sessionCookieName {
+			sessionCookie = cookie
+		}
+		if cookie.Name == xsrfCookieName {
+			xsrfCookie = cookie
+		}
+	}
+
+	require.NotNil(t, sessionCookie, "missing session cookie")
+	require.NotEqual(t, -1, sessionCookie.MaxAge, "invalid session cookie")
+	require.True(t, sessionCookie.Secure, "invalid session cookie not secure")
+
+	require.NotNil(t, xsrfCookie, "missing xsrf cookie")
+	require.NotEqual(t, -1, xsrfCookie.MaxAge, "invalid xsrf cookie")
+	require.True(t, xsrfCookie.Secure, "invalid xsrf cookie not secure")
+
+	uid, xsrf, err := sa.ParseSessionCookie(sessionCookie.Value)
+	require.NoError(t, err, "unable to parse session cookie")
+	require.Equal(t, user.ID, uid, "invalid user id")
+	require.Equal(t, xsrfCookie.Value, xsrf, "invalid xsrf token")
+}
+
 func TestLogout(t *testing.T) {
 	rr := httptest.NewRecorder()
-	Logout(rr, &SessionAuthenticator{SecureCookies: true})
+	DeleteCookies(rr, &SessionAuthenticator{EnhancedWebSecurity: true})
 	require.Equal(t, 2, len(rr.Result().Cookies()), "missing response cookies")
 
 	var sessionCookie *http.Cookie

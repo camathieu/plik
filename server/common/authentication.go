@@ -24,8 +24,21 @@ func GenerateAuthenticationSignatureKey() (s *Setting) {
 
 // SessionAuthenticator to generate and authenticate session cookies
 type SessionAuthenticator struct {
-	SignatureKey  string
-	SecureCookies bool
+	SignatureKey        string
+	EnhancedWebSecurity bool
+}
+
+// SetCookies generate cookies and write them to HTTP response headers
+func SetCookies(resp http.ResponseWriter, sa *SessionAuthenticator, user *User) (err error) {
+	// Set Plik session cookie and xsrf cookie
+	sessionCookie, xsrfCookie, err := sa.GenAuthCookies(user)
+	if err != nil {
+		return fmt.Errorf("unable to generate cookies : %s", err)
+	}
+
+	http.SetCookie(resp, sessionCookie)
+	http.SetCookie(resp, xsrfCookie)
+	return nil
 }
 
 // GenAuthCookies generate a sign a jwt session cookie to authenticate a user
@@ -46,7 +59,7 @@ func (sa *SessionAuthenticator) GenAuthCookies(user *User) (sessionCookie *http.
 		return nil, nil, fmt.Errorf("unable to sign session cookie : %s", err)
 	}
 
-	// Store session jwt in secure cookie
+	// Store session jwt in cookie
 	sessionCookie = &http.Cookie{}
 	sessionCookie.HttpOnly = true
 	sessionCookie.Name = sessionCookieName
@@ -62,7 +75,7 @@ func (sa *SessionAuthenticator) GenAuthCookies(user *User) (sessionCookie *http.
 	xsrfCookie.MaxAge = int(time.Now().Add(10 * 365 * 24 * time.Hour).Unix())
 	xsrfCookie.Path = "/"
 
-	if sa.SecureCookies {
+	if sa.EnhancedWebSecurity {
 		sessionCookie.Secure = true
 		xsrfCookie.Secure = true
 	}
@@ -109,8 +122,8 @@ func (sa *SessionAuthenticator) ParseSessionCookie(value string) (uid string, xs
 	return uid, xsrf, nil
 }
 
-// Logout delete session cookies
-func Logout(resp http.ResponseWriter, sa *SessionAuthenticator) {
+// DeleteCookies delete session cookies
+func DeleteCookies(resp http.ResponseWriter, sa *SessionAuthenticator) {
 	sessionCookie, xsrfCookie, _ := sa.Logout()
 	http.SetCookie(resp, sessionCookie)
 	http.SetCookie(resp, xsrfCookie)
@@ -126,7 +139,7 @@ func (sa *SessionAuthenticator) Logout() (sessionCookie *http.Cookie, xsrfCookie
 	sessionCookie.MaxAge = -1
 	sessionCookie.Path = "/"
 
-	// Store xsrf token cookie
+	// Delete xsrf token cookie
 	xsrfCookie = &http.Cookie{}
 	xsrfCookie.HttpOnly = false
 	xsrfCookie.Name = xsrfCookieName
@@ -134,7 +147,7 @@ func (sa *SessionAuthenticator) Logout() (sessionCookie *http.Cookie, xsrfCookie
 	xsrfCookie.MaxAge = -1
 	xsrfCookie.Path = "/"
 
-	if sa.SecureCookies {
+	if sa.EnhancedWebSecurity {
 		sessionCookie.Secure = true
 		xsrfCookie.Secure = true
 	}

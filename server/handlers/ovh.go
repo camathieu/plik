@@ -272,13 +272,12 @@ func OvhCallback(ctx *context.Context, resp http.ResponseWriter, req *http.Reque
 		}
 	}
 
-	// Set Plik session cookie and xsrf cookie
-	sessionCookie, xsrfCookie, err := ctx.GetAuthenticator().GenAuthCookies(user)
+	// Generate and set session cookies
+	err = common.SetCookies(resp, ctx.GetAuthenticator(), user)
 	if err != nil {
-		ctx.InternalServerError("unable to generate session cookies", err)
+		ctx.InternalServerError("", err)
+		return
 	}
-	http.SetCookie(resp, sessionCookie)
-	http.SetCookie(resp, xsrfCookie)
 
 	http.Redirect(resp, req, config.Path+"/#/login", http.StatusMovedPermanently)
 }

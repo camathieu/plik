@@ -19,6 +19,12 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                 $dialog.alert(error);
             });
 
+        // Get user from session
+        $config.getUser()
+            .then(function (user) {
+                $scope.user = user;
+            });
+
         // File name checks
         var fileNameMaxLength = 1024;
         var invalidCharList = ['/', '#', '?', '%', '"'];
@@ -181,6 +187,12 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                 // Get TTL value
                 if (!$scope.checkTTL()) return;
                 $scope.upload.ttl = $scope.getTTL();
+
+                // Set upload visibility
+                if ($scope.private) {
+                    $scope.upload.visibility = "private";
+                }
+
                 // HTTP basic auth prompt dialog
                 if ($scope.password && !($scope.upload.login && $scope.upload.password)) {
                     $scope.getPassword();

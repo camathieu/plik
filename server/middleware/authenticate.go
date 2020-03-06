@@ -1,7 +1,9 @@
 package middleware
 
 import (
+	"encoding/base64"
 	"net/http"
+	"strings"
 
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
@@ -52,7 +54,7 @@ func Authenticate(allowToken bool) context.Middleware {
 					// Parse session cookie
 					uid, xsrf, err := ctx.GetAuthenticator().ParseSessionCookie(sessionCookie.Value)
 					if err != nil {
-						common.Logout(resp, ctx.GetAuthenticator())
+						common.DeleteCookies(resp, ctx.GetAuthenticator())
 						ctx.Forbidden("invalid session")
 						return
 					}
@@ -61,12 +63,12 @@ func Authenticate(allowToken bool) context.Middleware {
 					if req.Method != "GET" && req.Method != "HEAD" {
 						xsrfHeader := req.Header.Get("X-XSRFToken")
 						if xsrfHeader == "" {
-							common.Logout(resp, ctx.GetAuthenticator())
+							common.DeleteCookies(resp, ctx.GetAuthenticator())
 							ctx.Forbidden("missing xsrf header")
 							return
 						}
 						if xsrf != xsrfHeader {
-							common.Logout(resp, ctx.GetAuthenticator())
+							common.DeleteCookies(resp, ctx.GetAuthenticator())
 							ctx.Forbidden("invalid xsrf header")
 							return
 						}
@@ -75,18 +77,66 @@ func Authenticate(allowToken bool) context.Middleware {
 					// Get user from session
 					user, err := ctx.GetMetadataBackend().GetUser(uid)
 					if err != nil {
-						common.Logout(resp, ctx.GetAuthenticator())
+						common.DeleteCookies(resp, ctx.GetAuthenticator())
 						ctx.InternalServerError("unable to get user from session", err)
 						return
 					}
 					if user == nil {
-						common.Logout(resp, ctx.GetAuthenticator())
+						common.DeleteCookies(resp, ctx.GetAuthenticator())
 						ctx.Forbidden("invalid session : user does not exists")
 						return
 					}
 
 					// Save user in the request context
 					ctx.SetUser(user)
+
+					next.ServeHTTP(resp, req)
+					return
+				}
+
+				// Try to authenticate local users using http basic auth
+				if req.Header.Get("Authorization") != "" {
+					// Basic auth Authorization header must be set to
+					// "Basic base64("login:password")". Only the md5sum
+					// of the base64 string is saved in the upload metadata
+					auth := strings.Split(req.Header.Get("Authorization"), " ")
+					if len(auth) != 2 {
+						ctx.Forbidden("invalid Authorization header")
+						return
+					}
+					if auth[0] != "Basic" {
+						ctx.Forbidden("invalid http authorization scheme")
+						return
+					}
+
+					credentialsStr, err := base64.StdEncoding.DecodeString(auth[1])
+					if err != nil {
+						ctx.Forbidden("invalid http authorization header base64 string")
+						return
+					}
+
+					credentials := strings.Split(string(credentialsStr), ":")
+					if len(credentials) != 2 {
+						ctx.Forbidden("invalid Authorization header credentials")
+						return
+					}
+
+					login := credentials[0]
+					password := credentials[1]
+
+					// Get user from session
+					user, err := ctx.GetMetadataBackend().GetUser(common.GetUserID(common.ProviderLocal, login))
+					if err != nil {
+						ctx.InternalServerError("unable to get user", err)
+						return
+					}
+					if user != nil && common.CheckPasswordHash(password, user.Password) {
+						// Save user in the request context
+						ctx.SetUser(user)
+
+						next.ServeHTTP(resp, req)
+						return
+					}
 				}
 			}
 

@@ -11,7 +11,6 @@ import (
 )
 
 // UploadParams store the different options available when uploading file to a Plik server
-// One should add files to the upload before calling Create or Upload
 type UploadParams struct {
 	Stream    bool // Don't store the file on the server
 	OneShot   bool // Force deletion of the file from the server after the first download
@@ -24,6 +23,8 @@ type UploadParams struct {
 
 	Login    string // HttpBasic protection for the upload
 	Password string // Login and Password
+
+	Visibility string // Public / Private
 }
 
 // Upload store the necessary data to upload files to a Plik server
@@ -58,6 +59,7 @@ func newUploadFromMetadata(client *Client, uploadMetadata *common.Upload) (uploa
 	upload.Removable = uploadMetadata.Removable
 	upload.TTL = uploadMetadata.TTL
 	upload.Comments = uploadMetadata.Comments
+	upload.Visibility = uploadMetadata.Visibility
 	upload.metadata = uploadMetadata
 
 	// Generate files
@@ -125,6 +127,7 @@ func (upload *Upload) getParams() (params *common.Upload) {
 	params.Token = upload.Token
 	params.Login = upload.Login
 	params.Password = upload.Password
+	params.Visibility = upload.Visibility
 
 	if upload.metadata != nil {
 		params.ID = upload.metadata.ID

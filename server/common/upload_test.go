@@ -62,7 +62,7 @@ func TestUpload_GetFileByReference(t *testing.T) {
 	require.Equal(t, file1, f)
 }
 
-func TestUpload_PrepareInsertTooManyFiles(t *testing.T) {
+func TestUpload_PrepareInsert_TooManyFiles(t *testing.T) {
 	config := NewConfiguration()
 	config.MaxFilePerUpload = 1
 
@@ -74,7 +74,16 @@ func TestUpload_PrepareInsertTooManyFiles(t *testing.T) {
 	require.Errorf(t, err, "too many files")
 }
 
-func TestUpload_PrepareInsertNoAnonymousUploads(t *testing.T) {
+func TestUpload_PrepareInsert_InvalidVisibility(t *testing.T) {
+	config := NewConfiguration()
+
+	upload := &Upload{Visibility: "blah"}
+
+	err := upload.PrepareInsert(config)
+	require.Errorf(t, err, "invalid upload visibility")
+}
+
+func TestUpload_PrepareInsert_NoAnonymousUploads(t *testing.T) {
 	config := NewConfiguration()
 	config.NoAnonymousUploads = true
 
@@ -84,7 +93,7 @@ func TestUpload_PrepareInsertNoAnonymousUploads(t *testing.T) {
 	require.Errorf(t, err, "anonymous uploads are disabled")
 }
 
-func TestUpload_PrepareInsertNoAuthentication(t *testing.T) {
+func TestUpload_PrepareInsert_NoAuthentication(t *testing.T) {
 	config := NewConfiguration()
 	config.NoAnonymousUploads = true
 
@@ -101,7 +110,7 @@ func TestUpload_PrepareInsertNoAuthentication(t *testing.T) {
 	require.Errorf(t, err, "authentication is disabled")
 }
 
-func TestUpload_PrepareInsertNoOneShot(t *testing.T) {
+func TestUpload_PrepareInsert_NoOneShot(t *testing.T) {
 	config := NewConfiguration()
 	config.OneShot = false
 
@@ -112,7 +121,7 @@ func TestUpload_PrepareInsertNoOneShot(t *testing.T) {
 	require.Errorf(t, err, "one shot uploads are not enabled")
 }
 
-func TestUpload_PrepareInsertNoRemovable(t *testing.T) {
+func TestUpload_PrepareInsert_NoRemovable(t *testing.T) {
 	config := NewConfiguration()
 	config.Removable = false
 
@@ -123,7 +132,7 @@ func TestUpload_PrepareInsertNoRemovable(t *testing.T) {
 	require.Errorf(t, err, "removable uploads are not enabled")
 }
 
-func TestUpload_PrepareInsertNoStream(t *testing.T) {
+func TestUpload_PrepareInsert_NoStream(t *testing.T) {
 	config := NewConfiguration()
 	config.Stream = false
 
@@ -134,7 +143,7 @@ func TestUpload_PrepareInsertNoStream(t *testing.T) {
 	require.Errorf(t, err, "stream mode is not enabled")
 }
 
-func TestUpload_PrepareInsertNoBasicAuth(t *testing.T) {
+func TestUpload_PrepareInsert_NoBasicAuth(t *testing.T) {
 	config := NewConfiguration()
 	config.ProtectedByPassword = false
 
@@ -146,7 +155,7 @@ func TestUpload_PrepareInsertNoBasicAuth(t *testing.T) {
 	require.Errorf(t, err, "password protection is not enabled")
 }
 
-func TestUpload_PrepareInsertTTL(t *testing.T) {
+func TestUpload_PrepareInsert_TTL(t *testing.T) {
 	config := NewConfiguration()
 
 	upload := &Upload{}
@@ -172,6 +181,7 @@ func TestUpload_PrepareInsert(t *testing.T) {
 	upload.NewFile().Name = "file"
 	err := upload.PrepareInsert(config)
 	require.NoError(t, err)
+	require.Equal(t, VisibilityPublic, upload.Visibility, "invalid upload visibility")
 }
 
 func TestUpload_PrepareInsertForTests(t *testing.T) {

@@ -186,11 +186,16 @@ func (file *File) Upload() (err error) {
 	return err
 }
 
+// UploadMetadata return file's upload metadata
+func (file *File) UploadMetadata() *common.Upload {
+	return file.upload.Metadata()
+}
+
 // GetURL returns the URL to download the file
 func (file *File) GetURL() (URL *url.URL, err error) {
 
 	// Get upload metadata
-	uploadMetadata := file.upload.Metadata()
+	uploadMetadata := file.UploadMetadata()
 	if uploadMetadata == nil || uploadMetadata.ID == "" {
 		return nil, fmt.Errorf("upload has not been created yet")
 	}

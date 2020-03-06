@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/root-gg/plik/server/common"
+
 	"github.com/gorilla/mux"
 
 	"github.com/root-gg/utils"
@@ -112,6 +114,12 @@ func Upload(ctx *context.Context, next http.Handler) http.Handler {
 				forbidden("invalid credentials")
 				return
 			}
+		}
+
+		// Enforce upload visibility
+		if upload.Visibility == common.VisibilityPrivate && !ctx.IsUploadAdmin() {
+			forbidden("Upload is private")
+			return
 		}
 
 		next.ServeHTTP(resp, req)

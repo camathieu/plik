@@ -61,6 +61,8 @@ Options:
   --comments COMMENT        Set comments of the upload ( MarkDown compatible )
   -p                        Protect the upload with login and password ( be prompted )
   --password PASSWD         Protect the upload with "login:password" ( if omitted default login is "plik" )
+  --private                 Set upload visibility to public
+  --public                  Set upload visibility to private
   -a                        Archive upload using default archive params ( see ~/.plikrc )
   --archive MODE            Archive upload using the specified archive backend : tar|zip
   --compress MODE           [tar] Compression codec : gzip|bzip2|xz|lzip|lzma|lzop|compress|no
@@ -144,6 +146,7 @@ Options:
 	upload.Comments = config.Comments
 	upload.Login = config.Login
 	upload.Password = config.Password
+	upload.Visibility = config.Visibility
 
 	if len(config.filePaths) == 0 {
 		if config.DisableStdin {
@@ -311,6 +314,18 @@ func getFileCommand(file *plik.File) (command string, err error) {
 		command += "curl -s"
 	default:
 		command += config.DownloadBinary
+	}
+
+	upload := file.UploadMetadata()
+	if upload.Visibility == common.VisibilityPrivate {
+		switch config.DownloadBinary {
+		case "wget":
+			command += fmt.Sprintf(" --header='X-UploadToken: %s'", upload.UploadToken)
+		case "curl":
+			command += fmt.Sprintf(" -H 'X-UploadToken: %s'", upload.UploadToken)
+		default:
+
+		}
 	}
 
 	URL, err := file.GetURL()

@@ -37,12 +37,13 @@ type Configuration struct {
 	SourceIPHeader  string   `json:"-"`
 	UploadWhitelist []string `json:"-"`
 
+	OneShot             bool `json:"oneShot"`
+	Removable           bool `json:"removable"`
+	Stream              bool `json:"stream"`
+	ProtectedByPassword bool `json:"protectedByPassword"`
+
 	Authentication       bool     `json:"authentication"`
 	NoAnonymousUploads   bool     `json:"-"`
-	OneShot              bool     `json:"oneShot"`
-	Removable            bool     `json:"removable"`
-	Stream               bool     `json:"stream"`
-	ProtectedByPassword  bool     `json:"protectedByPassword"`
 	GoogleAuthentication bool     `json:"googleAuthentication"`
 	GoogleAPISecret      string   `json:"-"`
 	GoogleAPIClientID    string   `json:"-"`

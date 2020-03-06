@@ -314,9 +314,10 @@ proxy_buffers 8 1M;
 client_body_buffer_size 1M;
 ```
 
-* Why authentication does not work with HTTP connections when EnhancedWebSecurity is set ?
+* Authentication does not work with HTTP connections when EnhancedWebSecurity is set ?
 
 Plik session cookies have the "secure" flag set when EnhancedWebSecurity is set so they can only be transmitted over secure HTTPS connections.
+Upload visibility private might also not work for Google and OVH providers when a different download domain is configured as you won't be able to authenticate using BasicAuth.
 
 * Build failure "/usr/bin/env: ‘node’: No such file or directory"
 
@@ -327,7 +328,7 @@ This package contains a symlink for legacy Node.js code requiring
 binary to be /usr/bin/node (not /usr/bin/nodejs as provided in Debian).
 ```
 
-* How to take and upload screenshots like a boss ?
+### How to take and upload screenshots like a boss ?
 
 ```
 alias pshot="scrot -s -e 'plik -q \$f | xclip ; xclip -o ; rm \$f'"
@@ -338,7 +339,7 @@ scrot -s allow you to "Interactively select a window or rectangle with the mouse
 Plik will upload the screenshot and the url will be directly copied to your clipboard and displayed by xclip.
 The screenshot is then removed of your home directory to avoid garbage.
 
-* How to contribute to the project ?
+### How to contribute to the project ?
 
 Contributions are welcome, feel free to open issues and/or submit pull requests.
 Please be sure to also run/update the test suite :

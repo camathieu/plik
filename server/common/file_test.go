@@ -49,8 +49,14 @@ func TestFilePrepareInsert(t *testing.T) {
 	require.Errorf(t, err, "too long")
 
 	file.Name = "file name"
+
+	file.Status = "blah"
 	err = file.PrepareInsert(upload)
-	require.NoError(t, err, "too long")
+	require.Errorf(t, err, "invalid file status")
+
+	file.Status = ""
+	err = file.PrepareInsert(upload)
+	require.NoError(t, err, "prepare insert error")
 
 	require.NotNil(t, file.ID, "missing file id")
 	require.Equal(t, FileMissing, file.Status, "missing file id")

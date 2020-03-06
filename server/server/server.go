@@ -218,7 +218,8 @@ func (ps *PlikServer) getHTTPHandler() (handler http.Handler) {
 
 	// Redirect on error for webapp
 	stdChainWithRedirect := context.NewChain(middleware.RedirectOnFailure).AppendChain(stdChain)
-	authChainWithRedirect := context.NewChain(middleware.RedirectOnFailure).AppendChain(tokenChain)
+	authChainWithRedirect := context.NewChain(middleware.RedirectOnFailure).AppendChain(authChain)
+	//tokenChainWithRedirect := context.NewChain(middleware.RedirectOnFailure).AppendChain(tokenChain)
 
 	getFileChain := context.NewChain(middleware.Upload, middleware.File)
 
@@ -393,7 +394,11 @@ func (ps *PlikServer) initializeAuthenticator() (err error) {
 				}
 			}
 
-			ps.authenticator = &common.SessionAuthenticator{SignatureKey: setting.Value, SecureCookies: ps.config.EnhancedWebSecurity}
+			ps.authenticator = &common.SessionAuthenticator{
+				SignatureKey:        setting.Value,
+				EnhancedWebSecurity: ps.config.EnhancedWebSecurity,
+			}
+
 			return nil
 		}
 	}

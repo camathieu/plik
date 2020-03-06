@@ -67,13 +67,11 @@ func LocalLogin(ctx *context.Context, resp http.ResponseWriter, req *http.Reques
 		return
 	}
 
-	// Set Plik session cookie and xsrf cookie
-	sessionCookie, xsrfCookie, err := ctx.GetAuthenticator().GenAuthCookies(user)
+	// Generate and set session cookies
+	err = common.SetCookies(resp, ctx.GetAuthenticator(), user)
 	if err != nil {
-		ctx.InternalServerError("unable to generate session cookies", err)
+		ctx.InternalServerError("", err)
+		return
 	}
-	http.SetCookie(resp, sessionCookie)
-	http.SetCookie(resp, xsrfCookie)
-
 	_, _ = resp.Write([]byte("ok"))
 }

@@ -31,7 +31,6 @@ func GetArchive(ctx *context.Context, resp http.ResponseWriter, req *http.Reques
 		ctx.BadRequest("archive feature is not available in stream mode")
 		return
 	}
-
 	// Set content type
 	resp.Header().Set("Content-Type", "application/zip")
 

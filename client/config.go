@@ -38,6 +38,7 @@ type CliConfig struct {
 	AutoUpdate     bool
 	Token          string
 	DisableStdin   bool
+	Visibility     string
 
 	filePaths        []string
 	filenameOverride string
@@ -324,6 +325,12 @@ func (config *CliConfig) UnmarshalArgs(arguments map[string]interface{}) (err er
 
 	if arguments["--stdin"].(bool) {
 		config.DisableStdin = false
+	}
+
+	if arguments["--private"].(bool) {
+		config.Visibility = common.VisibilityPrivate
+	} else if arguments["--public"].(bool) {
+		config.Visibility = common.VisibilityPublic
 	}
 
 	return

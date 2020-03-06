@@ -20,6 +20,16 @@ const FileRemoved = "removed"
 // FileDeleted when a file has been deleted from the data backend
 const FileDeleted = "deleted"
 
+// IsValidFileStatus return true if value is a valid file status
+func IsValidFileStatus(value string) bool {
+	switch value {
+	case FileMissing, FileUploading, FileUploaded, FileRemoved, FileDeleted:
+		return true
+	default:
+		return false
+	}
+}
+
 // File object
 type File struct {
 	ID       string `json:"id"`
@@ -71,6 +81,14 @@ func (file *File) PrepareInsert(upload *Upload) (err error) {
 
 	if file.Name == "" {
 		return fmt.Errorf("missing file name")
+	}
+
+	if file.Status == "" {
+		file.Status = FileMissing
+	}
+
+	if !IsValidFileStatus(file.Status) {
+		return fmt.Errorf("invalid file status %s", file.Status)
 	}
 
 	// Check file name length

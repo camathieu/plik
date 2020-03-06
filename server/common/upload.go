@@ -7,6 +7,22 @@ import (
 	"time"
 )
 
+// VisibilityPublic for public uploads
+const VisibilityPublic string = "public"
+
+// VisibilityPrivate for private uploads
+const VisibilityPrivate string = "private"
+
+// IsValidVisibility return true if value is a valid visibility level
+func IsValidVisibility(value string) bool {
+	switch value {
+	case VisibilityPublic, VisibilityPrivate:
+		return true
+	default:
+		return false
+	}
+}
+
 var (
 	randRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
 )
@@ -34,6 +50,8 @@ type Upload struct {
 	ProtectedByPassword bool   `json:"protectedByPassword"`
 	Login               string `json:"login,omitempty"`
 	Password            string `json:"password,omitempty"`
+
+	Visibility string `json:"visibility"`
 
 	CreatedAt time.Time  `json:"createdAt"`
 	DeletedAt *time.Time `json:"-" gorm:"index:idx_upload_deleted_at"`
@@ -143,6 +161,14 @@ func (upload *Upload) PrepareInsert(config *Configuration) (err error) {
 		return fmt.Errorf("password protection is not enabled")
 	}
 
+	if upload.Visibility == "" {
+		upload.Visibility = VisibilityPublic
+	}
+
+	if !IsValidVisibility(upload.Visibility) {
+		return fmt.Errorf("invalid upload visibility : %s", upload.Visibility)
+	}
+
 	// TTL = Time in second before the upload expiration
 	// 0 	-> No ttl specified : default value from configuration
 	// -1	-> No expiration : checking with configuration if that's ok
@@ -181,6 +207,10 @@ func (upload *Upload) PrepareInsert(config *Configuration) (err error) {
 func (upload *Upload) PrepareInsertForTests() {
 	if upload.ID == "" {
 		upload.ID = GenerateRandomID(16)
+	}
+
+	if upload.Visibility == "" {
+		upload.Visibility = VisibilityPublic
 	}
 
 	if upload.ExpireAt == nil && upload.TTL > 0 {
