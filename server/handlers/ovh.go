@@ -252,6 +252,11 @@ func OvhCallback(ctx *context.Context, resp http.ResponseWriter, req *http.Reque
 	}
 
 	if user == nil {
+		err = handleInvite(ctx)
+		if err != nil {
+			handleHTTPError(ctx, err)
+			return
+		}
 		if ctx.IsWhitelisted() {
 			// Create new user
 			user = common.NewUser(common.ProviderOVH, userInfo.Nichandle)

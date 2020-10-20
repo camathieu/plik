@@ -60,6 +60,11 @@ func (user *User) NewToken() (token *Token) {
 	return token
 }
 
+// NewInvite create a new invite from a user
+func (user *User) NewInvite(validity time.Duration) (invite *Invite, err error) {
+	return NewInvite(user, validity)
+}
+
 // NewToken add a new token to a user
 func (user *User) String() string {
 	str := user.Provider + ":" + user.Login

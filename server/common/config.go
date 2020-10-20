@@ -21,24 +21,25 @@ type Configuration struct {
 
 	ListenAddress string `json:"-"`
 	ListenPort    int    `json:"-"`
-	Path          string `json:"-"`
+
+	Domain              string `json:"domain"`
+	DownloadDomain      string `json:"downloadDomain"`
+	Path          		string `json:"-"` // DEPRECATED since 1.3.1 use Domain instead
+	NoWebInterface      bool   `json:"-"`
+	EnhancedWebSecurity bool   `json:"-"`
+
+	SslEnabled bool   `json:"-"`
+	SslCert    string `json:"-"`
+	SslKey     string `json:"-"`
+
+	SourceIPHeader  string   `json:"-"`
+	UploadWhitelist []string `json:"-"`
 
 	MaxFileSize      int64 `json:"maxFileSize"`
 	MaxFilePerUpload int   `json:"maxFilePerUpload"`
 
 	DefaultTTL int `json:"defaultTTL"`
 	MaxTTL     int `json:"maxTTL"`
-
-	SslEnabled bool   `json:"-"`
-	SslCert    string `json:"-"`
-	SslKey     string `json:"-"`
-
-	NoWebInterface      bool   `json:"-"`
-	DownloadDomain      string `json:"downloadDomain"`
-	EnhancedWebSecurity bool   `json:"-"`
-
-	SourceIPHeader  string   `json:"-"`
-	UploadWhitelist []string `json:"-"`
 
 	Authentication       bool     `json:"authentication"`
 	NoAnonymousUploads   bool     `json:"-"`
@@ -60,6 +61,7 @@ type Configuration struct {
 	DataBackend       string                 `json:"-"`
 	DataBackendConfig map[string]interface{} `json:"-"`
 
+	domainURL *url.URL
 	downloadDomainURL *url.URL
 	uploadWhitelist   []*net.IPNet
 	clean             bool
@@ -72,7 +74,8 @@ func NewConfiguration() (config *Configuration) {
 
 	config.ListenAddress = "0.0.0.0"
 	config.ListenPort = 8080
-	config.EnhancedWebSecurity = false
+
+	config.Domain = fmt.Sprintf("http://127.0.0.1:%d", config.ListenPort)
 
 	config.MaxFileSize = 10000000000 // 10GB
 	config.MaxFilePerUpload = 1000
@@ -120,8 +123,6 @@ func (config *Configuration) Initialize() (err error) {
 		config.DebugRequests = true
 	}
 
-	config.Path = strings.TrimSuffix(config.Path, "/")
-
 	// UploadWhitelist is only parsed once at startup time
 	for _, cidr := range config.UploadWhitelist {
 		if !strings.Contains(cidr, "/") {
@@ -152,12 +153,33 @@ func (config *Configuration) Initialize() (err error) {
 		config.OvhAuthentication = false
 	}
 
+	config.Path = strings.TrimSuffix(config.Path, "/")
+
+	if config.Domain != "" {
+		strings.Trim(config.Domain, "/ ")
+		var err error
+		if config.downloadDomainURL, err = url.Parse(config.DownloadDomain); err != nil {
+			return fmt.Errorf("invalid download domain URL %s : %s", config.DownloadDomain, err)
+		}
+		if config.Path != "" {
+			config.domainURL.Path = config.Path
+		} else {
+			config.Path = config.domainURL.Path
+		}
+	}
+
 	if config.DownloadDomain != "" {
 		strings.Trim(config.DownloadDomain, "/ ")
 		var err error
 		if config.downloadDomainURL, err = url.Parse(config.DownloadDomain); err != nil {
 			return fmt.Errorf("invalid download domain URL %s : %s", config.DownloadDomain, err)
 		}
+		if config.Path != "" {
+			config.downloadDomainURL.Path = config.Path
+		}
+	} else if config.Domain != "" {
+		config.DownloadDomain = config.Domain
+		config.downloadDomainURL = config.domainURL
 	}
 
 	if config.DefaultTTL > config.MaxTTL {
@@ -200,8 +222,7 @@ func (config *Configuration) IsAutoClean() bool {
 // IsWhitelisted return weather or not the IP matches of the config upload whitelist
 func (config *Configuration) IsWhitelisted(ip net.IP) bool {
 	if len(config.uploadWhitelist) == 0 {
-		// Empty whitelist == accept all
-		return true
+		return !config.NoAnonymousUploads
 	}
 
 	// Check if the source IP address is in whitelist

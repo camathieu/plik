@@ -73,13 +73,13 @@ func init() {
 
 	userCmd.AddCommand(createUserCmd)
 	createUserCmd.Flags().StringVar(&userParams.name, "name", "", "user name")
-	createUserCmd.Flags().StringVar(&userParams.name, "email", "", "user email")
+	createUserCmd.Flags().StringVar(&userParams.email, "email", "", "user email")
 	createUserCmd.Flags().StringVar(&userParams.password, "password", "", "user password")
 	createUserCmd.Flags().BoolVar(&userParams.admin, "admin", false, "user admin")
 
 	userCmd.AddCommand(updateUserCmd)
 	updateUserCmd.Flags().StringVar(&userParams.name, "name", "", "user name")
-	updateUserCmd.Flags().StringVar(&userParams.name, "email", "", "user email")
+	updateUserCmd.Flags().StringVar(&userParams.email, "email", "", "user email")
 	updateUserCmd.Flags().StringVar(&userParams.password, "password", "", "user password")
 	updateUserCmd.Flags().BoolVar(&userParams.admin, "admin", false, "user admin")
 

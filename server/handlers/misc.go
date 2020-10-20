@@ -98,6 +98,31 @@ func checkDownloadDomain(ctx *context.Context) bool {
 	return true
 }
 
+func handleInvite(ctx *context.Context) (err error) {
+	req := ctx.GetReq()
+
+	inviteID := req.URL.Query().Get("invite")
+	if inviteID == "" {
+		return nil
+	}
+
+	invite, err := ctx.GetMetadataBackend().GetInvite(inviteID)
+	if err != nil {
+		return common.NewHTTPError("Error getting invite metadata", err, http.StatusInternalServerError)
+	}
+	if invite.HasExpired() {
+		_, err = ctx.GetMetadataBackend().DeleteInvite(invite.ID)
+		if err != nil {
+			return common.NewHTTPError("Error deleting expired invite metadata", err, http.StatusInternalServerError)
+		}
+		ctx.BadRequest("Invite has expired")
+		return
+	}
+
+	ctx.SetWhitelisted(true)
+	return nil
+}
+
 func getRedirectURL(ctx *context.Context, callbackPath string) (redirectURL string, err error) {
 	req := ctx.GetReq()
 
@@ -116,6 +141,11 @@ func getRedirectURL(ctx *context.Context, callbackPath string) (redirectURL stri
 		redirectURL += ctx.GetConfig().Path
 	}
 	redirectURL += callbackPath
+
+	inviteID := req.URL.Query().Get("invite")
+	if inviteID != "" {
+		redirectURL += fmt.Sprintf("?invite=%s", inviteID)
+	}
 
 	return redirectURL, nil
 }

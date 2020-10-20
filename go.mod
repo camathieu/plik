@@ -11,6 +11,8 @@ require (
 	github.com/docopt/docopt-go v0.0.0-20180111231733-ee0de3bc6815
 	github.com/dustin/go-humanize v1.0.1-0.20200219035652-afde56e7acac
 	github.com/fatih/color v1.9.0 // indirect
+	github.com/fogleman/gg v1.3.0 // indirect
+	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
 	github.com/golang/protobuf v1.3.2-0.20190409050943-e91709a02e0e // indirect
 	github.com/golang/snappy v0.0.2-0.20190904063534-ff6b7dc882cf
 	github.com/gorilla/mux v1.7.1
@@ -18,6 +20,7 @@ require (
 	github.com/iancoleman/strcase v0.0.0-20191112232945-16388991a334 // indirect
 	github.com/jinzhu/copier v0.0.0-20190924061706-b57f9002281a
 	github.com/jinzhu/gorm v1.9.13-0.20200126152832-7180bd0f27d1
+	github.com/jpoles1/gopherbadger v2.4.0+incompatible // indirect
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0
 	github.com/lib/pq v1.3.1-0.20200116171513-9eb3fc897d6f // indirect
 	github.com/mattn/go-colorable v0.1.6 // indirect
@@ -36,6 +39,7 @@ require (
 	github.com/stretchr/testify v1.3.1-0.20190311161405-34c6fa2dc709
 	go.opencensus.io v0.20.2 // indirect
 	golang.org/x/crypto v0.0.0-20191205180655-e7c4368fe9dd
+	golang.org/x/image v0.0.0-20200927104501-e162460cd6b5 // indirect
 	golang.org/x/oauth2 v0.0.0-20190402181905-9f3314589c9a
 	golang.org/x/text v0.3.1-0.20190410012825-f4905fbd45b6 // indirect
 	google.golang.org/api v0.3.3-0.20190418015003-33b7e862cd15

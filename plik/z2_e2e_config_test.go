@@ -101,7 +101,7 @@ func TestAnonymousUploadDisabled(t *testing.T) {
 
 	err = pc.NewUpload().Create()
 	require.Error(t, err, "should not be able to create anonymous upload")
-	require.Contains(t, err.Error(), "anonymous uploads are disabled", "invalid error")
+	require.Contains(t, err.Error(), "untrusted source IP address", "invalid error")
 
 	upload := pc.NewUpload()
 	upload.Token = token.Token
