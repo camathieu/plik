@@ -186,40 +186,43 @@ func GoogleCallback(ctx *context.Context, resp http.ResponseWriter, req *http.Re
 	}
 
 	if user == nil {
-		if ctx.IsWhitelisted() {
-			// Create new user
-			user = common.NewUser(common.ProviderGoogle, userInfo.Email)
-			user.Login = userInfo.Email
-			user.Name = userInfo.Name
-			user.Email = userInfo.Email
-			components := strings.Split(user.Email, "@")
+		if !ctx.IsWhitelisted() {
+			ctx.Forbidden("unable to create user from untrusted source IP address")
+			return
+		}
 
-			// Accepted user domain checking
-			goodDomain := false
-			if len(config.GoogleValidDomains) > 0 {
-				for _, validDomain := range config.GoogleValidDomains {
-					if strings.Compare(components[1], validDomain) == 0 {
-						goodDomain = true
-					}
+		// Create new user
+		user = common.NewUser(common.ProviderGoogle, userInfo.Email)
+		user.Login = userInfo.Email
+		user.Name = userInfo.Name
+		user.Email = userInfo.Email
+		components := strings.Split(user.Email, "@")
+
+		// Accepted user domain checking
+		goodDomain := false
+		if len(config.GoogleValidDomains) > 0 {
+			for _, validDomain := range config.GoogleValidDomains {
+				if strings.Compare(components[1], validDomain) == 0 {
+					goodDomain = true
 				}
-			} else {
-				goodDomain = true
-			}
-
-			if !goodDomain {
-				// User not from accepted google domains list
-				ctx.Forbidden("unauthorized domain name")
-				return
-			}
-
-			// Save user to metadata backend
-			err = ctx.GetMetadataBackend().CreateUser(user)
-			if err != nil {
-				ctx.InternalServerError("unable to create user : %s", err)
-				return
 			}
 		} else {
-			ctx.Forbidden("unable to create user from untrusted source IP address")
+			goodDomain = true
+		}
+
+		if !goodDomain {
+			// User not from accepted google domains list
+			ctx.Forbidden("unauthorized domain name")
+			return
+		}
+
+		// Trust user info
+		user.Verified = true
+
+		// Save user to metadata backend
+		err = ctx.GetMetadataBackend().CreateUser(user)
+		if err != nil {
+			ctx.InternalServerError("unable to create user : %s", err)
 			return
 		}
 	}
@@ -228,6 +231,7 @@ func GoogleCallback(ctx *context.Context, resp http.ResponseWriter, req *http.Re
 	sessionCookie, xsrfCookie, err := ctx.GetAuthenticator().GenAuthCookies(user)
 	if err != nil {
 		ctx.InternalServerError("unable to generate session cookies", err)
+		return
 	}
 	http.SetCookie(resp, sessionCookie)
 	http.SetCookie(resp, xsrfCookie)

@@ -30,6 +30,10 @@ plik.controller('HomeCtrl', ['$scope', '$api', '$config', '$dialog', '$location'
         // Handle user promise
         var loadUser = function (promise) {
             promise.then(function (user) {
+                if (!user.verified) {
+                    $location.path('/confirm');
+                    return;
+                }
                 $scope.user = user;
                 $scope.getUploads();
                 $scope.getTokens();

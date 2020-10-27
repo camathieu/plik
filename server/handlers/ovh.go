@@ -252,21 +252,24 @@ func OvhCallback(ctx *context.Context, resp http.ResponseWriter, req *http.Reque
 	}
 
 	if user == nil {
-		if ctx.IsWhitelisted() {
-			// Create new user
-			user = common.NewUser(common.ProviderOVH, userInfo.Nichandle)
-			user.Login = userInfo.Nichandle
-			user.Name = userInfo.FirstName + " " + userInfo.LastName
-			user.Email = userInfo.Email
-
-			// Save user to metadata backend
-			err = ctx.GetMetadataBackend().CreateUser(user)
-			if err != nil {
-				ctx.InternalServerError("unable to create user in metadata backend", err)
-				return
-			}
-		} else {
+		if !ctx.IsWhitelisted() {
 			ctx.Forbidden("unable to create user from untrusted source IP address")
+			return
+		}
+
+		// Create new user
+		user = common.NewUser(common.ProviderOVH, userInfo.Nichandle)
+		user.Login = userInfo.Nichandle
+		user.Name = userInfo.FirstName + " " + userInfo.LastName
+		user.Email = userInfo.Email
+
+		// Trust user info
+		user.Verified = true
+
+		// Save user to metadata backend
+		err = ctx.GetMetadataBackend().CreateUser(user)
+		if err != nil {
+			ctx.InternalServerError("unable to create user in metadata backend", err)
 			return
 		}
 	}
@@ -275,6 +278,7 @@ func OvhCallback(ctx *context.Context, resp http.ResponseWriter, req *http.Reque
 	sessionCookie, xsrfCookie, err := ctx.GetAuthenticator().GenAuthCookies(user)
 	if err != nil {
 		ctx.InternalServerError("unable to generate session cookies", err)
+		return
 	}
 	http.SetCookie(resp, sessionCookie)
 	http.SetCookie(resp, xsrfCookie)

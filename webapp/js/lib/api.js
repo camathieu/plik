@@ -92,10 +92,22 @@ angular.module('api', ['ngFileUpload']).factory('$api', function ($http, $q, Upl
     api.login = function (provider, login, password) {
         var url = api.base + '/auth/' + provider + '/login';
         if (provider === "local") {
-            return api.call(url, 'POST', {}, {login: login, password: password})
+            return api.call(url, 'POST', {}, {login: login, password: password});
         } else {
             return api.call(url, 'GET');
         }
+    };
+
+    // Register
+    api.register = function (params) {
+        var url = api.base + '/auth/local/register';
+        return api.call(url, 'POST', {}, params);
+    };
+
+    // Resend confirmation email
+    api.resend = function () {
+        var url = api.base + '/auth/local/confirm';
+        return api.call(url, 'POST');
     };
 
     // Log out

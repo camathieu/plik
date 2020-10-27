@@ -1,5 +1,5 @@
-// Login controller
-plik.controller('LoginCtrl', ['$scope', '$api', '$config', '$location', '$dialog',
+// Register controller
+plik.controller('RegisterCtrl', ['$scope', '$api', '$config', '$location', '$dialog',
     function ($scope, $api, $config, $location, $dialog) {
 
         // Ugly but it works
@@ -11,8 +11,8 @@ plik.controller('LoginCtrl', ['$scope', '$api', '$config', '$location', '$dialog
         $config.getConfig()
             .then(function (config) {
                 $scope.config = config;
-                // Check if authentication is enabled server side
-                if (!config.authentication) {
+                // Check if token authentication is enabled server side
+                if (!config.authentication || config.registration === 'closed') {
                     $location.path('/');
                 }
             })
@@ -60,18 +60,30 @@ plik.controller('LoginCtrl', ['$scope', '$api', '$config', '$location', '$dialog
         };
 
         // Login with local user
-        $scope.login = function () {
-            $api.login("local", $scope.username, $scope.password)
-                .then(function () {
+        $scope.signup = function () {
+            if ($scope.password !== $scope.confirmPassword) {
+                $dialog.alert("password confirmation mismatch");
+                return
+            }
+
+            var params = {
+                login : $scope.login,
+                name : $scope.name,
+                email : $scope.email,
+                password : $scope.password,
+            };
+
+            $api.register(params)
+                .then(function (user) {
                     $config.refreshUser();
-                    $location.path('/home');
+                    if (user.verified) {
+                        $location.path('/home');
+                    } else {
+                        $location.path('/confirm');
+                    }
                 })
                 .then(null, function (error) {
                     $dialog.alert(error);
                 });
         };
-
-        $scope.signup = function() {
-            $location.path('/register');
-        }
     }]);
